@@ -136,13 +136,12 @@ export function CatalogViewContainer({
 
   // Filtrado de productos
   const filteredProducts = products.filter((product) => {
-    // Pestaña Favoritos
-    if (mainTab === 'favoritos' && !favProducts.has(product.id)) {
-      return false;
-    }
-
-    // Filtro por vendedor seleccionado
-    if (selectedSellerId && product.seller_id !== selectedSellerId) {
+    // Si hay un vendedor seleccionado específicamente, mostramos todos sus productos
+    if (selectedSellerId) {
+      if (product.seller_id !== selectedSellerId) {
+        return false;
+      }
+    } else if (mainTab === 'favoritos' && !favProducts.has(product.id)) {
       return false;
     }
 

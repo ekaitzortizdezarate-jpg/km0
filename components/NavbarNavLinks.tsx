@@ -10,8 +10,7 @@ import {
   Calendar,
   MessageCircle,
   Store,
-  Sprout,
-  Carrot,
+  LayoutGrid,
 } from 'lucide-react';
 import type { Profile } from '@/types/database';
 import { CartNavButton } from '@/components/CartNavButton';
@@ -87,21 +86,22 @@ export function NavbarNavLinks({
 
   return (
     <div className="flex items-center gap-1.5 sm:gap-2">
-      {/* 1. Catálogo con icono de huerta */}
+      {/* 1. Catálogo (solo icono) */}
       <Link
         href="/"
-        className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs sm:text-sm transition-all flex items-center gap-1.5 ${
+        title="Catálogo de Productos"
+        aria-label="Catálogo de Productos"
+        className={`p-2 sm:px-3 sm:py-2 rounded-xl text-xs sm:text-sm transition-all flex items-center justify-center ${
           isCatalogueActive
             ? 'bg-emerald-800 text-white font-black shadow-sm'
             : 'text-stone-700 hover:text-emerald-800 hover:bg-stone-100 font-bold'
         }`}
       >
-        <Sprout
-          className={`w-4 h-4 ${
-            isCatalogueActive ? 'text-white' : 'text-emerald-700'
+        <LayoutGrid
+          className={`w-5 h-5 ${
+            isCatalogueActive ? 'text-white' : 'text-emerald-800'
           }`}
         />
-        <span>Huerta & Catálogo</span>
       </Link>
 
       {/* 2. Cesta (solo compradores/visitantes) */}

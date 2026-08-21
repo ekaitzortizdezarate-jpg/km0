@@ -412,12 +412,24 @@ export default function CartPage() {
                                 : 'ud'}
                             </p>
 
-                            {item.deliveryBadge && (
+                            {item.estimatedDeliveryDate ? (
                               <div className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-900 bg-emerald-100 px-2 py-0.5 rounded-md mt-1 border border-emerald-300">
                                 <Clock className="w-3 h-3 text-emerald-700 shrink-0" />
-                                <span>Entrega: {item.deliveryBadge}</span>
+                                <span>
+                                  Fecha estimada de entrega:{' '}
+                                  {new Date(item.estimatedDeliveryDate).toLocaleDateString('es-ES', {
+                                    weekday: 'short',
+                                    day: 'numeric',
+                                    month: 'short',
+                                  })}
+                                </span>
                               </div>
-                            )}
+                            ) : item.deliveryBadge ? (
+                              <div className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-900 bg-emerald-100 px-2 py-0.5 rounded-md mt-1 border border-emerald-300">
+                                <Clock className="w-3 h-3 text-emerald-700 shrink-0" />
+                                <span>Fecha estimada de entrega: {item.deliveryBadge}</span>
+                              </div>
+                            ) : null}
                           </div>
                         </div>
 
@@ -795,11 +807,20 @@ export default function CartPage() {
                                 {it.quantity} {it.format === 'granel' ? 'kg' : 'uds'} x {it.unitPrice.toFixed(2)} €
                               </span>
 
-                              {it.deliveryBadge && (
-                                <span className="text-[10px] text-emerald-800 font-bold block">
-                                  📅 Plazo: {it.deliveryBadge}
+                              {it.estimatedDeliveryDate ? (
+                                <span className="text-[10px] text-emerald-900 font-bold block">
+                                  📅 Fecha estimada de entrega:{' '}
+                                  {new Date(it.estimatedDeliveryDate).toLocaleDateString('es-ES', {
+                                    weekday: 'long',
+                                    day: 'numeric',
+                                    month: 'long',
+                                  })}
                                 </span>
-                              )}
+                              ) : it.deliveryBadge ? (
+                                <span className="text-[10px] text-emerald-900 font-bold block">
+                                  📅 Fecha estimada de entrega: {it.deliveryBadge}
+                                </span>
+                              ) : null}
                             </div>
                           </div>
 
