@@ -4,6 +4,125 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 
+export interface CartCheckoutSellerGroup {
+  sellerId: string;
+  deliveryType: 'sitio_fisico' | 'envio';
+  deliveryPointId?: string | null;
+  shippingAddress?: string | null;
+  estimatedDeliveryDate?: string | null;
+  items: {
+    productId: string;
+    quantity: number;
+    unitPrice: number;
+  }[];
+}
+
+export async function createCartOrders(sellerGroups: CartCheckoutSellerGroup[]) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: 'Debes iniciar sesión para realizar la compra.' };
+  }
+
+  if (!sellerGroups || sellerGroups.length === 0) {
+    return { error: 'La cesta está vacía.' };
+  }
+
+  try {
+    for (const group of sellerGroups) {
+      const groupTotal = group.items.reduce(
+        (sum, item) => sum + item.unitPrice * item.quantity,
+        0
+      );
+
+      // Intento 1: Insertar pedido con estimated_delivery_date
+      let orderId: string | null = null;
+
+      const fullOrderPayload = {
+        buyer_id: user.id,
+        seller_id: group.sellerId,
+        delivery_point_id: group.deliveryType === 'sitio_fisico' ? group.deliveryPointId || null : null,
+        shipping_address: group.deliveryType === 'envio' ? group.shippingAddress || null : null,
+        status: 'pendiente',
+        total_amount: groupTotal,
+        is_recurring: false,
+        estimated_delivery_date: group.estimatedDeliveryDate || null,
+      };
+
+      const { data: fullOrder, error: fullOrderErr } = await supabase
+        .from('orders')
+        .insert(fullOrderPayload)
+        .select('id')
+        .single();
+
+      if (fullOrderErr) {
+        // Fallback si la columna estimated_delivery_date aún no existe en Supabase
+        const fallbackOrderPayload = {
+          buyer_id: user.id,
+          seller_id: group.sellerId,
+          delivery_point_id: group.deliveryType === 'sitio_fisico' ? group.deliveryPointId || null : null,
+          shipping_address: group.deliveryType === 'envio' ? group.shippingAddress || null : null,
+          status: 'pendiente',
+          total_amount: groupTotal,
+          is_recurring: false,
+        };
+
+        const { data: fallbackOrder, error: fallbackErr } = await supabase
+          .from('orders')
+          .insert(fallbackOrderPayload)
+          .select('id')
+          .single();
+
+        if (fallbackErr || !fallbackOrder) {
+          return { error: fallbackErr?.message || 'Error al procesar el pedido.' };
+        }
+        orderId = fallbackOrder.id;
+      } else {
+        orderId = fullOrder.id;
+      }
+
+      // Insertar líneas del pedido
+      for (const item of group.items) {
+        await supabase.from('order_items').insert({
+          order_id: orderId,
+          product_id: item.productId,
+          quantity: item.quantity,
+          unit_price: item.unitPrice,
+          subtotal: item.unitPrice * item.quantity,
+        });
+
+        // Actualizar stock
+        const { data: prod } = await supabase
+          .from('products')
+          .select('stock, is_unlimited_stock')
+          .eq('id', item.productId)
+          .single();
+
+        if (prod && !prod.is_unlimited_stock) {
+          await supabase
+            .from('products')
+            .update({ stock: Math.max(0, prod.stock - item.quantity) })
+            .eq('id', item.productId);
+        }
+      }
+    }
+
+    revalidatePath('/comprador/pedidos');
+    revalidatePath('/vendedor/pedidos');
+    revalidatePath('/comprador/calendario');
+    revalidatePath('/vendedor/calendario');
+
+    return { success: true };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Error al tramitar la cesta.';
+    return { error: message };
+  }
+}
+
 export async function createOrder(formData: FormData) {
   const supabase = await createClient();
 

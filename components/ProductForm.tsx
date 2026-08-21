@@ -13,14 +13,12 @@ import {
   Check,
   Tag,
   Calendar,
-  X,
   History,
 } from 'lucide-react';
 import { ImageSelector } from '@/components/ImageSelector';
-import { TouchNumberInput } from '@/components/TouchNumberInput';
 
 interface ProductFormProps {
-  product?: Product; // If provided, edit mode
+  product?: Product;
   isEdit?: boolean;
   existingProducts?: Product[];
 }
@@ -59,7 +57,7 @@ export function ProductForm({
     product?.weight_kg ? 'peso' : 'unidad'
   );
 
-  // Values for auto-calculation
+  // Values for price, weight, stock
   const [price, setPrice] = useState<number>(product?.price || 0);
   const [pricePerKilo, setPricePerKilo] = useState<number>(
     product?.price_per_kilo || 0
@@ -70,24 +68,32 @@ export function ProductForm({
     Boolean(product?.is_unlimited_stock)
   );
 
-  // Delivery conditions
-  const [availabilityType, setAvailabilityType] = useState<AvailabilityType>(
-    product?.availability_type || 'inmediato'
-  );
-  const [availabilityDays, setAvailabilityDays] = useState<number>(
-    product?.availability_days || 2
-  );
-  const [enableWeekdays, setEnableWeekdays] = useState<boolean>(
-    Boolean(product?.availability_weekdays && product.availability_weekdays.length > 0)
-  );
-  const [selectedWeekdays, setSelectedWeekdays] = useState<string[]>(
-    product?.availability_weekdays || ['viernes']
+  // Paso 1: Disponibilidad del producto
+  const [availType, setAvailType] = useState<'ya' | 'fecha'>(
+    product?.availability_type === 'fecha_concreta' && product?.available_from_date
+      ? 'fecha'
+      : 'ya'
   );
   const [availableFromDate, setAvailableFromDate] = useState<string>(
     product?.available_from_date || ''
   );
 
-  // Unique list of previous product names for autocomplete / dropdown
+  // Paso 2: Plazo y Método de entrega
+  const [deliveryMode, setDeliveryMode] = useState<'dias' | 'dias_semana'>(
+    product?.availability_weekdays && product.availability_weekdays.length > 0
+      ? 'dias_semana'
+      : 'dias'
+  );
+  const [deliveryDays, setDeliveryDays] = useState<number>(
+    product?.availability_days !== null && product?.availability_days !== undefined
+      ? product.availability_days
+      : 1
+  );
+  const [selectedWeekdays, setSelectedWeekdays] = useState<string[]>(
+    product?.availability_weekdays || ['viernes']
+  );
+
+  // Previous products for dropdown autocomplete
   const uniquePreviousProducts = Array.from(
     new Map(existingProducts.map((p) => [p.name.trim().toLowerCase(), p])).values()
   );
@@ -170,16 +176,24 @@ export function ProductForm({
     if (isUnlimitedStock) {
       formData.set('is_unlimited_stock', 'on');
     }
-    formData.set('availability_type', availabilityType);
-    if (availabilityType === 'dias') {
-      formData.set('availability_days', availabilityDays.toString());
-    }
-    if (availabilityType === 'fecha_concreta') {
+
+    // Disponibilidad y entrega
+    const calculatedAvailabilityType: AvailabilityType =
+      availType === 'fecha' ? 'fecha_concreta' : deliveryMode === 'dias_semana' ? 'dias_semana' : 'dias';
+
+    formData.set('availability_type', calculatedAvailabilityType);
+
+    if (availType === 'fecha') {
       formData.set('available_from_date', availableFromDate);
+    } else {
+      formData.set('available_from_date', '');
     }
 
-    formData.delete('availability_weekdays');
-    if (enableWeekdays && selectedWeekdays.length > 0) {
+    if (deliveryMode === 'dias') {
+      formData.set('availability_days', deliveryDays.toString());
+      formData.delete('availability_weekdays');
+    } else {
+      formData.delete('availability_weekdays');
       selectedWeekdays.forEach((day) => {
         formData.append('availability_weekdays', day);
       });
@@ -285,19 +299,18 @@ export function ProductForm({
 
             {uniquePreviousProducts.length > 0 && !isEdit && (
               <span className="text-[11px] font-bold text-emerald-800 flex items-center gap-1">
-                <History className="w-3.5 h-3.5" /> Opciones de tus productos anteriores:
+                <History className="w-3.5 h-3.5" /> Tus productos anteriores:
               </span>
             )}
           </div>
 
-          {/* Desplegable de productos anteriores si existen */}
           {uniquePreviousProducts.length > 0 && !isEdit && (
             <div className="mb-2">
               <select
                 onChange={(e) => handleSelectPreviousProduct(e.target.value)}
                 className="w-full px-3 py-2 border-2 border-emerald-300 rounded-xl text-xs font-bold text-emerald-950 bg-emerald-50 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
               >
-                <option value="">-- Elige uno de tus productos anteriores para rellenar --</option>
+                <option value="">-- Selecciona uno de tus productos anteriores para rellenar rápido --</option>
                 {uniquePreviousProducts.map((p) => (
                   <option key={p.id} value={p.name}>
                     {p.name} ({p.category.replace('_', ' ')})
@@ -307,23 +320,15 @@ export function ProductForm({
             </div>
           )}
 
-          <div className="relative">
-            <input
-              name="name"
-              type="text"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              list="seller-previous-products"
-              placeholder="Ej. Lechuga, Tomate de caserío, Queso Idiazabal..."
-              className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none placeholder:text-stone-400"
-            />
-            <datalist id="seller-previous-products">
-              {uniquePreviousProducts.map((p) => (
-                <option key={`dl-${p.id}`} value={p.name} />
-              ))}
-            </datalist>
-          </div>
+          <input
+            name="name"
+            type="text"
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Ej. Lechuga, Tomate de caserío, Queso Idiazabal..."
+            className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none placeholder:text-stone-400"
+          />
         </div>
 
         <div>
@@ -349,7 +354,7 @@ export function ProductForm({
         </div>
       </div>
 
-      {/* 3. PRECIO Y PESO SEGÚN FORMATO */}
+      {/* 3. PRECIO Y STOCK (ENTRADA NUMÉRICA LIMPIA COMO PRECIO) */}
       <div className="bg-stone-50 p-4 sm:p-5 rounded-2xl border border-stone-200 space-y-4">
         <h3 className="text-xs font-black text-stone-900 uppercase tracking-wider">
           Configuración de Precio y Stock
@@ -371,7 +376,7 @@ export function ProductForm({
                   value={pricePerKilo || ''}
                   onChange={(e) => handlePricePerKiloChange(parseFloat(e.target.value) || 0)}
                   placeholder="Ej. 3.50"
-                  className="w-36 px-3 py-2 border-2 border-stone-300 rounded-xl text-base font-black text-stone-900 bg-white"
+                  className="w-36 px-3.5 py-2 border-2 border-stone-300 rounded-xl text-base font-black text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
                 />
                 <span className="text-sm font-bold text-stone-700">€ / kg</span>
               </div>
@@ -393,21 +398,37 @@ export function ProductForm({
                 </label>
               </div>
 
-              {!isUnlimitedStock ? (
-                <TouchNumberInput
-                  name="stock"
-                  label="Kilos disponibles"
-                  min={1}
-                  max={500}
-                  value={stock}
-                  onChange={setStock}
-                  unit="kg"
-                  quickOptions={[5, 10, 20, 50, 100]}
-                />
-              ) : (
-                <p className="text-xs font-semibold text-emerald-800 bg-emerald-50 p-2.5 rounded-lg border border-emerald-200">
-                  ✓ El producto siempre estará disponible sin límite de kilos establecido.
-                </p>
+              {!isUnlimitedStock && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="1"
+                      value={stock || ''}
+                      onChange={(e) => setStock(parseInt(e.target.value, 10) || 0)}
+                      placeholder="Ej. 50"
+                      className="w-36 px-3.5 py-2 border-2 border-stone-300 rounded-xl text-base font-black text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                    />
+                    <span className="text-sm font-bold text-stone-700">kg en stock</span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5">
+                    {[5, 10, 20, 50, 100].map((num) => (
+                      <button
+                        type="button"
+                        key={num}
+                        onClick={() => setStock(num)}
+                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all border ${
+                          stock === num
+                            ? 'bg-emerald-700 text-white border-emerald-800'
+                            : 'bg-white text-stone-700 border-stone-300 hover:bg-stone-100'
+                        }`}
+                      >
+                        {num} kg
+                      </button>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
           </div>
@@ -480,7 +501,7 @@ export function ProductForm({
                       value={price || ''}
                       onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
                       placeholder="Ej. 1.80"
-                      className="w-36 px-3.5 py-2 border-2 border-stone-300 rounded-xl text-base font-black text-stone-900 bg-white"
+                      className="w-36 px-3.5 py-2 border-2 border-stone-300 rounded-xl text-base font-black text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
                     />
                     <span className="text-sm font-bold text-stone-700">€ / unidad</span>
                   </div>
@@ -502,21 +523,37 @@ export function ProductForm({
                     </label>
                   </div>
 
-                  {!isUnlimitedStock ? (
-                    <TouchNumberInput
-                      name="stock"
-                      label="Unidades en stock"
-                      min={1}
-                      max={200}
-                      value={stock}
-                      onChange={setStock}
-                      unit="uds"
-                      quickOptions={[1, 5, 10, 20, 50]}
-                    />
-                  ) : (
-                    <p className="text-xs font-semibold text-emerald-800 bg-emerald-50 p-2.5 rounded-lg border border-emerald-200">
-                      ✓ Unidades siempre disponibles sin límite de stock.
-                    </p>
+                  {!isUnlimitedStock && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="1"
+                          value={stock || ''}
+                          onChange={(e) => setStock(parseInt(e.target.value, 10) || 0)}
+                          placeholder="Ej. 20"
+                          className="w-36 px-3.5 py-2 border-2 border-stone-300 rounded-xl text-base font-black text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                        />
+                        <span className="text-sm font-bold text-stone-700">unidades</span>
+                      </div>
+
+                      <div className="flex flex-wrap gap-1.5">
+                        {[1, 5, 10, 20, 50].map((num) => (
+                          <button
+                            type="button"
+                            key={num}
+                            onClick={() => setStock(num)}
+                            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all border ${
+                              stock === num
+                                ? 'bg-emerald-700 text-white border-emerald-800'
+                                : 'bg-stone-50 text-stone-700 border-stone-300 hover:bg-stone-100'
+                            }`}
+                          >
+                            {num} uds
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
@@ -538,7 +575,7 @@ export function ProductForm({
                       value={weightKg || ''}
                       onChange={(e) => handleWeightKgChange(parseFloat(e.target.value) || 0)}
                       placeholder="Ej. 1.2"
-                      className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white"
+                      className="w-full px-3.5 py-2 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
                     />
                   </div>
 
@@ -554,7 +591,7 @@ export function ProductForm({
                       value={price || ''}
                       onChange={(e) => handlePriceChange(parseFloat(e.target.value) || 0)}
                       placeholder="Ej. 12.00"
-                      className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white"
+                      className="w-full px-3.5 py-2 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
                     />
                   </div>
 
@@ -569,21 +606,44 @@ export function ProductForm({
                       value={pricePerKilo || ''}
                       onChange={(e) => handlePricePerKiloChange(parseFloat(e.target.value) || 0)}
                       placeholder="Calculado solo"
-                      className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white"
+                      className="w-full px-3.5 py-2 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
                     />
                   </div>
                 </div>
 
-                <TouchNumberInput
-                  name="stock"
-                  label="Piezas disponibles en stock"
-                  min={1}
-                  max={100}
-                  value={stock}
-                  onChange={setStock}
-                  unit="piezas"
-                  quickOptions={[1, 5, 10, 20]}
-                />
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-stone-800">
+                    Piezas disponibles en stock:
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="1"
+                      value={stock || ''}
+                      onChange={(e) => setStock(parseInt(e.target.value, 10) || 0)}
+                      placeholder="Ej. 10"
+                      className="w-36 px-3.5 py-2 border-2 border-stone-300 rounded-xl text-base font-black text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                    />
+                    <span className="text-sm font-bold text-stone-700">piezas</span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5">
+                    {[1, 5, 10, 20].map((num) => (
+                      <button
+                        type="button"
+                        key={num}
+                        onClick={() => setStock(num)}
+                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all border ${
+                          stock === num
+                            ? 'bg-emerald-700 text-white border-emerald-800'
+                            : 'bg-stone-50 text-stone-700 border-stone-300 hover:bg-stone-100'
+                        }`}
+                      >
+                        {num} piezas
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -605,7 +665,7 @@ export function ProductForm({
                   value={price || ''}
                   onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
                   placeholder="Ej. 25.00"
-                  className="w-36 px-3 py-2 border-2 border-stone-300 rounded-xl text-base font-black text-stone-900 bg-white"
+                  className="w-36 px-3.5 py-2 border-2 border-stone-300 rounded-xl text-base font-black text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
                 />
                 <span className="text-sm font-bold text-stone-700">€ / pack</span>
               </div>
@@ -621,7 +681,7 @@ export function ProductForm({
                 required
                 defaultValue={product?.pack_items || ''}
                 placeholder="Ej. 1kg Tomate de caserío, 500g Pimientos de Gernika, 1 Lechuga de roble, 1 docena de Huevos camperos..."
-                className="w-full px-3.5 py-2 border-2 border-stone-300 rounded-xl text-xs font-semibold text-stone-900 bg-white placeholder:text-stone-400"
+                className="w-full px-3.5 py-2 border-2 border-stone-300 rounded-xl text-xs font-semibold text-stone-900 bg-white placeholder:text-stone-400 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
               />
             </div>
 
@@ -641,182 +701,203 @@ export function ProductForm({
                 </label>
               </div>
 
-              {!isUnlimitedStock ? (
-                <TouchNumberInput
-                  name="stock"
-                  label="Packs disponibles"
-                  min={1}
-                  max={50}
-                  value={stock}
-                  onChange={setStock}
-                  unit="packs"
-                  quickOptions={[1, 3, 5, 10]}
-                />
-              ) : (
-                <p className="text-xs font-semibold text-emerald-800 bg-emerald-50 p-2.5 rounded-lg border border-emerald-200">
-                  ✓ Packs siempre disponibles sin límite de stock.
-                </p>
+              {!isUnlimitedStock && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="1"
+                      value={stock || ''}
+                      onChange={(e) => setStock(parseInt(e.target.value, 10) || 0)}
+                      placeholder="Ej. 10"
+                      className="w-36 px-3.5 py-2 border-2 border-stone-300 rounded-xl text-base font-black text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                    />
+                    <span className="text-sm font-bold text-stone-700">packs</span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5">
+                    {[1, 3, 5, 10, 20].map((num) => (
+                      <button
+                        type="button"
+                        key={num}
+                        onClick={() => setStock(num)}
+                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all border ${
+                          stock === num
+                            ? 'bg-emerald-700 text-white border-emerald-800'
+                            : 'bg-stone-50 text-stone-700 border-stone-300 hover:bg-stone-100'
+                        }`}
+                      >
+                        {num} packs
+                      </button>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
           </div>
         )}
       </div>
 
-      {/* 4. CONDICIONES DE DISPONIBILIDAD Y ENTREGA (COMBINABLES) */}
-      <div className="bg-stone-50 p-4 sm:p-5 rounded-2xl border border-stone-200 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Clock className="w-5 h-5 text-emerald-700" />
-            <h3 className="text-xs font-black text-stone-900 uppercase tracking-wider">
-              Condiciones de Disponibilidad y Entrega
-            </h3>
-          </div>
+      {/* 4. CONDICIONES DE DISPONIBILIDAD Y ENTREGA (EN 2 PASOS CLAROS) */}
+      <div className="bg-stone-50 p-4 sm:p-5 rounded-2xl border border-stone-200 space-y-5">
+        <div className="flex items-center gap-2">
+          <Clock className="w-5 h-5 text-emerald-700" />
+          <h3 className="text-xs font-black text-stone-900 uppercase tracking-wider">
+            Disponibilidad y Plazo de Entrega
+          </h3>
         </div>
 
-        {/* Resumen de Condiciones Seleccionadas Activas con botones para editar o quitar */}
-        <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 space-y-2">
-          <span className="text-[11px] font-black text-emerald-950 block">
-            Condiciones activas para esta cosecha:
-          </span>
-          <div className="flex flex-wrap gap-2">
-            {/* Plazo Base Activo */}
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-emerald-300 rounded-lg text-xs font-extrabold text-emerald-950 shadow-sm">
-              <Clock className="w-3.5 h-3.5 text-emerald-700" />
-              {availabilityType === 'inmediato' && 'Listo en 24h'}
-              {availabilityType === 'dias' && `Preparación en ${availabilityDays} días`}
-              {availabilityType === 'fecha_concreta' &&
-                (availableFromDate ? `A partir del ${availableFromDate}` : 'Fecha concreta')}
-            </span>
-
-            {/* Días Fijos Activos */}
-            {enableWeekdays && selectedWeekdays.length > 0 && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-700 text-white rounded-lg text-xs font-extrabold shadow-sm">
-                <Calendar className="w-3.5 h-3.5" />
-                Entregas: {selectedWeekdays.join(', ')}
-                <button
-                  type="button"
-                  onClick={() => setEnableWeekdays(false)}
-                  className="hover:text-red-300 ml-1"
-                  title="Quitar días fijos"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Paso 1: Plazo base */}
+        {/* PASO A: ¿Cuándo está disponible el producto / cosecha? */}
         <div className="space-y-2">
-          <label className="block text-xs font-bold text-stone-800">
-            1. ¿Cuándo está listo el producto? (Plazo base)
+          <label className="block text-xs font-black text-stone-900">
+            A) Disponibilidad del producto en tu caserío:
           </label>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <button
               type="button"
-              onClick={() => setAvailabilityType('inmediato')}
-              className={`p-3 rounded-xl border-2 text-left transition-all ${
-                availabilityType === 'inmediato'
+              onClick={() => setAvailType('ya')}
+              className={`p-3.5 rounded-xl border-2 text-left transition-all ${
+                availType === 'ya'
                   ? 'border-emerald-700 bg-white ring-2 ring-emerald-600 font-bold shadow-sm'
-                  : 'border-stone-200 bg-white text-stone-700'
+                  : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-100'
               }`}
             >
-              <span className="text-xs font-bold block text-stone-900">
-                ⚡ Disponible ya
+              <span className="text-xs font-black block text-stone-900 flex items-center gap-1.5">
+                ⚡ Disponible desde ya
               </span>
-              <span className="text-[11px] text-stone-600">Listo en 24h</span>
+              <span className="text-[11px] font-semibold text-stone-600 block mt-0.5">
+                El producto ya está cosechado o listo para servir.
+              </span>
             </button>
 
             <button
               type="button"
-              onClick={() => setAvailabilityType('dias')}
-              className={`p-3 rounded-xl border-2 text-left transition-all ${
-                availabilityType === 'dias'
+              onClick={() => setAvailType('fecha')}
+              className={`p-3.5 rounded-xl border-2 text-left transition-all ${
+                availType === 'fecha'
                   ? 'border-emerald-700 bg-white ring-2 ring-emerald-600 font-bold shadow-sm'
-                  : 'border-stone-200 bg-white text-stone-700'
+                  : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-100'
               }`}
             >
-              <span className="text-xs font-bold block text-stone-900">
-                ⏳ X días tras el pedido
+              <span className="text-xs font-black block text-stone-900 flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-emerald-700" /> A partir de una fecha concreta
               </span>
-              <span className="text-[11px] text-stone-600">Tiempo de recolección</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setAvailabilityType('fecha_concreta')}
-              className={`p-3 rounded-xl border-2 text-left transition-all ${
-                availabilityType === 'fecha_concreta'
-                  ? 'border-emerald-700 bg-white ring-2 ring-emerald-600 font-bold shadow-sm'
-                  : 'border-stone-200 bg-white text-stone-700'
-              }`}
-            >
-              <span className="text-xs font-bold block text-stone-900">
-                🗓️ A partir de una fecha
+              <span className="text-[11px] font-semibold text-stone-600 block mt-0.5">
+                Próxima cosecha programada (los compradores pueden reservarlo ya).
               </span>
-              <span className="text-[11px] text-stone-600">Inicio de cosecha</span>
             </button>
           </div>
 
-          {availabilityType === 'dias' && (
-            <div className="pt-2">
-              <TouchNumberInput
-                name="availability_days"
-                label="Días necesarios para preparar:"
-                min={1}
-                max={14}
-                value={availabilityDays}
-                onChange={setAvailabilityDays}
-                unit="días"
-                quickOptions={[1, 2, 3, 5, 7]}
-              />
-            </div>
-          )}
-
-          {availabilityType === 'fecha_concreta' && (
-            <div className="pt-2 space-y-1">
+          {availType === 'fecha' && (
+            <div className="p-3 bg-white rounded-xl border border-stone-200 space-y-1 mt-2">
               <label className="block text-xs font-bold text-stone-800">
-                Fecha a partir de la cual estará disponible:
+                Fecha exacta a partir de la cual estará lista la cosecha:
               </label>
               <input
                 type="date"
+                required={availType === 'fecha'}
                 value={availableFromDate}
                 onChange={(e) => setAvailableFromDate(e.target.value)}
-                className="px-3.5 py-2 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white"
+                className="px-3.5 py-2 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
               />
             </div>
           )}
         </div>
 
-        {/* Paso 2: Combinar con Días Específicos de la semana (Opcional) */}
-        <div className="pt-3 border-t border-stone-200 space-y-3">
-          <div className="flex items-center justify-between">
-            <label className="flex items-center gap-2 text-xs font-bold text-stone-900 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={enableWeekdays}
-                onChange={(e) => setEnableWeekdays(e.target.checked)}
-                className="w-4 h-4 text-emerald-700 rounded border-stone-300 focus:ring-emerald-600"
-              />
-              <span>Combinar con días fijos de entrega semanal (Opcional)</span>
-            </label>
+        {/* PASO B: ¿Cuándo y cómo se realiza la entrega? */}
+        <div className="space-y-2 pt-3 border-t border-stone-200">
+          <label className="block text-xs font-black text-stone-900">
+            B) Plazo y días de entrega al comprador:
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <button
+              type="button"
+              onClick={() => setDeliveryMode('dias')}
+              className={`p-3.5 rounded-xl border-2 text-left transition-all ${
+                deliveryMode === 'dias'
+                  ? 'border-emerald-700 bg-white ring-2 ring-emerald-600 font-bold shadow-sm'
+                  : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-100'
+              }`}
+            >
+              <span className="text-xs font-black block text-stone-900">
+                ⏳ A X días tras el pedido
+              </span>
+              <span className="text-[11px] font-semibold text-stone-600 block mt-0.5">
+                Mismo día, al día siguiente (24h) o en X días de preparación.
+              </span>
+            </button>
 
-            {enableWeekdays && (
-              <button
-                type="button"
-                onClick={() => setEnableWeekdays(false)}
-                className="text-[11px] font-bold text-stone-500 hover:text-red-700"
-              >
-                Quitar días fijos
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setDeliveryMode('dias_semana')}
+              className={`p-3.5 rounded-xl border-2 text-left transition-all ${
+                deliveryMode === 'dias_semana'
+                  ? 'border-emerald-700 bg-white ring-2 ring-emerald-600 font-bold shadow-sm'
+                  : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-100'
+              }`}
+            >
+              <span className="text-xs font-black block text-stone-900">
+                📅 Días fijos de la semana
+              </span>
+              <span className="text-[11px] font-semibold text-stone-600 block mt-0.5">
+                Entregas programadas en días concretos (ej. solo los Viernes).
+              </span>
+            </button>
           </div>
 
-          {enableWeekdays && (
-            <div className="space-y-2 bg-white p-3.5 rounded-xl border border-stone-200">
-              <p className="text-[11px] font-semibold text-stone-700">
-                El pedido estará listo según el plazo anterior, y se entregará en el siguiente día seleccionado:
-              </p>
+          {deliveryMode === 'dias' && (
+            <div className="p-3.5 bg-white rounded-xl border border-stone-200 space-y-2 mt-2">
+              <label className="block text-xs font-bold text-stone-800">
+                Días de plazo para la entrega tras hacer el pedido:
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  max="14"
+                  value={deliveryDays}
+                  onChange={(e) => setDeliveryDays(parseInt(e.target.value, 10) || 0)}
+                  className="w-24 px-3 py-1.5 border-2 border-stone-300 rounded-xl text-base font-black text-stone-900 bg-white"
+                />
+                <span className="text-xs font-bold text-stone-700">
+                  {deliveryDays === 0
+                    ? 'día (Mismo día del pedido)'
+                    : deliveryDays === 1
+                    ? 'día (Al día siguiente / 24h)'
+                    : 'días de preparación'}
+                </span>
+              </div>
+
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {[
+                  { days: 0, label: 'Mismo día (0d)' },
+                  { days: 1, label: '24h (1d)' },
+                  { days: 2, label: '2 días' },
+                  { days: 3, label: '3 días' },
+                  { days: 5, label: '5 días' },
+                ].map((opt) => (
+                  <button
+                    type="button"
+                    key={opt.days}
+                    onClick={() => setDeliveryDays(opt.days)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all border ${
+                      deliveryDays === opt.days
+                        ? 'bg-emerald-700 text-white border-emerald-800'
+                        : 'bg-stone-50 text-stone-700 border-stone-300 hover:bg-stone-100'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {deliveryMode === 'dias_semana' && (
+            <div className="p-3.5 bg-white rounded-xl border border-stone-200 space-y-2 mt-2">
+              <label className="block text-xs font-bold text-stone-800">
+                Selecciona los días en que repartes o entregas:
+              </label>
               <div className="flex flex-wrap gap-2">
                 {WEEKDAYS.map((day) => {
                   const isSelected = selectedWeekdays.includes(day.id);
@@ -825,7 +906,7 @@ export function ProductForm({
                       type="button"
                       key={day.id}
                       onClick={() => toggleWeekday(day.id)}
-                      className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border ${
+                      className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all border ${
                         isSelected
                           ? 'bg-emerald-700 text-white border-emerald-800 shadow-sm'
                           : 'bg-stone-50 text-stone-700 border-stone-300 hover:bg-stone-100'
@@ -889,7 +970,7 @@ export function ProductForm({
           rows={3}
           defaultValue={product?.description || ''}
           placeholder="Detalles sobre maduración, características especiales de tu caserío..."
-          className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-xs font-semibold text-stone-900 bg-white placeholder:text-stone-400"
+          className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-xs font-semibold text-stone-900 bg-white placeholder:text-stone-400 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
         />
       </div>
 

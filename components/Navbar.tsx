@@ -10,6 +10,7 @@ import {
   Calendar,
 } from 'lucide-react';
 import type { Profile } from '@/types/database';
+import { CartNavButton } from '@/components/CartNavButton';
 
 export default async function Navbar() {
   const supabase = await createClient();
@@ -41,13 +42,16 @@ export default async function Navbar() {
         </Link>
 
         {/* Enlaces y Acciones */}
-        <div className="flex items-center gap-2 sm:gap-4">
+        <div className="flex items-center gap-2 sm:gap-3">
           <Link
             href="/"
             className="text-xs sm:text-sm font-bold text-stone-800 hover:text-emerald-800 px-2 py-1.5 rounded-lg transition-colors"
           >
             Catálogo
           </Link>
+
+          {/* Botón de Cesta de la compra */}
+          <CartNavButton />
 
           {user && profile ? (
             <div className="flex items-center gap-2 sm:gap-3">
@@ -58,7 +62,7 @@ export default async function Navbar() {
                   className="flex items-center gap-1 bg-emerald-100 text-emerald-950 hover:bg-emerald-200 text-xs font-black px-3 py-1.5 rounded-xl border border-emerald-300 transition-colors shadow-sm"
                 >
                   <PlusCircle className="w-4 h-4 text-emerald-800" />
-                  <span className="hidden md:inline">Publicar Producto</span>
+                  <span className="hidden md:inline">Publicar</span>
                 </Link>
               )}
 
@@ -97,7 +101,7 @@ export default async function Navbar() {
                 className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-stone-800 hover:text-emerald-800 p-1.5 sm:px-2 sm:py-1.5 rounded-xl hover:bg-stone-100 transition-colors"
               >
                 <ShoppingBasket className="w-4 h-4 text-stone-700" />
-                <span className="hidden md:inline">Mis Pedidos</span>
+                <span className="hidden md:inline">Pedidos</span>
               </Link>
 
               {/* Perfil con Avatar */}
@@ -116,7 +120,7 @@ export default async function Navbar() {
                   <User className="w-4 h-4 text-stone-700" />
                 )}
                 <div className="hidden lg:flex flex-col text-left">
-                  <span className="text-xs font-black text-stone-900 leading-none truncate max-w-[120px]">
+                  <span className="text-xs font-black text-stone-900 leading-none truncate max-w-[110px]">
                     {profile.full_name}
                   </span>
                   <span className="text-[10px] font-bold text-stone-500 capitalize">

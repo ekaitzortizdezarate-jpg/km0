@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { RefreshCw, MapPin, Store, MessageCircle, Calendar, Clock } from 'lucide-react';
+import { RefreshCw, MapPin, Store, MessageCircle, Calendar, Clock, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
 import ReviewForm from '@/components/ReviewForm';
 
@@ -34,9 +34,9 @@ export default async function BuyerOrdersPage() {
 
   const statusColors: Record<string, string> = {
     pendiente: 'bg-amber-100 text-amber-950 border-amber-300',
-    confirmado: 'bg-blue-100 text-blue-950 border-blue-300',
+    confirmado: 'bg-emerald-100 text-emerald-950 border-emerald-300',
     preparando: 'bg-purple-100 text-purple-950 border-purple-300',
-    listo_entrega: 'bg-emerald-100 text-emerald-950 border-emerald-300',
+    listo_entrega: 'bg-blue-100 text-blue-950 border-blue-300',
     entregado: 'bg-stone-200 text-stone-900 border-stone-300',
     cancelado: 'bg-red-100 text-red-950 border-red-300',
   };
@@ -47,7 +47,7 @@ export default async function BuyerOrdersPage() {
         <div>
           <h1 className="text-2xl font-black text-stone-900">Mis Compras</h1>
           <p className="text-xs font-bold text-stone-600 mt-0.5">
-            Historial, pedidos activos y fechas estimadas de entrega
+            Historial de pedidos, validaciones de caseríos y fechas confirmadas de entrega
           </p>
         </div>
 
@@ -73,7 +73,7 @@ export default async function BuyerOrdersPage() {
                     Caserío: {order.profiles?.full_name} ({order.profiles?.town})
                   </span>
                   <p className="text-xs font-semibold text-stone-600">
-                    Fecha del pedido: {new Date(order.created_at).toLocaleDateString('es-ES')}
+                    Pedido realizado el {new Date(order.created_at).toLocaleDateString('es-ES')}
                   </p>
                 </div>
 
@@ -94,25 +94,38 @@ export default async function BuyerOrdersPage() {
                       statusColors[order.status] || ''
                     }`}
                   >
-                    {order.status.replace('_', ' ')}
+                    {order.status === 'pendiente'
+                      ? 'Por Validar'
+                      : order.status === 'confirmado'
+                      ? 'Confirmado por Caserío'
+                      : order.status.replace('_', ' ')}
                   </span>
                 </div>
               </div>
 
-              {/* Fecha estimada de entrega */}
-              {order.estimated_delivery_date && (
-                <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-xs font-bold text-emerald-950 flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-emerald-700 shrink-0" />
+              {/* Mensaje de Validación y Fecha de Entrega */}
+              {order.status === 'pendiente' ? (
+                <div className="p-3.5 bg-amber-50 rounded-2xl border border-amber-200 text-xs font-bold text-amber-950 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-amber-700 shrink-0 animate-pulse" />
                   <span>
-                    Fecha prevista de entrega:{' '}
-                    {new Date(order.estimated_delivery_date).toLocaleDateString('es-ES', {
-                      weekday: 'long',
-                      day: 'numeric',
-                      month: 'long',
-                    })}
+                    El caserío está revisando tu pedido para confirmar la fecha exacta de entrega.
                   </span>
                 </div>
-              )}
+              ) : order.estimated_delivery_date ? (
+                <div className="p-3.5 bg-emerald-50 rounded-2xl border border-emerald-200 text-xs font-bold text-emerald-950 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+                  <span>
+                    Fecha de entrega confirmada:{' '}
+                    <strong>
+                      {new Date(order.estimated_delivery_date).toLocaleDateString('es-ES', {
+                        weekday: 'long',
+                        day: 'numeric',
+                        month: 'long',
+                      })}
+                    </strong>
+                  </span>
+                </div>
+              ) : null}
 
               {/* Productos */}
               <div className="space-y-1.5 bg-stone-50 p-3.5 rounded-2xl border border-stone-200">
@@ -137,7 +150,7 @@ export default async function BuyerOrdersPage() {
                   <>
                     <Store className="w-4 h-4 text-emerald-800 shrink-0" />
                     <span>
-                      Recogida en punto:{' '}
+                      Punto de recogida:{' '}
                       <strong className="text-stone-900">{order.delivery_points.name}</strong> (
                       {order.delivery_points.address_details})
                     </span>
@@ -146,7 +159,7 @@ export default async function BuyerOrdersPage() {
                   <>
                     <MapPin className="w-4 h-4 text-emerald-800 shrink-0" />
                     <span>
-                      Entrega a domicilio:{' '}
+                      Envío a domicilio:{' '}
                       <strong className="text-stone-900">{order.shipping_address}</strong>
                     </span>
                   </>

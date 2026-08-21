@@ -19,6 +19,7 @@ import Link from 'next/link';
 import { getDeliveryEstimate, formatTimeAgo } from '@/lib/delivery';
 import { DeleteProductButton } from '@/components/DeleteProductButton';
 import { FavoriteButton } from '@/components/FavoriteButton';
+import { AddToCartButton } from '@/components/AddToCartButton';
 
 interface SearchParams {
   category?: ProductCategory;
@@ -52,8 +53,6 @@ export default async function HomePage({
 
   const isSeller = userProfile?.role === 'vendedor';
 
-  // Determinamos qué pestaña está activa para el vendedor
-  // Por defecto, un vendedor ve "mis_productos" salvo que seleccione "todos"
   const activeTab = isSeller
     ? params.tab === 'todos'
       ? 'todos'
@@ -107,7 +106,7 @@ export default async function HomePage({
             Alimentos frescos de caserío cerca de ti.
           </h1>
           <p className="text-emerald-100 text-sm sm:text-base font-medium">
-            Conecta directamente con productores locales sin intermediarios.
+            Conecta directamente con productores locales y añade sus productos a tu cesta de la compra.
           </p>
         </div>
       </div>
@@ -243,14 +242,49 @@ export default async function HomePage({
               product.available_from_date
             );
 
+            const basePrice =
+              product.format === 'granel'
+                ? product.price_per_kilo || product.price
+                : product.price;
+
+            const finalUnitPrice =
+              product.discount_percentage > 0
+                ? basePrice * (1 - product.discount_percentage / 100)
+                : basePrice;
+
+            const cartItemPayload = {
+              productId: product.id,
+              sellerId: product.seller_id,
+              sellerName: product.profiles?.full_name || 'Caserío',
+              sellerTown: product.profiles?.town || '',
+              name: product.name,
+              category: product.category,
+              format: product.format,
+              price: product.price,
+              unitPrice: finalUnitPrice,
+              weightKg: product.weight_kg,
+              imageUrl: product.image_url,
+              quantity: 1,
+              packItems: product.pack_items,
+              estimatedDeliveryDate: deliveryInfo.estimatedDate.toISOString(),
+              deliveryBadge: deliveryInfo.badgeText,
+            };
+
             return (
               <div
                 key={product.id}
-                className="bg-white rounded-3xl border-2 border-stone-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between"
+                className="relative group bg-white rounded-3xl border-2 border-stone-200 overflow-hidden shadow-sm hover:shadow-md hover:border-emerald-500 transition-all flex flex-col justify-between"
               >
-                <div>
+                {/* Enlace que hace que toda la tarjeta sea pulsable */}
+                <Link
+                  href={`/pedir/${product.id}`}
+                  className="absolute inset-0 z-0"
+                  aria-label={`Ver detalles de ${product.name}`}
+                />
+
+                <div className="relative z-10 pointer-events-none">
                   {/* Foto del Producto o Placeholder */}
-                  <div className="relative w-full h-48 bg-stone-100 overflow-hidden group">
+                  <div className="relative w-full h-48 bg-stone-100 overflow-hidden">
                     {product.image_url ? (
                       <img
                         src={product.image_url}
@@ -264,8 +298,8 @@ export default async function HomePage({
                       </div>
                     )}
 
-                    {/* Botón Favorito en la esquina superior */}
-                    <div className="absolute top-2.5 right-2.5 z-10">
+                    {/* Botón Favorito (con pointer-events-auto para ser interactivo) */}
+                    <div className="absolute top-2.5 right-2.5 z-20 pointer-events-auto">
                       <FavoriteButton id={product.id} type="product" />
                     </div>
 
@@ -304,7 +338,7 @@ export default async function HomePage({
 
                     {/* Título */}
                     <div>
-                      <h3 className="font-black text-stone-900 text-lg leading-snug">
+                      <h3 className="font-black text-stone-900 text-lg leading-snug group-hover:text-emerald-800 transition-colors">
                         {product.name}
                       </h3>
 
@@ -341,7 +375,9 @@ export default async function HomePage({
 
                       {/* Botón Favorito Vendedor */}
                       {product.profiles?.id && (
-                        <FavoriteButton id={product.profiles.id} type="seller" />
+                        <div className="pointer-events-auto">
+                          <FavoriteButton id={product.profiles.id} type="seller" />
+                        </div>
                       )}
                     </div>
 
@@ -381,7 +417,7 @@ export default async function HomePage({
                 </div>
 
                 {/* Footer Tarjeta: Precios y Acciones */}
-                <div className="p-4 sm:p-5 bg-stone-50 border-t-2 border-stone-200 flex items-center justify-between gap-3">
+                <div className="relative z-10 p-4 sm:p-5 bg-stone-50 border-t-2 border-stone-200 flex items-center justify-between gap-3">
                   <div>
                     {product.format === 'granel' ? (
                       <div>
@@ -421,7 +457,7 @@ export default async function HomePage({
 
                   {/* Acciones según el rol y dueño del producto */}
                   {isOwnProduct ? (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 pointer-events-auto">
                       <Link
                         href={`/vendedor/productos/${product.id}/editar`}
                         className="p-2 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-xl transition-colors border border-amber-300 font-bold text-xs flex items-center gap-1 shadow-sm"
@@ -433,7 +469,7 @@ export default async function HomePage({
                       <DeleteProductButton productId={product.id} />
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 pointer-events-auto">
                       {product.profiles?.id && (
                         <Link
                           href={`/chat/${product.profiles.id}`}
@@ -443,12 +479,7 @@ export default async function HomePage({
                           <MessageCircle className="w-4 h-4" />
                         </Link>
                       )}
-                      <Link
-                        href={`/pedir/${product.id}`}
-                        className="bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-xs font-black px-4 py-2.5 rounded-xl transition-colors shadow-sm"
-                      >
-                        Comprar
-                      </Link>
+                      <AddToCartButton item={cartItemPayload} />
                     </div>
                   )}
                 </div>

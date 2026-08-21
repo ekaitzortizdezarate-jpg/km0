@@ -5,6 +5,7 @@ export interface DeliveryEstimate {
   detailText: string;
   estimatedDate: Date;
   formattedDate: string;
+  isPreorder: boolean;
 }
 
 const WEEKDAY_NAMES = [
@@ -35,34 +36,30 @@ export function getDeliveryEstimate(
   baseDate: Date = new Date()
 ): DeliveryEstimate {
   const readyDate = new Date(baseDate);
-  let baseDescription = 'Disponible ya (24h)';
+  let isPreorder = false;
+  let availText = 'Disponible ya';
 
-  // 1. Calcular fecha base en la que el producto está listo/recolectado
-  if (availabilityType === 'dias') {
-    const days = Math.max(1, availabilityDays || 1);
-    readyDate.setDate(readyDate.getDate() + days);
-    baseDescription = `Preparación en ${days} ${days === 1 ? 'día' : 'días'}`;
-  } else if (availabilityType === 'fecha_concreta' && availableFromDate) {
+  // 1. Determinar cuándo está disponible el producto/cosecha
+  if (availabilityType === 'fecha_concreta' && availableFromDate) {
     const parsed = new Date(availableFromDate + 'T12:00:00');
     if (!isNaN(parsed.getTime())) {
-      readyDate.setTime(parsed.getTime());
-      baseDescription = `A partir del ${readyDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}`;
+      const now = new Date(baseDate);
+      if (parsed.getTime() > now.getTime()) {
+        readyDate.setTime(parsed.getTime());
+        isPreorder = true;
+        availText = `Cosecha desde ${readyDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}`;
+      }
     }
-  } else {
-    // inmediato
-    readyDate.setDate(readyDate.getDate() + 1);
-    baseDescription = 'Listo en 24h';
   }
 
-  // 2. Si hay días específicos de entrega configurados, combinar
-  const weekdays =
-    availabilityWeekdays && availabilityWeekdays.length > 0
-      ? availabilityWeekdays.map((d) => d.toLowerCase())
-      : null;
+  // 2. Determinar plazo de entrega tras estar disponible
+  const hasFixedWeekdays =
+    availabilityWeekdays && availabilityWeekdays.length > 0;
 
   const resultDate = new Date(readyDate);
 
-  if (weekdays && weekdays.length > 0) {
+  if (hasFixedWeekdays) {
+    const weekdays = availabilityWeekdays!.map((d) => d.toLowerCase());
     // Avanzar desde readyDate hasta el siguiente día de la semana que coincida
     let daysToAdd = 0;
     while (daysToAdd <= 7) {
@@ -80,9 +77,13 @@ export function getDeliveryEstimate(
       .map((w) => WEEKDAY_DISPLAY[w] || w)
       .join(' y ');
 
+    const badge = isPreorder
+      ? `${availText} · Entregas ${readableDays}`
+      : `Entregas ${readableDays}`;
+
     return {
-      badgeText: `${baseDescription} · Entregas ${readableDays}`,
-      detailText: `${baseDescription}. Entrega programada los ${readableDays} (${resultDate.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })})`,
+      badgeText: badge,
+      detailText: `${availText}. Entregas los ${readableDays} (prevista el ${resultDate.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })})`,
       estimatedDate: resultDate,
       formattedDate: resultDate.toLocaleDateString('es-ES', {
         weekday: 'long',
@@ -90,20 +91,44 @@ export function getDeliveryEstimate(
         month: 'short',
         year: 'numeric',
       }),
+      isPreorder,
     };
   }
 
-  // Sin días fijos de semana
+  // Entrega a X días tras pedido / disponibilidad
+  const days = availabilityDays !== null && availabilityDays !== undefined ? availabilityDays : 1;
+  resultDate.setDate(resultDate.getDate() + days);
+
+  let deliveryLeadText = '';
+  if (days === 0) {
+    deliveryLeadText = 'Mismo día';
+  } else if (days === 1) {
+    deliveryLeadText = 'Al día siguiente (24h)';
+  } else {
+    deliveryLeadText = `En ${days} días tras pedido`;
+  }
+
+  const badge = isPreorder
+    ? `${availText} · Entrega ${deliveryLeadText}`
+    : days === 0
+    ? 'Entrega en el día'
+    : days === 1
+    ? 'Entrega en 24h'
+    : `Entrega en ${days} días`;
+
   return {
-    badgeText: baseDescription,
-    detailText: `Entrega prevista: ${readyDate.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}`,
-    estimatedDate: readyDate,
-    formattedDate: readyDate.toLocaleDateString('es-ES', {
+    badgeText: badge,
+    detailText: isPreorder
+      ? `${availText}. Preparación y entrega ${deliveryLeadText} (${resultDate.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })})`
+      : `Entrega prevista: ${resultDate.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })} (${deliveryLeadText})`,
+    estimatedDate: resultDate,
+    formattedDate: resultDate.toLocaleDateString('es-ES', {
       weekday: 'long',
       day: 'numeric',
       month: 'short',
       year: 'numeric',
     }),
+    isPreorder,
   };
 }
 

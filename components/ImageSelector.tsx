@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Image as ImageIcon, Check, Upload, Sparkles, X } from 'lucide-react';
+import { Image as ImageIcon, Check, Upload, Sparkles, X, Link as LinkIcon, AlertCircle } from 'lucide-react';
 
 interface ImageSelectorProps {
   name: string;
@@ -71,7 +71,11 @@ export function ImageSelector({
   type = 'product',
 }: ImageSelectorProps) {
   const [selectedUrl, setSelectedUrl] = useState<string>(defaultValue || '');
+  const [inputUrl, setInputUrl] = useState<string>(
+    defaultValue && !defaultValue.startsWith('data:') ? defaultValue : ''
+  );
   const [showPresets, setShowPresets] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const presets = type === 'avatar' ? AVATAR_PRESETS : PRODUCT_PRESETS;
@@ -80,26 +84,34 @@ export function ImageSelector({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Convert file to Data URL
+    setImageError(false);
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === 'string') {
         setSelectedUrl(reader.result);
+        setInputUrl('');
       }
     };
     reader.readAsDataURL(file);
   };
 
+  const handleApplyUrl = (rawUrl: string) => {
+    const trimmed = rawUrl.trim();
+    setInputUrl(trimmed);
+    setImageError(false);
+    setSelectedUrl(trimmed);
+  };
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <label className="block text-xs font-bold text-stone-900 uppercase tracking-wider">
+        <label className="block text-xs font-black text-stone-900 uppercase tracking-wider">
           {label}
         </label>
         <button
           type="button"
           onClick={() => setShowPresets(!showPresets)}
-          className="text-xs font-semibold text-emerald-800 hover:text-emerald-950 flex items-center gap-1 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 transition-colors"
+          className="text-xs font-bold text-emerald-900 hover:text-emerald-950 flex items-center gap-1 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-300 transition-colors"
         >
           <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
           {showPresets ? 'Ocultar sugerencias' : 'Elegir foto sugerida'}
@@ -110,8 +122,8 @@ export function ImageSelector({
 
       {/* Preset Gallery */}
       {showPresets && (
-        <div className="p-3 bg-stone-100 rounded-xl border border-stone-200 space-y-2 animate-fadeIn">
-          <p className="text-xs font-semibold text-stone-700">
+        <div className="p-3 bg-stone-100 rounded-2xl border border-stone-300 space-y-2 animate-fadeIn">
+          <p className="text-xs font-bold text-stone-800">
             Selecciona una imagen de muestra para tu caserío:
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -123,9 +135,11 @@ export function ImageSelector({
                   key={preset.name}
                   onClick={() => {
                     setSelectedUrl(preset.url);
+                    setInputUrl(preset.url);
+                    setImageError(false);
                     setShowPresets(false);
                   }}
-                  className={`relative rounded-lg overflow-hidden border-2 transition-all text-left group ${
+                  className={`relative rounded-xl overflow-hidden border-2 transition-all text-left group ${
                     isSelected ? 'border-emerald-600 ring-2 ring-emerald-500' : 'border-stone-300 hover:border-stone-400'
                   }`}
                 >
@@ -152,36 +166,50 @@ export function ImageSelector({
       )}
 
       {/* Preview & Controls */}
-      <div className="flex flex-col sm:flex-row items-center gap-4 bg-white p-4 rounded-xl border border-stone-200 shadow-sm">
-        {selectedUrl ? (
-          <div className="relative w-28 h-28 rounded-xl overflow-hidden border-2 border-emerald-600 shrink-0 bg-stone-100 shadow-sm">
+      <div className="flex flex-col sm:flex-row items-center gap-4 bg-white p-4 rounded-2xl border-2 border-stone-200 shadow-sm">
+        {selectedUrl && !imageError ? (
+          <div className="relative w-28 h-28 rounded-2xl overflow-hidden border-2 border-emerald-600 shrink-0 bg-stone-100 shadow-sm">
             <img
               src={selectedUrl}
               alt="Vista previa"
+              onError={() => setImageError(true)}
               className="w-full h-full object-cover"
             />
             <button
               type="button"
-              onClick={() => setSelectedUrl('')}
-              className="absolute top-1 right-1 bg-black/70 hover:bg-red-600 text-white p-1 rounded-full transition-colors"
+              onClick={() => {
+                setSelectedUrl('');
+                setInputUrl('');
+              }}
+              className="absolute top-1 right-1 bg-black/80 hover:bg-red-600 text-white p-1 rounded-full transition-colors"
               title="Quitar foto"
             >
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
         ) : (
-          <div className="w-28 h-28 rounded-xl border-2 border-dashed border-stone-300 bg-stone-50 flex flex-col items-center justify-center text-stone-600 shrink-0">
-            <ImageIcon className="w-8 h-8 mb-1 text-stone-400" />
-            <span className="text-[10px] font-bold text-stone-600">Sin foto</span>
+          <div className="w-28 h-28 rounded-2xl border-2 border-dashed border-stone-300 bg-stone-50 flex flex-col items-center justify-center text-stone-500 shrink-0">
+            {imageError ? (
+              <>
+                <AlertCircle className="w-7 h-7 text-red-500 mb-1" />
+                <span className="text-[10px] font-bold text-red-600 text-center px-1">Enlace inválido</span>
+              </>
+            ) : (
+              <>
+                <ImageIcon className="w-8 h-8 mb-1 text-stone-400" />
+                <span className="text-[10px] font-bold text-stone-600">Sin foto</span>
+              </>
+            )}
           </div>
         )}
 
-        <div className="flex-1 space-y-2 w-full">
-          <div className="flex flex-wrap gap-2">
+        <div className="flex-1 space-y-3 w-full">
+          {/* Opción 1: Subir archivo */}
+          <div>
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="flex-1 sm:flex-initial bg-stone-900 hover:bg-black text-white text-xs font-bold px-3.5 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+              className="w-full sm:w-auto bg-stone-900 hover:bg-black text-white text-xs font-black px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-sm"
             >
               <Upload className="w-4 h-4" /> Subir foto desde el móvil / PC
             </button>
@@ -194,17 +222,33 @@ export function ImageSelector({
             />
           </div>
 
-          <div>
-            <span className="text-[11px] font-semibold text-stone-600 block mb-1">
-              O pega un enlace de imagen (URL):
+          {/* Opción 2: URL de imagen directa */}
+          <div className="space-y-1">
+            <span className="text-[11px] font-black text-stone-800 flex items-center gap-1">
+              <LinkIcon className="w-3.5 h-3.5 text-stone-600" /> O introduce un enlace / URL de imagen:
             </span>
-            <input
-              type="url"
-              value={selectedUrl.startsWith('data:') ? '' : selectedUrl}
-              onChange={(e) => setSelectedUrl(e.target.value)}
-              placeholder="https://ejemplo.com/foto.jpg"
-              className="w-full px-3 py-1.5 border border-stone-300 rounded-lg text-xs bg-white text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600"
-            />
+            <div className="flex items-center gap-1.5">
+              <input
+                type="text"
+                value={inputUrl}
+                onChange={(e) => handleApplyUrl(e.target.value)}
+                onPaste={(e) => {
+                  const pasted = e.clipboardData.getData('text');
+                  if (pasted) handleApplyUrl(pasted);
+                }}
+                placeholder="https://ejemplo.com/foto.jpg"
+                className="flex-1 px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 placeholder:text-stone-400"
+              />
+              {inputUrl && (
+                <button
+                  type="button"
+                  onClick={() => handleApplyUrl(inputUrl)}
+                  className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black px-3 py-2 rounded-xl transition-colors shrink-0"
+                >
+                  Aplicar
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
