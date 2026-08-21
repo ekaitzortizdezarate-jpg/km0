@@ -24,6 +24,24 @@ function subscribe(callback: () => void) {
   };
 }
 
+const cachedLists: Record<string, { raw: string; parsed: Set<string> }> = {
+  km0_fav_products: { raw: '', parsed: new Set() },
+  km0_fav_sellers: { raw: '', parsed: new Set() },
+};
+
+function isFavInStorage(key: string, id: string): boolean {
+  try {
+    const raw = localStorage.getItem(key) || '[]';
+    if (cachedLists[key].raw !== raw) {
+      cachedLists[key].raw = raw;
+      cachedLists[key].parsed = new Set(JSON.parse(raw));
+    }
+    return cachedLists[key].parsed.has(id);
+  } catch {
+    return false;
+  }
+}
+
 export function FavoriteButton({
   id,
   type,
@@ -32,18 +50,7 @@ export function FavoriteButton({
 }: FavoriteButtonProps) {
   const isFavorite = useSyncExternalStore(
     subscribe,
-    () => {
-      try {
-        const stored = localStorage.getItem(STORAGE_KEYS[type]);
-        if (stored) {
-          const list: string[] = JSON.parse(stored);
-          return list.includes(id);
-        }
-      } catch {
-        // Ignore errors
-      }
-      return false;
-    },
+    () => isFavInStorage(STORAGE_KEYS[type], id),
     () => false // Server snapshot
   );
 

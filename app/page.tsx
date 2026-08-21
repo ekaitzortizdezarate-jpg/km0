@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { ProductCategory, ProductWithSeller, Profile } from '@/types/database';
 import {
@@ -220,7 +221,14 @@ export default async function HomePage({
             </Link>
 
             {/* Filtro Vendedores Favoritos */}
-            <FavoriteSellerFilter />
+            <Suspense fallback={
+              <button type="button" disabled className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold border-stone-300 text-stone-400 bg-white">
+                <Star className="w-3.5 h-3.5 text-stone-400" />
+                <span>Mis Caseríos Favoritos</span>
+              </button>
+            }>
+              <FavoriteSellerFilter />
+            </Suspense>
           </div>
 
           <form method="GET" action="/" className="flex items-center gap-2">

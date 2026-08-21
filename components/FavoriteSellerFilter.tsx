@@ -6,10 +6,15 @@ import { Star } from 'lucide-react';
 
 const STORAGE_KEY_SELLERS = 'km0_fav_sellers';
 
+let cachedFavSellers: string[] = [];
+let cachedFavString = '';
+
 function subscribe(callback: () => void) {
+  window.addEventListener('km0_favorites_updated', callback);
   window.addEventListener('km0_fav_updated', callback);
   window.addEventListener('storage', callback);
   return () => {
+    window.removeEventListener('km0_favorites_updated', callback);
     window.removeEventListener('km0_fav_updated', callback);
     window.removeEventListener('storage', callback);
   };
@@ -17,15 +22,20 @@ function subscribe(callback: () => void) {
 
 function getFavSellers(): string[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY_SELLERS);
-    return raw ? JSON.parse(raw) : [];
+    const raw = localStorage.getItem(STORAGE_KEY_SELLERS) || '[]';
+    if (raw !== cachedFavString) {
+      cachedFavString = raw;
+      cachedFavSellers = JSON.parse(raw);
+    }
+    return cachedFavSellers;
   } catch {
-    return [];
+    return cachedFavSellers;
   }
 }
 
+const EMPTY_FAV_SELLERS: string[] = [];
 function getServerFavSellers(): string[] {
-  return [];
+  return EMPTY_FAV_SELLERS;
 }
 
 export function FavoriteSellerFilter() {

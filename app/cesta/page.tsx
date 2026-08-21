@@ -136,7 +136,7 @@ export default function CartPage() {
 
       if (points) {
         const pointsBySeller: Record<string, DeliveryPoint[]> = {};
-        points.forEach((pt) => {
+        (points as unknown as DeliveryPoint[]).forEach((pt) => {
           if (!pointsBySeller[pt.seller_id]) pointsBySeller[pt.seller_id] = [];
           pointsBySeller[pt.seller_id].push(pt);
         });
