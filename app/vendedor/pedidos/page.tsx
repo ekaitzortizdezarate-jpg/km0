@@ -1,11 +1,11 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { updateOrderStatus, validateAndConfirmOrder } from '@/app/actions/order-status';
+import { updateOrderStatus } from '@/app/actions/order-status';
 import { OrderStatus } from '@/types/database';
-import { RefreshCw, MessageCircle, Phone, Calendar, Clock, MapPin, Store, CheckCircle2 } from 'lucide-react';
+import { RefreshCw, MessageCircle, Phone, Calendar, Clock, MapPin, Store } from 'lucide-react';
 import Link from 'next/link';
 import ReviewForm from '@/components/ReviewForm';
-import { CancelOrderButton } from '@/components/CancelOrderButton';
+import { ConfirmOrderForm } from '@/components/ConfirmOrderForm';
 
 interface OrderItemWithProduct {
   id: string;
@@ -156,39 +156,11 @@ export default async function SellerOrdersPage() {
                   </div>
 
                   {/* Formulario de Validación y Confirmación de Fecha */}
-                  <form
-                    action={async (formData) => {
-                      'use server';
-                      const confirmedDate = formData.get('confirmed_date') as string;
-                      await validateAndConfirmOrder(order.id, confirmedDate);
-                    }}
-                    className="bg-white p-4 rounded-2xl border border-amber-300 space-y-3"
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="space-y-1">
-                        <label className="block text-xs font-black text-stone-900">
-                          Confirmar fecha de entrega al cliente:
-                        </label>
-                        <input
-                          type="date"
-                          name="confirmed_date"
-                          required
-                          defaultValue={defaultDateStr}
-                          className="px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold text-stone-900 bg-stone-50 focus:bg-white"
-                        />
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-2 pt-2 sm:pt-0">
-                        <button
-                          type="submit"
-                          className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black px-4 py-2.5 rounded-xl shadow-sm transition-colors flex items-center gap-1.5"
-                        >
-                          <CheckCircle2 className="w-4 h-4" /> Aceptar y Confirmar
-                        </button>
-                        <CancelOrderButton orderId={order.id} label="Rechazar Pedido" />
-                      </div>
-                    </div>
-                  </form>
+                  <ConfirmOrderForm
+                    orderId={order.id}
+                    defaultDateStr={defaultDateStr}
+                    buyerName={order.profiles?.full_name || 'el cliente'}
+                  />
                 </div>
               );
             })}

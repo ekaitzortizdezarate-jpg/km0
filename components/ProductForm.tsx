@@ -370,8 +370,8 @@ export function ProductForm({
               <div className="flex items-center gap-2">
                 <input
                   type="number"
-                  step="0.05"
-                  min="0.1"
+                  step="0.01"
+                  min="0.01"
                   required
                   value={pricePerKilo || ''}
                   onChange={(e) => handlePricePerKiloChange(parseFloat(e.target.value) || 0)}
@@ -495,8 +495,8 @@ export function ProductForm({
                   <div className="flex items-center gap-2">
                     <input
                       type="number"
-                      step="0.05"
-                      min="0.1"
+                      step="0.01"
+                      min="0.01"
                       required
                       value={price || ''}
                       onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
@@ -569,8 +569,8 @@ export function ProductForm({
                     </label>
                     <input
                       type="number"
-                      step="0.05"
-                      min="0.05"
+                      step="0.01"
+                      min="0.01"
                       required
                       value={weightKg || ''}
                       onChange={(e) => handleWeightKgChange(parseFloat(e.target.value) || 0)}
@@ -585,8 +585,8 @@ export function ProductForm({
                     </label>
                     <input
                       type="number"
-                      step="0.05"
-                      min="0.1"
+                      step="0.01"
+                      min="0.01"
                       required
                       value={price || ''}
                       onChange={(e) => handlePriceChange(parseFloat(e.target.value) || 0)}
@@ -601,8 +601,8 @@ export function ProductForm({
                     </label>
                     <input
                       type="number"
-                      step="0.05"
-                      min="0.1"
+                      step="0.01"
+                      min="0.01"
                       value={pricePerKilo || ''}
                       onChange={(e) => handlePricePerKiloChange(parseFloat(e.target.value) || 0)}
                       placeholder="Calculado solo"
@@ -659,8 +659,8 @@ export function ProductForm({
               <div className="flex items-center gap-2">
                 <input
                   type="number"
-                  step="0.5"
-                  min="1"
+                  step="0.01"
+                  min="0.01"
                   required
                   value={price || ''}
                   onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}

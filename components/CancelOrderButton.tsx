@@ -23,9 +23,15 @@ export function CancelOrderButton({
     }
 
     setLoading(true);
-    const res = await cancelPendingOrder(orderId);
-    if (res.error) {
-      alert(res.error);
+    try {
+      const res = await cancelPendingOrder(orderId);
+      if (res?.error) {
+        alert(res.error);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error al cancelar.';
+      alert(msg);
+    } finally {
       setLoading(false);
     }
   };

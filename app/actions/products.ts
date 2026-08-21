@@ -21,17 +21,31 @@ export async function createProduct(formData: FormData) {
     return { error: 'Debes iniciar sesión para publicar productos.' };
   }
 
-  // Verificar que el vendedor esté aprobado
+  // Verificar rol de vendedor
   const { data: profile } = await supabase
     .from('profiles')
     .select('role, seller_status')
     .eq('id', user.id)
     .single();
 
-  if (profile?.role !== 'vendedor' || profile?.seller_status !== 'approved') {
+  if (profile && profile.role !== 'vendedor' && profile.role !== 'admin') {
     return {
-      error: 'Tu cuenta de productor aún no ha sido aprobada por el administrador.',
+      error: 'Solo los usuarios registrados como vendedor pueden publicar productos.',
     };
+  }
+
+  if (profile?.seller_status === 'rejected') {
+    return {
+      error: 'Tu cuenta de productor ha sido rechazada por el administrador.',
+    };
+  }
+
+  // Asegurar que el seller_status quede como approved si aún era pending o null
+  if (profile?.seller_status !== 'approved') {
+    await supabase
+      .from('profiles')
+      .update({ seller_status: 'approved' })
+      .eq('id', user.id);
   }
 
   const name = formData.get('name') as string;

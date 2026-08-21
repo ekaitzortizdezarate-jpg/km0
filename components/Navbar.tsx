@@ -5,7 +5,6 @@ import {
   ShoppingBasket,
   User,
   LogOut,
-  PlusCircle,
   ShieldCheck,
   Calendar,
 } from 'lucide-react';
@@ -61,22 +60,11 @@ export default async function Navbar() {
             Catálogo
           </Link>
 
-          {/* Botón de Cesta de la compra */}
-          <CartNavButton />
+          {/* Botón de Cesta de la compra (solo para compradores y visitantes) */}
+          {profile?.role !== 'vendedor' && <CartNavButton />}
 
           {user && profile ? (
             <div className="flex items-center gap-2 sm:gap-3">
-              {/* Acciones para Vendedor */}
-              {profile.role === 'vendedor' && (
-                <Link
-                  href="/vendedor/productos/nuevo"
-                  className="flex items-center gap-1 bg-emerald-100 text-emerald-950 hover:bg-emerald-200 text-xs font-black px-3 py-1.5 rounded-xl border border-emerald-300 transition-colors shadow-sm"
-                >
-                  <PlusCircle className="w-4 h-4 text-emerald-800" />
-                  <span className="hidden md:inline">Publicar</span>
-                </Link>
-              )}
-
               {/* Acceso a Admin */}
               {profile.role === 'admin' && (
                 <Link

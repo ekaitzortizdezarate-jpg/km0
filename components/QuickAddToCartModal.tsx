@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { ShoppingCart, X, Store, Truck, Clock, Check, Plus, Minus } from 'lucide-react';
 import { useCart, CartItem } from '@/context/CartContext';
 import { createClient } from '@/lib/supabase/client';
@@ -17,6 +18,7 @@ export function QuickAddToCartModal({
 }: QuickAddToCartModalProps) {
   const { addToCart } = useCart();
   const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [deliveryType, setDeliveryType] = useState<'sitio_fisico' | 'envio'>('sitio_fisico');
   const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
@@ -24,6 +26,10 @@ export function QuickAddToCartModal({
   const [added, setAdded] = useState(false);
 
   const supabase = createClient();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     async function loadDeliveryPoints() {
@@ -89,190 +95,193 @@ export function QuickAddToCartModal({
         <span>Añadir</span>
       </button>
 
-      {isOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn"
-          onClick={handleClose}
-        >
-          <div
-            className="bg-white w-full max-w-md rounded-3xl p-6 space-y-5 shadow-2xl border-2 border-stone-200 relative text-left"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Cabecera modal */}
-            <div className="flex items-start justify-between gap-3 pb-3 border-b border-stone-100">
-              <div className="flex items-center gap-3">
-                {item.imageUrl ? (
-                  <img
-                    src={item.imageUrl}
-                    alt={item.name}
-                    className="w-14 h-14 rounded-2xl object-cover border border-stone-300 shrink-0"
-                  />
-                ) : (
-                  <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-900 font-black text-sm flex items-center justify-center shrink-0">
-                    km0
+      {isOpen && mounted
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn"
+              onClick={handleClose}
+            >
+              <div
+                className="bg-white w-full max-w-md rounded-3xl p-6 space-y-5 shadow-2xl border-2 border-stone-200 relative text-left"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Cabecera modal */}
+                <div className="flex items-start justify-between gap-3 pb-3 border-b border-stone-100">
+                  <div className="flex items-center gap-3">
+                    {item.imageUrl ? (
+                      <img
+                        src={item.imageUrl}
+                        alt={item.name}
+                        className="w-14 h-14 rounded-2xl object-cover border border-stone-300 shrink-0"
+                      />
+                    ) : (
+                      <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-900 font-black text-sm flex items-center justify-center shrink-0">
+                        km0
+                      </div>
+                    )}
+                    <div>
+                      <h3 className="font-black text-stone-900 text-base leading-tight">
+                        {item.name}
+                      </h3>
+                      <p className="text-xs font-bold text-stone-600 mt-0.5">
+                        {item.sellerName} · {item.sellerTown}
+                      </p>
+                      <p className="text-xs font-black text-emerald-800 mt-0.5">
+                        {item.unitPrice.toFixed(2)} € / {unitLabel}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleClose}
+                    className="p-1.5 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-600 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Fecha y Plazo de Entrega */}
+                {item.deliveryBadge && (
+                  <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-200 text-xs font-bold text-emerald-950 flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-emerald-700 shrink-0" />
+                    <span>Entrega prevista: <strong>{item.deliveryBadge}</strong></span>
                   </div>
                 )}
-                <div>
-                  <h3 className="font-black text-stone-900 text-base leading-tight">
-                    {item.name}
-                  </h3>
-                  <p className="text-xs font-bold text-stone-600 mt-0.5">
-                    {item.sellerName} · {item.sellerTown}
-                  </p>
-                  <p className="text-xs font-black text-emerald-800 mt-0.5">
-                    {item.unitPrice.toFixed(2)} € / {unitLabel}
-                  </p>
-                </div>
-              </div>
 
-              <button
-                type="button"
-                onClick={handleClose}
-                className="p-1.5 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-600 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+                {/* Selector de Cantidad */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-black text-stone-900 uppercase tracking-wider">
+                    Cantidad deseada ({unitLabel}):
+                  </label>
 
-            {/* Fecha y Plazo de Entrega */}
-            {item.deliveryBadge && (
-              <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-200 text-xs font-bold text-emerald-950 flex items-center gap-2">
-                <Clock className="w-4 h-4 text-emerald-700 shrink-0" />
-                <span>Entrega prevista: <strong>{item.deliveryBadge}</strong></span>
-              </div>
-            )}
+                  <div className="flex items-center justify-between gap-3 bg-stone-50 p-2.5 rounded-2xl border border-stone-200">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                        className="w-9 h-9 rounded-xl bg-white border border-stone-300 hover:bg-stone-100 text-stone-900 flex items-center justify-center font-black"
+                      >
+                        <Minus className="w-4 h-4" />
+                      </button>
 
-            {/* Selector de Cantidad */}
-            <div className="space-y-2">
-              <label className="block text-xs font-black text-stone-900 uppercase tracking-wider">
-                Cantidad deseada ({unitLabel}):
-              </label>
+                      <span className="text-xl font-black text-stone-900 px-3 min-w-[50px] text-center">
+                        {quantity}{' '}
+                        <span className="text-xs font-bold text-stone-600">{unitLabel}</span>
+                      </span>
 
-              <div className="flex items-center justify-between gap-3 bg-stone-50 p-2.5 rounded-2xl border border-stone-200">
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="w-9 h-9 rounded-xl bg-white border border-stone-300 hover:bg-stone-100 text-stone-900 flex items-center justify-center font-black"
-                  >
-                    <Minus className="w-4 h-4" />
-                  </button>
+                      <button
+                        type="button"
+                        onClick={() => setQuantity(quantity + 1)}
+                        className="w-9 h-9 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white flex items-center justify-center font-black"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
 
-                  <span className="text-xl font-black text-stone-900 px-3 min-w-[50px] text-center">
-                    {quantity}{' '}
-                    <span className="text-xs font-bold text-stone-600">{unitLabel}</span>
-                  </span>
-
-                  <button
-                    type="button"
-                    onClick={() => setQuantity(quantity + 1)}
-                    className="w-9 h-9 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white flex items-center justify-center font-black"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
+                    {/* Pastillas de cantidad rápida */}
+                    <div className="flex flex-wrap gap-1">
+                      {(item.format === 'granel' ? [2, 5, 10] : [2, 3, 5]).map((num) => (
+                        <button
+                          type="button"
+                          key={num}
+                          onClick={() => setQuantity(num)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all border ${
+                            quantity === num
+                              ? 'bg-emerald-700 text-white border-emerald-800'
+                              : 'bg-white text-stone-700 border-stone-300 hover:bg-stone-100'
+                          }`}
+                        >
+                          {num} {unitLabel}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
 
-                {/* Pastillas de cantidad rápida */}
-                <div className="flex flex-wrap gap-1">
-                  {(item.format === 'granel' ? [2, 5, 10] : [2, 3, 5]).map((num) => (
+                {/* Formato de entrega */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-black text-stone-900 uppercase tracking-wider">
+                    Formato de Entrega del Caserío:
+                  </label>
+
+                  <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
-                      key={num}
-                      onClick={() => setQuantity(num)}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all border ${
-                        quantity === num
-                          ? 'bg-emerald-700 text-white border-emerald-800'
-                          : 'bg-white text-stone-700 border-stone-300 hover:bg-stone-100'
+                      onClick={() => setDeliveryType('sitio_fisico')}
+                      className={`p-2.5 rounded-xl border-2 text-left text-xs font-black transition-all flex items-center gap-1.5 ${
+                        deliveryType === 'sitio_fisico'
+                          ? 'border-emerald-700 bg-emerald-50 text-emerald-950'
+                          : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
                       }`}
                     >
-                      {num} {unitLabel}
+                      <Store className="w-4 h-4 text-emerald-700" />
+                      <span>Punto Caserío</span>
                     </button>
-                  ))}
+
+                    <button
+                      type="button"
+                      onClick={() => setDeliveryType('envio')}
+                      className={`p-2.5 rounded-xl border-2 text-left text-xs font-black transition-all flex items-center gap-1.5 ${
+                        deliveryType === 'envio'
+                          ? 'border-emerald-700 bg-emerald-50 text-emerald-950'
+                          : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
+                      }`}
+                    >
+                      <Truck className="w-4 h-4 text-emerald-700" />
+                      <span>A Domicilio</span>
+                    </button>
+                  </div>
+
+                  {deliveryType === 'sitio_fisico' && deliveryPoints.length > 0 && (
+                    <select
+                      value={selectedPointId}
+                      onChange={(e) => setSelectedPointId(e.target.value)}
+                      className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900"
+                    >
+                      {deliveryPoints.map((pt) => (
+                        <option key={pt.id} value={pt.id}>
+                          {pt.name} ({pt.town})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                {/* Subtotal y Botón Final */}
+                <div className="pt-2 border-t border-stone-200 flex items-center justify-between gap-3">
+                  <div>
+                    <span className="text-[10px] font-bold text-stone-500 block uppercase">
+                      Subtotal ({quantity} {unitLabel})
+                    </span>
+                    <span className="text-2xl font-black text-stone-900">{subtotal} €</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleConfirmAddToCart}
+                    className={`flex-1 py-3.5 px-4 rounded-2xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-md active:scale-95 ${
+                      added
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-emerald-700 hover:bg-emerald-800 text-white'
+                    }`}
+                  >
+                    {added ? (
+                      <>
+                        <Check className="w-4 h-4" /> ¡Añadido a la Cesta!
+                      </>
+                    ) : (
+                      <>
+                        <ShoppingCart className="w-4 h-4" /> Añadir a la Cesta
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
-            </div>
-
-            {/* Formato de entrega */}
-            <div className="space-y-2">
-              <label className="block text-xs font-black text-stone-900 uppercase tracking-wider">
-                Formato de Entrega del Caserío:
-              </label>
-
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setDeliveryType('sitio_fisico')}
-                  className={`p-2.5 rounded-xl border-2 text-left text-xs font-black transition-all flex items-center gap-1.5 ${
-                    deliveryType === 'sitio_fisico'
-                      ? 'border-emerald-700 bg-emerald-50 text-emerald-950'
-                      : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
-                  }`}
-                >
-                  <Store className="w-4 h-4 text-emerald-700" />
-                  <span>Punto Caserío</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setDeliveryType('envio')}
-                  className={`p-2.5 rounded-xl border-2 text-left text-xs font-black transition-all flex items-center gap-1.5 ${
-                    deliveryType === 'envio'
-                      ? 'border-emerald-700 bg-emerald-50 text-emerald-950'
-                      : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
-                  }`}
-                >
-                  <Truck className="w-4 h-4 text-emerald-700" />
-                  <span>A Domicilio</span>
-                </button>
-              </div>
-
-              {deliveryType === 'sitio_fisico' && deliveryPoints.length > 0 && (
-                <select
-                  value={selectedPointId}
-                  onChange={(e) => setSelectedPointId(e.target.value)}
-                  className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900"
-                >
-                  {deliveryPoints.map((pt) => (
-                    <option key={pt.id} value={pt.id}>
-                      {pt.name} ({pt.town})
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-
-            {/* Subtotal y Botón Final */}
-            <div className="pt-2 border-t border-stone-200 flex items-center justify-between gap-3">
-              <div>
-                <span className="text-[10px] font-bold text-stone-500 block uppercase">
-                  Subtotal ({quantity} {unitLabel})
-                </span>
-                <span className="text-2xl font-black text-stone-900">{subtotal} €</span>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleConfirmAddToCart}
-                className={`flex-1 py-3.5 px-4 rounded-2xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-md active:scale-95 ${
-                  added
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-emerald-700 hover:bg-emerald-800 text-white'
-                }`}
-              >
-                {added ? (
-                  <>
-                    <Check className="w-4 h-4" /> ¡Añadido a la Cesta!
-                  </>
-                ) : (
-                  <>
-                    <ShoppingCart className="w-4 h-4" /> Añadir a la Cesta
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            </div>,
+            document.body
+          )
+        : null}
     </>
   );
 }
