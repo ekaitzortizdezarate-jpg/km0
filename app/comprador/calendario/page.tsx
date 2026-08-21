@@ -86,18 +86,6 @@ export default async function BuyerCalendarPage() {
         </Link>
       </div>
 
-      <div className="flex items-center gap-3 bg-stone-900 text-white p-6 rounded-3xl shadow-sm">
-        <div className="p-3 bg-stone-800 rounded-2xl text-emerald-400">
-          <CalendarIcon className="w-8 h-8" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-black">Calendario de Mis Compras</h1>
-          <p className="text-stone-400 text-xs mt-0.5 font-medium">
-            Comprueba qué días recibirás o recogerás tus productos frescos de caserío
-          </p>
-        </div>
-      </div>
-
       <CalendarView events={events} role="comprador" />
     </div>
   );

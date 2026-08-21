@@ -117,53 +117,40 @@ export default async function HomePage({
 
   return (
     <div className="space-y-8">
-      {/* Banner de Bienvenida */}
-      <div className="bg-emerald-900 text-white rounded-3xl p-6 sm:p-10 relative overflow-hidden shadow-md">
-        <div className="relative z-10 max-w-2xl space-y-3">
-          <span className="bg-emerald-800 text-emerald-100 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider inline-block">
-            km0 · Caserío y Proximidad
-          </span>
-          <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white">
-            Alimentos frescos de caserío cerca de ti.
-          </h1>
-          <p className="text-emerald-100 text-sm sm:text-base font-medium">
-            Conecta directamente con productores locales y añade sus productos a tu cesta de la compra.
-          </p>
-        </div>
-      </div>
-
-      {/* PESTAÑAS PARA EL VENDEDOR: Mis Productos vs Catálogo General */}
+      {/* PESTAÑAS PARA EL VENDEDOR */}
       {isSeller && (
-        <div className="bg-white p-2 rounded-2xl border-2 border-stone-200 shadow-sm flex flex-wrap gap-2">
-          <Link
-            href="/?tab=mis_productos"
-            className={`flex-1 min-w-[140px] text-center py-2.5 px-4 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 ${
-              activeTab === 'mis_productos'
-                ? 'bg-emerald-700 text-white shadow-sm'
-                : 'bg-stone-50 text-stone-800 hover:bg-stone-100'
-            }`}
-          >
-            <Store className="w-4 h-4" />
-            <span>Mis Productos ({activeTab === 'mis_productos' ? products?.length || 0 : 'Panel'})</span>
-          </Link>
+        <div className="bg-white p-3 rounded-3xl border-2 border-stone-200 shadow-sm space-y-2.5">
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/?tab=mis_productos"
+              className={`flex-1 min-w-[140px] text-center py-2.5 px-4 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 ${
+                activeTab === 'mis_productos'
+                  ? 'bg-emerald-700 text-white shadow-sm'
+                  : 'bg-stone-50 text-stone-800 hover:bg-stone-100'
+              }`}
+            >
+              <Store className="w-4 h-4" />
+              <span>Mis Productos ({activeTab === 'mis_productos' ? products?.length || 0 : 'Panel'})</span>
+            </Link>
 
-          <Link
-            href="/?tab=todos"
-            className={`flex-1 min-w-[140px] text-center py-2.5 px-4 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 ${
-              activeTab === 'todos'
-                ? 'bg-emerald-700 text-white shadow-sm'
-                : 'bg-stone-50 text-stone-800 hover:bg-stone-100'
-            }`}
-          >
-            <span>Ver Otros Vendedores / Catálogo General</span>
-          </Link>
+            <Link
+              href="/?tab=todos"
+              className={`flex-1 min-w-[140px] text-center py-2.5 px-4 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 ${
+                activeTab === 'todos'
+                  ? 'bg-emerald-700 text-white shadow-sm'
+                  : 'bg-stone-50 text-stone-800 hover:bg-stone-100'
+              }`}
+            >
+              <span>Ver Otros Vendedores / Catálogo General</span>
+            </Link>
+          </div>
 
           <Link
             href="/vendedor/productos/nuevo"
-            className="py-2.5 px-4 bg-emerald-100 hover:bg-emerald-200 text-emerald-950 font-black text-xs rounded-xl flex items-center gap-1.5 transition-colors border border-emerald-300"
+            className="w-full py-3 px-4 bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 transition-all shadow-md active:scale-95"
           >
-            <PlusCircle className="w-4 h-4 text-emerald-800" />
-            <span>Publicar Nuevo</span>
+            <PlusCircle className="w-4 h-4" />
+            <span>Publicar Nuevo Producto en mi Caserío</span>
           </Link>
         </div>
       )}
@@ -303,6 +290,8 @@ export default async function HomePage({
               packItems: product.pack_items,
               estimatedDeliveryDate: deliveryInfo.estimatedDate.toISOString(),
               deliveryBadge: deliveryInfo.badgeText,
+              deliveryMethods: product.delivery_methods,
+              caserioSchedule: product.caserio_schedule,
             };
 
             return (
@@ -310,12 +299,14 @@ export default async function HomePage({
                 key={product.id}
                 className="relative group bg-white rounded-3xl border-2 border-stone-200 overflow-hidden shadow-sm hover:shadow-md hover:border-emerald-500 transition-all flex flex-col justify-between"
               >
-                {/* Enlace que hace que toda la tarjeta sea pulsable */}
-                <Link
-                  href={`/pedir/${product.id}`}
-                  className="absolute inset-0 z-0"
-                  aria-label={`Ver detalles de ${product.name}`}
-                />
+                {/* Si es mi propio producto, el enlace lleva a editar */}
+                {isOwnProduct && (
+                  <Link
+                    href={`/vendedor/productos/${product.id}/editar`}
+                    className="absolute inset-0 z-0"
+                    aria-label={`Editar ${product.name}`}
+                  />
+                )}
 
                 <div className="relative z-10 pointer-events-none">
                   {/* Foto del Producto o Placeholder */}
@@ -514,7 +505,7 @@ export default async function HomePage({
                           <MessageCircle className="w-4 h-4" />
                         </Link>
                       )}
-                      <QuickAddToCartModal item={cartItemPayload} />
+                      <QuickAddToCartModal item={cartItemPayload} isCardOverlay={!isOwnProduct} />
                     </div>
                   )}
                 </div>

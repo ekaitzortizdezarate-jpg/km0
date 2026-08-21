@@ -26,7 +26,7 @@ import {
 import type { DeliveryPoint, OrderStatus } from '@/types/database';
 
 interface SellerDeliveryConfig {
-  deliveryType: 'sitio_fisico' | 'envio';
+  deliveryType: 'caserio' | 'sitio_fisico' | 'envio';
   deliveryPointId: string | null;
   shippingAddress: string;
   groupMode: 'junto_tardio' | 'individual';
@@ -158,7 +158,7 @@ export default function CartPage() {
     loadDeliveryPoints();
   }, [sellerIdsKey, supabase]);
 
-  const handleDeliveryTypeChange = (sellerId: string, type: 'sitio_fisico' | 'envio') => {
+  const handleDeliveryTypeChange = (sellerId: string, type: 'caserio' | 'sitio_fisico' | 'envio') => {
     setDeliveryConfigs((prev) => ({
       ...prev,
       [sellerId]: {
@@ -538,35 +538,64 @@ export default function CartPage() {
                       Forma de entrega para {group.sellerName}:
                     </label>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleDeliveryTypeChange(sellerId, 'caserio')}
+                        className={`p-3 rounded-xl border-2 text-left text-xs font-black transition-all flex flex-col justify-between gap-1 ${
+                          config.deliveryType === 'caserio'
+                            ? 'border-emerald-700 bg-white ring-2 ring-emerald-600 text-emerald-950 shadow-sm'
+                            : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
+                        }`}
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <Store className="w-4 h-4 text-emerald-700" />
+                          <span>En Caserío</span>
+                        </span>
+                        <span className="text-[10px] font-semibold text-stone-500">Recogida directa</span>
+                      </button>
+
                       <button
                         type="button"
                         onClick={() => handleDeliveryTypeChange(sellerId, 'sitio_fisico')}
-                        className={`p-3 rounded-xl border-2 text-left text-xs font-black transition-all flex items-center gap-2 ${
+                        className={`p-3 rounded-xl border-2 text-left text-xs font-black transition-all flex flex-col justify-between gap-1 ${
                           config.deliveryType === 'sitio_fisico'
                             ? 'border-emerald-700 bg-white ring-2 ring-emerald-600 text-emerald-950 shadow-sm'
                             : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
                         }`}
                       >
-                        <Store className="w-4 h-4 text-emerald-700" />
-                        <span>Recogida en Punto del Caserío</span>
+                        <span className="flex items-center gap-1.5">
+                          <Store className="w-4 h-4 text-emerald-700" />
+                          <span>Punto Entrega</span>
+                        </span>
+                        <span className="text-[10px] font-semibold text-stone-500">Mercado / Plaza</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => handleDeliveryTypeChange(sellerId, 'envio')}
-                        className={`p-3 rounded-xl border-2 text-left text-xs font-black transition-all flex items-center gap-2 ${
+                        className={`p-3 rounded-xl border-2 text-left text-xs font-black transition-all flex flex-col justify-between gap-1 ${
                           config.deliveryType === 'envio'
                             ? 'border-emerald-700 bg-white ring-2 ring-emerald-600 text-emerald-950 shadow-sm'
                             : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
                         }`}
                       >
-                        <Truck className="w-4 h-4 text-emerald-700" />
-                        <span>Envío a Domicilio</span>
+                        <span className="flex items-center gap-1.5">
+                          <Truck className="w-4 h-4 text-emerald-700" />
+                          <span>A Domicilio</span>
+                        </span>
+                        <span className="text-[10px] font-semibold text-stone-500">Envío directo</span>
                       </button>
                     </div>
 
-                    {config.deliveryType === 'sitio_fisico' ? (
+                    {config.deliveryType === 'caserio' && (
+                      <div className="p-3 bg-white rounded-xl border border-stone-200 text-xs font-semibold text-stone-800 flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-emerald-700 shrink-0" />
+                        <span>Recogida directa en las instalaciones del caserío ({group.sellerTown}).</span>
+                      </div>
+                    )}
+
+                    {config.deliveryType === 'sitio_fisico' && (
                       <div>
                         {points.length > 0 ? (
                           <select
@@ -586,13 +615,15 @@ export default function CartPage() {
                           </p>
                         )}
                       </div>
-                    ) : (
+                    )}
+
+                    {config.deliveryType === 'envio' && (
                       <div>
                         <input
                           type="text"
                           value={config.shippingAddress}
                           onChange={(e) => handleAddressChange(sellerId, e.target.value)}
-                          placeholder="Calle, número, piso, pueblo para el envío..."
+                          placeholder="Calle, número, piso, pueblo para el envío a domicilio..."
                           className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none placeholder:text-stone-400"
                         />
                       </div>

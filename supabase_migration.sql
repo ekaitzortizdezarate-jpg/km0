@@ -33,6 +33,20 @@ ALTER TABLE public.profiles
 UPDATE public.profiles SET seller_status = 'approved' WHERE role = 'vendedor' AND (seller_status IS NULL OR seller_status = 'pending');
 
 -- 2. ACTUALIZAR O CREAR TABLA 'products'
+-- Si existe el enum product_format, añadir 'granel' y 'pack' para evitar errores de enum
+DO $$ 
+BEGIN 
+  IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'product_format') THEN
+    BEGIN
+      ALTER TYPE product_format ADD VALUE IF NOT EXISTS 'granel';
+      ALTER TYPE product_format ADD VALUE IF NOT EXISTS 'pack';
+      ALTER TYPE product_format ADD VALUE IF NOT EXISTS 'pack_cesta';
+    EXCEPTION
+      WHEN OTHERS THEN NULL;
+    END;
+  END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS public.products (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   seller_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
@@ -55,10 +69,15 @@ CREATE TABLE IF NOT EXISTS public.products (
   availability_days INTEGER DEFAULT 1,
   availability_weekdays TEXT[],
   available_from_date DATE,
+  delivery_methods TEXT[] DEFAULT ARRAY['caserio', 'punto_entrega', 'domicilio']::TEXT[],
+  caserio_schedule TEXT,
   is_active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Asegurar que format sea compatible con texto y no falle por enums antiguos
+ALTER TABLE public.products ALTER COLUMN format TYPE TEXT;
 
 ALTER TABLE public.products 
   ADD COLUMN IF NOT EXISTS format TEXT DEFAULT 'suelto',
@@ -76,6 +95,8 @@ ALTER TABLE public.products
   ADD COLUMN IF NOT EXISTS availability_days INTEGER DEFAULT 1,
   ADD COLUMN IF NOT EXISTS availability_weekdays TEXT[],
   ADD COLUMN IF NOT EXISTS available_from_date DATE,
+  ADD COLUMN IF NOT EXISTS delivery_methods TEXT[] DEFAULT ARRAY['caserio', 'punto_entrega', 'domicilio']::TEXT[],
+  ADD COLUMN IF NOT EXISTS caserio_schedule TEXT,
   ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
 
 -- 3. ACTUALIZAR O CREAR TABLA 'delivery_points'

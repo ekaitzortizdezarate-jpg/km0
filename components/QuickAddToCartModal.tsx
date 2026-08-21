@@ -8,19 +8,37 @@ import { createClient } from '@/lib/supabase/client';
 import type { DeliveryPoint } from '@/types/database';
 
 interface QuickAddToCartModalProps {
-  item: CartItem;
+  item: CartItem & {
+    deliveryMethods?: string[] | null;
+    caserioSchedule?: string | null;
+  };
   className?: string;
+  isCardOverlay?: boolean;
 }
 
 export function QuickAddToCartModal({
   item,
   className = '',
+  isCardOverlay = true,
 }: QuickAddToCartModalProps) {
   const { addToCart } = useCart();
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [quantity, setQuantity] = useState(1);
-  const [deliveryType, setDeliveryType] = useState<'sitio_fisico' | 'envio'>('sitio_fisico');
+
+  // Opciones permitidas por el vendedor
+  const availableMethods = item.deliveryMethods && item.deliveryMethods.length > 0
+    ? item.deliveryMethods
+    : ['caserio', 'punto_entrega', 'domicilio'];
+
+  const [deliveryMethod, setDeliveryMethod] = useState<string>(
+    availableMethods.includes('caserio')
+      ? 'caserio'
+      : availableMethods.includes('punto_entrega')
+      ? 'punto_entrega'
+      : 'domicilio'
+  );
+
   const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
   const [selectedPointId, setSelectedPointId] = useState<string>('');
   const [added, setAdded] = useState(false);
@@ -77,7 +95,7 @@ export function QuickAddToCartModal({
     setTimeout(() => {
       setAdded(false);
       setIsOpen(false);
-    }, 1000);
+    }, 900);
   };
 
   const subtotal = (item.unitPrice * quantity).toFixed(2);
@@ -85,11 +103,22 @@ export function QuickAddToCartModal({
 
   return (
     <>
+      {/* Botón Overlay que hace que toda la tarjeta sea pulsable */}
+      {isCardOverlay && (
+        <button
+          type="button"
+          onClick={handleOpen}
+          className="absolute inset-0 z-0 w-full h-full cursor-pointer text-left focus:outline-none"
+          aria-label={`Añadir ${item.name} a la cesta`}
+        />
+      )}
+
+      {/* Botón visible de Añadir */}
       <button
         type="button"
         onClick={handleOpen}
         title="Configurar y añadir a la cesta"
-        className={`px-3 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all active:scale-95 shadow-sm bg-emerald-700 hover:bg-emerald-800 text-white ${className}`}
+        className={`relative z-10 px-3 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all active:scale-95 shadow-sm bg-emerald-700 hover:bg-emerald-800 text-white ${className}`}
       >
         <ShoppingCart className="w-3.5 h-3.5" />
         <span>Añadir</span>
@@ -145,7 +174,7 @@ export function QuickAddToCartModal({
                 {item.deliveryBadge && (
                   <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-200 text-xs font-bold text-emerald-950 flex items-center gap-2">
                     <Clock className="w-4 h-4 text-emerald-700 shrink-0" />
-                    <span>Entrega prevista: <strong>{item.deliveryBadge}</strong></span>
+                    <span>Entrega estimada: <strong>{item.deliveryBadge}</strong></span>
                   </div>
                 )}
 
@@ -199,52 +228,91 @@ export function QuickAddToCartModal({
                   </div>
                 </div>
 
-                {/* Formato de entrega */}
+                {/* Modalidad de entrega */}
                 <div className="space-y-2">
                   <label className="block text-xs font-black text-stone-900 uppercase tracking-wider">
-                    Formato de Entrega del Caserío:
+                    Opciones de Entrega del Caserío:
                   </label>
 
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setDeliveryType('sitio_fisico')}
-                      className={`p-2.5 rounded-xl border-2 text-left text-xs font-black transition-all flex items-center gap-1.5 ${
-                        deliveryType === 'sitio_fisico'
-                          ? 'border-emerald-700 bg-emerald-50 text-emerald-950'
-                          : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
-                      }`}
-                    >
-                      <Store className="w-4 h-4 text-emerald-700" />
-                      <span>Punto Caserío</span>
-                    </button>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {availableMethods.includes('caserio') && (
+                      <button
+                        type="button"
+                        onClick={() => setDeliveryMethod('caserio')}
+                        className={`p-2.5 rounded-xl border-2 text-left text-xs font-black transition-all flex flex-col justify-between gap-1 ${
+                          deliveryMethod === 'caserio'
+                            ? 'border-emerald-700 bg-emerald-50 text-emerald-950 shadow-sm'
+                            : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
+                        }`}
+                      >
+                        <span className="flex items-center gap-1">
+                          <Store className="w-3.5 h-3.5 text-emerald-700" />
+                          <span>En Caserío</span>
+                        </span>
+                        <span className="text-[9px] font-semibold text-stone-500">Recogida directa</span>
+                      </button>
+                    )}
 
-                    <button
-                      type="button"
-                      onClick={() => setDeliveryType('envio')}
-                      className={`p-2.5 rounded-xl border-2 text-left text-xs font-black transition-all flex items-center gap-1.5 ${
-                        deliveryType === 'envio'
-                          ? 'border-emerald-700 bg-emerald-50 text-emerald-950'
-                          : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
-                      }`}
-                    >
-                      <Truck className="w-4 h-4 text-emerald-700" />
-                      <span>A Domicilio</span>
-                    </button>
+                    {availableMethods.includes('punto_entrega') && (
+                      <button
+                        type="button"
+                        onClick={() => setDeliveryMethod('punto_entrega')}
+                        className={`p-2.5 rounded-xl border-2 text-left text-xs font-black transition-all flex flex-col justify-between gap-1 ${
+                          deliveryMethod === 'punto_entrega'
+                            ? 'border-emerald-700 bg-emerald-50 text-emerald-950 shadow-sm'
+                            : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
+                        }`}
+                      >
+                        <span className="flex items-center gap-1">
+                          <Store className="w-3.5 h-3.5 text-emerald-700" />
+                          <span>Punto Entrega</span>
+                        </span>
+                        <span className="text-[9px] font-semibold text-stone-500">Mercado / Plaza</span>
+                      </button>
+                    )}
+
+                    {availableMethods.includes('domicilio') && (
+                      <button
+                        type="button"
+                        onClick={() => setDeliveryMethod('domicilio')}
+                        className={`p-2.5 rounded-xl border-2 text-left text-xs font-black transition-all flex flex-col justify-between gap-1 ${
+                          deliveryMethod === 'domicilio'
+                            ? 'border-emerald-700 bg-emerald-50 text-emerald-950 shadow-sm'
+                            : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
+                        }`}
+                      >
+                        <span className="flex items-center gap-1">
+                          <Truck className="w-3.5 h-3.5 text-emerald-700" />
+                          <span>A Domicilio</span>
+                        </span>
+                        <span className="text-[9px] font-semibold text-stone-500">Envío directo</span>
+                      </button>
+                    )}
                   </div>
 
-                  {deliveryType === 'sitio_fisico' && deliveryPoints.length > 0 && (
-                    <select
-                      value={selectedPointId}
-                      onChange={(e) => setSelectedPointId(e.target.value)}
-                      className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900"
-                    >
-                      {deliveryPoints.map((pt) => (
-                        <option key={pt.id} value={pt.id}>
-                          {pt.name} ({pt.town})
-                        </option>
-                      ))}
-                    </select>
+                  {/* Horario Caserío */}
+                  {deliveryMethod === 'caserio' && item.caserioSchedule && (
+                    <div className="p-2.5 bg-stone-50 rounded-xl border border-stone-200 text-[11px] text-stone-700 font-medium flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-emerald-700 shrink-0" />
+                      <span>Horario de recogida: <strong>{item.caserioSchedule}</strong></span>
+                    </div>
+                  )}
+
+                  {/* Puntos de Entrega */}
+                  {deliveryMethod === 'punto_entrega' && deliveryPoints.length > 0 && (
+                    <div className="space-y-1">
+                      <select
+                        value={selectedPointId}
+                        onChange={(e) => setSelectedPointId(e.target.value)}
+                        className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900"
+                      >
+                        {deliveryPoints.map((pt) => (
+                          <option key={pt.id} value={pt.id}>
+                            {pt.name} ({pt.town}) · {pt.address_details}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   )}
                 </div>
 

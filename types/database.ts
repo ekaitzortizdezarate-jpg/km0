@@ -59,6 +59,8 @@ export interface Product {
   availability_days?: number | null;
   availability_weekdays?: string[] | null;
   available_from_date?: string | null;
+  delivery_methods?: string[] | null;
+  caserio_schedule?: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;

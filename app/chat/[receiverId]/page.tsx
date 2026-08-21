@@ -15,6 +15,14 @@ export default async function ChatDetailPage({
 
   if (!user) redirect('/login');
 
+  // Marcar como leídos los mensajes recibidos de esta persona
+  await supabase
+    .from('chat_messages')
+    .update({ is_read: true })
+    .eq('receiver_id', user.id)
+    .eq('sender_id', receiverId)
+    .eq('is_read', false);
+
   const { data: recipient } = await supabase
     .from('profiles')
     .select('full_name, town, role')
@@ -33,7 +41,7 @@ export default async function ChatDetailPage({
     <div className="max-w-2xl mx-auto h-[80vh] flex flex-col bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
       {/* Cabecera Chat */}
       <div className="p-4 border-b border-stone-200 bg-stone-50 flex items-center gap-3">
-        <Link href="/" className="text-stone-500 hover:text-stone-900">
+        <Link href="/chat" className="text-stone-500 hover:text-stone-900" title="Volver a todos los chats">
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div>

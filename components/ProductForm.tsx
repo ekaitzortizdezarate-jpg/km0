@@ -93,6 +93,26 @@ export function ProductForm({
     product?.availability_weekdays || ['viernes']
   );
 
+  // Opciones de Entrega ofrecidas
+  const [deliveryMethods, setDeliveryMethods] = useState<string[]>(
+    product?.delivery_methods && product.delivery_methods.length > 0
+      ? product.delivery_methods
+      : ['caserio', 'punto_entrega', 'domicilio']
+  );
+  const [caserioSchedule, setCaserioSchedule] = useState<string>(
+    product?.caserio_schedule || 'Lunes a Sábado de 10:00 a 14:00'
+  );
+
+  const toggleDeliveryMethod = (method: string) => {
+    if (deliveryMethods.includes(method)) {
+      if (deliveryMethods.length > 1) {
+        setDeliveryMethods(deliveryMethods.filter((m) => m !== method));
+      }
+    } else {
+      setDeliveryMethods([...deliveryMethods, method]);
+    }
+  };
+
   // Previous products for dropdown autocomplete
   const uniquePreviousProducts = Array.from(
     new Map(existingProducts.map((p) => [p.name.trim().toLowerCase(), p])).values()
@@ -198,6 +218,13 @@ export function ProductForm({
         formData.append('availability_weekdays', day);
       });
     }
+
+    // Modalidades de entrega habilitadas
+    formData.delete('delivery_methods');
+    deliveryMethods.forEach((m) => {
+      formData.append('delivery_methods', m);
+    });
+    formData.set('caserio_schedule', deliveryMethods.includes('caserio') ? caserioSchedule : '');
 
     const result = isEdit && product
       ? await updateProduct(product.id, formData)
@@ -919,6 +946,108 @@ export function ProductForm({
               </div>
             </div>
           )}
+
+          {/* Modalidades de Entrega Ofrecidas para este Producto */}
+          <div className="p-4 bg-stone-50 rounded-2xl border-2 border-stone-200 space-y-3 mt-4">
+            <div>
+              <label className="block text-xs font-black text-stone-900 uppercase tracking-wider">
+                Opciones de entrega disponibles para el comprador: *
+              </label>
+              <p className="text-[11px] font-semibold text-stone-500 mt-0.5">
+                Puedes marcar una o varias opciones para que el cliente elija la que prefiera.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {/* Opción 1: Recogida en Caserío */}
+              <button
+                type="button"
+                onClick={() => toggleDeliveryMethod('caserio')}
+                className={`p-3 rounded-xl border-2 text-left transition-all flex flex-col justify-between gap-1.5 ${
+                  deliveryMethods.includes('caserio')
+                    ? 'border-emerald-700 bg-emerald-50 text-emerald-950 shadow-sm'
+                    : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black">🏡 Recogida en Caserío</span>
+                  <input
+                    type="checkbox"
+                    checked={deliveryMethods.includes('caserio')}
+                    readOnly
+                    className="w-4 h-4 text-emerald-700 rounded"
+                  />
+                </div>
+                <span className="text-[10px] font-semibold text-stone-500">
+                  El cliente acude a tu caserío
+                </span>
+              </button>
+
+              {/* Opción 2: Punto de Entrega */}
+              <button
+                type="button"
+                onClick={() => toggleDeliveryMethod('punto_entrega')}
+                className={`p-3 rounded-xl border-2 text-left transition-all flex flex-col justify-between gap-1.5 ${
+                  deliveryMethods.includes('punto_entrega')
+                    ? 'border-emerald-700 bg-emerald-50 text-emerald-950 shadow-sm'
+                    : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black">📍 Punto de Entrega</span>
+                  <input
+                    type="checkbox"
+                    checked={deliveryMethods.includes('punto_entrega')}
+                    readOnly
+                    className="w-4 h-4 text-emerald-700 rounded"
+                  />
+                </div>
+                <span className="text-[10px] font-semibold text-stone-500">
+                  Mercado, plaza o punto fijo
+                </span>
+              </button>
+
+              {/* Opción 3: Envío a Domicilio */}
+              <button
+                type="button"
+                onClick={() => toggleDeliveryMethod('domicilio')}
+                className={`p-3 rounded-xl border-2 text-left transition-all flex flex-col justify-between gap-1.5 ${
+                  deliveryMethods.includes('domicilio')
+                    ? 'border-emerald-700 bg-emerald-50 text-emerald-950 shadow-sm'
+                    : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black">🚚 Envío a Domicilio</span>
+                  <input
+                    type="checkbox"
+                    checked={deliveryMethods.includes('domicilio')}
+                    readOnly
+                    className="w-4 h-4 text-emerald-700 rounded"
+                  />
+                </div>
+                <span className="text-[10px] font-semibold text-stone-500">
+                  Reparto directo a su casa
+                </span>
+              </button>
+            </div>
+
+            {/* Horario de Recogida en Caserío si está activo */}
+            {deliveryMethods.includes('caserio') && (
+              <div className="p-3 bg-white rounded-xl border border-stone-200 space-y-1 mt-2">
+                <label className="block text-xs font-bold text-stone-800">
+                  Horario / Días para recoger en el caserío:
+                </label>
+                <input
+                  type="text"
+                  value={caserioSchedule}
+                  onChange={(e) => setCaserioSchedule(e.target.value)}
+                  placeholder="Ej. Lunes a Sábado de 10:00 a 14:00"
+                  className="w-full px-3 py-2 border border-stone-300 rounded-lg text-xs font-bold text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                />
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -941,7 +1070,7 @@ export function ProductForm({
             defaultValue={product?.cultivation || 'no_aplica'}
             className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-xs font-bold text-stone-900 bg-white"
           >
-            <option value="no_aplica">No aplica / Tradicional</option>
+            <option value="no_aplica">No aplica</option>
             <option value="exterior">Cultivo Exterior / Aire Libre</option>
             <option value="invernadero">Invernadero</option>
           </select>

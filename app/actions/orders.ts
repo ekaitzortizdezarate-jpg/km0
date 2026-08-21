@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 
 export interface CartCheckoutSellerGroup {
   sellerId: string;
-  deliveryType: 'sitio_fisico' | 'envio';
+  deliveryType: 'caserio' | 'sitio_fisico' | 'envio';
   deliveryPointId?: string | null;
   shippingAddress?: string | null;
   estimatedDeliveryDate?: string | null;
@@ -42,11 +42,18 @@ export async function createCartOrders(sellerGroups: CartCheckoutSellerGroup[]) 
       // Intento 1: Insertar pedido con estimated_delivery_date
       let orderId: string | null = null;
 
+      const shippingAddressVal =
+        group.deliveryType === 'envio'
+          ? group.shippingAddress || null
+          : group.deliveryType === 'caserio'
+          ? 'Recogida directa en Caserío'
+          : null;
+
       const fullOrderPayload = {
         buyer_id: user.id,
         seller_id: group.sellerId,
         delivery_point_id: group.deliveryType === 'sitio_fisico' ? group.deliveryPointId || null : null,
-        shipping_address: group.deliveryType === 'envio' ? group.shippingAddress || null : null,
+        shipping_address: shippingAddressVal,
         status: 'pendiente',
         total_amount: groupTotal,
         is_recurring: false,

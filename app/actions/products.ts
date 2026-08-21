@@ -76,6 +76,13 @@ export async function createProduct(formData: FormData) {
   const availability_weekdays = weekdays_raw.length > 0 ? weekdays_raw : null;
   const available_from_date = (formData.get('available_from_date') as string) || null;
 
+  // Modalidades de entrega
+  const delivery_methods_raw = formData.getAll('delivery_methods') as string[];
+  const delivery_methods = delivery_methods_raw.length > 0
+    ? delivery_methods_raw
+    : ['caserio', 'punto_entrega', 'domicilio'];
+  const caserio_schedule = (formData.get('caserio_schedule') as string) || null;
+
   let price = price_raw ? parseFloat(price_raw) : 0;
   let price_per_kilo = price_per_kilo_raw ? parseFloat(price_per_kilo_raw) : null;
   const weight_kg = weight_kg_raw ? parseFloat(weight_kg_raw) : null;
@@ -114,20 +121,28 @@ export async function createProduct(formData: FormData) {
     availability_days,
     availability_weekdays,
     available_from_date,
+    delivery_methods,
+    caserio_schedule,
     is_active: true,
   };
 
   const { error: fullError } = await supabase.from('products').insert(fullPayload);
 
   if (fullError) {
-    // Si falta alguna columna en Supabase (ej. availability_days), guardamos en las columnas base
-    if (fullError.message?.includes('column') || fullError.code === 'PGRST204') {
+    // Si falta alguna columna o hay error de tipo enum en Supabase (ej. "granel"), guardamos con formato compatible
+    if (
+      fullError.message?.includes('column') ||
+      fullError.message?.includes('enum') ||
+      fullError.message?.includes('product_format') ||
+      fullError.code === 'PGRST204'
+    ) {
+      const fallbackFormat = format === 'pack' ? 'pack_cesta' : 'suelto';
       const fallbackPayload: Record<string, unknown> = {
         seller_id: user.id,
         name,
         description: description || null,
         category,
-        format: format === 'pack' ? 'pack_cesta' : 'suelto',
+        format: fallbackFormat,
         price,
         price_per_kilo,
         weight_grams: weight_kg ? Math.round(weight_kg * 1000) : null,
@@ -146,7 +161,7 @@ export async function createProduct(formData: FormData) {
 
       if (fallbackError) {
         return {
-          error: `Error de base de datos: ${fallbackError.message}. Ejecuta el script supabase_migration.sql en tu panel de Supabase.`,
+          error: `Error al guardar: ${fallbackError.message}. Ejecuta el script supabase_migration.sql en tu panel de Supabase.`,
         };
       }
     } else {
@@ -197,6 +212,13 @@ export async function updateProduct(productId: string, formData: FormData) {
   const availability_weekdays = weekdays_raw.length > 0 ? weekdays_raw : null;
   const available_from_date = (formData.get('available_from_date') as string) || null;
 
+  // Modalidades de entrega
+  const delivery_methods_raw = formData.getAll('delivery_methods') as string[];
+  const delivery_methods = delivery_methods_raw.length > 0
+    ? delivery_methods_raw
+    : ['caserio', 'punto_entrega', 'domicilio'];
+  const caserio_schedule = (formData.get('caserio_schedule') as string) || null;
+
   let price = price_raw ? parseFloat(price_raw) : 0;
   let price_per_kilo = price_per_kilo_raw ? parseFloat(price_per_kilo_raw) : null;
   const weight_kg = weight_kg_raw ? parseFloat(weight_kg_raw) : null;
@@ -233,6 +255,8 @@ export async function updateProduct(productId: string, formData: FormData) {
     availability_days,
     availability_weekdays,
     available_from_date,
+    delivery_methods,
+    caserio_schedule,
     updated_at: new Date().toISOString(),
   };
 
@@ -243,12 +267,18 @@ export async function updateProduct(productId: string, formData: FormData) {
     .eq('seller_id', user.id);
 
   if (fullError) {
-    if (fullError.message?.includes('column') || fullError.code === 'PGRST204') {
+    if (
+      fullError.message?.includes('column') ||
+      fullError.message?.includes('enum') ||
+      fullError.message?.includes('product_format') ||
+      fullError.code === 'PGRST204'
+    ) {
+      const fallbackFormat = format === 'pack' ? 'pack_cesta' : 'suelto';
       const fallbackUpdate = {
         name,
         description: description || null,
         category,
-        format: format === 'pack' ? 'pack_cesta' : 'suelto',
+        format: fallbackFormat,
         price,
         price_per_kilo,
         weight_grams: weight_kg ? Math.round(weight_kg * 1000) : null,
