@@ -34,48 +34,39 @@ export function getDeliveryEstimate(
   availableFromDate: string | null = null,
   baseDate: Date = new Date()
 ): DeliveryEstimate {
-  const resultDate = new Date(baseDate);
+  const readyDate = new Date(baseDate);
+  let baseDescription = 'Disponible ya (24h)';
 
-  if (availabilityType === 'inmediato') {
-    // Listo de inmediato / en 24h
-    resultDate.setDate(resultDate.getDate() + 1);
-    return {
-      badgeText: 'Disponible ya',
-      detailText: 'Listo para entrega inmediata (24h)',
-      estimatedDate: resultDate,
-      formattedDate: resultDate.toLocaleDateString('es-ES', {
-        weekday: 'short',
-        day: 'numeric',
-        month: 'short',
-      }),
-    };
-  }
-
+  // 1. Calcular fecha base en la que el producto está listo/recolectado
   if (availabilityType === 'dias') {
     const days = Math.max(1, availabilityDays || 1);
-    resultDate.setDate(resultDate.getDate() + days);
-    return {
-      badgeText: `Listo en ${days} ${days === 1 ? 'día' : 'días'}`,
-      detailText: `Preparación en ${days} ${days === 1 ? 'día' : 'días'} tras el pedido`,
-      estimatedDate: resultDate,
-      formattedDate: resultDate.toLocaleDateString('es-ES', {
-        weekday: 'short',
-        day: 'numeric',
-        month: 'short',
-      }),
-    };
+    readyDate.setDate(readyDate.getDate() + days);
+    baseDescription = `Preparación en ${days} ${days === 1 ? 'día' : 'días'}`;
+  } else if (availabilityType === 'fecha_concreta' && availableFromDate) {
+    const parsed = new Date(availableFromDate + 'T12:00:00');
+    if (!isNaN(parsed.getTime())) {
+      readyDate.setTime(parsed.getTime());
+      baseDescription = `A partir del ${readyDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}`;
+    }
+  } else {
+    // inmediato
+    readyDate.setDate(readyDate.getDate() + 1);
+    baseDescription = 'Listo en 24h';
   }
 
-  if (availabilityType === 'dias_semana') {
-    const weekdays =
-      availabilityWeekdays && availabilityWeekdays.length > 0
-        ? availabilityWeekdays.map((d) => d.toLowerCase())
-        : ['viernes'];
+  // 2. Si hay días específicos de entrega configurados, combinar
+  const weekdays =
+    availabilityWeekdays && availabilityWeekdays.length > 0
+      ? availabilityWeekdays.map((d) => d.toLowerCase())
+      : null;
 
-    // Encontrar el siguiente día de la semana que coincida
-    let daysToAdd = 1;
+  const resultDate = new Date(readyDate);
+
+  if (weekdays && weekdays.length > 0) {
+    // Avanzar desde readyDate hasta el siguiente día de la semana que coincida
+    let daysToAdd = 0;
     while (daysToAdd <= 7) {
-      const checkDate = new Date(baseDate);
+      const checkDate = new Date(readyDate);
       checkDate.setDate(checkDate.getDate() + daysToAdd);
       const dayName = WEEKDAY_NAMES[checkDate.getDay()];
       if (weekdays.includes(dayName)) {
@@ -90,33 +81,11 @@ export function getDeliveryEstimate(
       .join(' y ');
 
     return {
-      badgeText: `Entregas: ${readableDays}`,
-      detailText: `Entregas programadas los ${readableDays}`,
+      badgeText: `${baseDescription} · Entregas ${readableDays}`,
+      detailText: `${baseDescription}. Entrega programada los ${readableDays} (${resultDate.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })})`,
       estimatedDate: resultDate,
       formattedDate: resultDate.toLocaleDateString('es-ES', {
         weekday: 'long',
-        day: 'numeric',
-        month: 'short',
-      }),
-    };
-  }
-
-  if (availabilityType === 'fecha_concreta') {
-    if (availableFromDate) {
-      const parsed = new Date(availableFromDate);
-      if (!isNaN(parsed.getTime())) {
-        resultDate.setTime(parsed.getTime());
-      }
-    } else {
-      resultDate.setDate(resultDate.getDate() + 3);
-    }
-
-    return {
-      badgeText: `Desde ${resultDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}`,
-      detailText: `Disponible a partir del ${resultDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}`,
-      estimatedDate: resultDate,
-      formattedDate: resultDate.toLocaleDateString('es-ES', {
-        weekday: 'short',
         day: 'numeric',
         month: 'short',
         year: 'numeric',
@@ -124,11 +93,17 @@ export function getDeliveryEstimate(
     };
   }
 
+  // Sin días fijos de semana
   return {
-    badgeText: 'Disponible',
-    detailText: 'Consultar disponibilidad',
-    estimatedDate: resultDate,
-    formattedDate: resultDate.toLocaleDateString('es-ES'),
+    badgeText: baseDescription,
+    detailText: `Entrega prevista: ${readyDate.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}`,
+    estimatedDate: readyDate,
+    formattedDate: readyDate.toLocaleDateString('es-ES', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    }),
   };
 }
 

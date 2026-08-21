@@ -1,8 +1,27 @@
 import Link from 'next/link';
 import { ArrowLeft, Sprout } from 'lucide-react';
 import { ProductForm } from '@/components/ProductForm';
+import { createClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
+import { Product } from '@/types/database';
 
-export default function NewProductPage() {
+export default async function NewProductPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect('/login');
+
+  // Obtener productos previos del vendedor para autocompletado / sugerencias
+  const { data: rawExisting } = await supabase
+    .from('products')
+    .select('id, name, category, format, price, price_per_kilo, is_organic, cultivation, image_url')
+    .eq('seller_id', user.id)
+    .order('created_at', { ascending: false });
+
+  const existingProducts = rawExisting as unknown as Product[] | null;
+
   return (
     <div className="max-w-3xl mx-auto py-6">
       <Link
@@ -25,7 +44,7 @@ export default function NewProductPage() {
           </div>
         </div>
 
-        <ProductForm isEdit={false} />
+        <ProductForm isEdit={false} existingProducts={existingProducts || []} />
       </div>
     </div>
   );

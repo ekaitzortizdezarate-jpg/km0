@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { createProduct, updateProduct } from '@/app/actions/products';
-import { Product, ProductFormat, AvailabilityType } from '@/types/database';
+import { Product, ProductFormat, AvailabilityType, ProductCategory } from '@/types/database';
 import {
   Sprout,
   AlertCircle,
@@ -12,13 +12,17 @@ import {
   Package,
   Check,
   Tag,
+  Calendar,
+  X,
+  History,
 } from 'lucide-react';
 import { ImageSelector } from '@/components/ImageSelector';
-import { TouchNumberStepper } from '@/components/TouchNumberStepper';
+import { TouchNumberInput } from '@/components/TouchNumberInput';
 
 interface ProductFormProps {
   product?: Product; // If provided, edit mode
   isEdit?: boolean;
+  existingProducts?: Product[];
 }
 
 const WEEKDAYS = [
@@ -31,9 +35,19 @@ const WEEKDAYS = [
   { id: 'domingo', label: 'Domingo' },
 ];
 
-export function ProductForm({ product, isEdit = false }: ProductFormProps) {
+export function ProductForm({
+  product,
+  isEdit = false,
+  existingProducts = [],
+}: ProductFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Form Fields
+  const [name, setName] = useState<string>(product?.name || '');
+  const [category, setCategory] = useState<ProductCategory>(
+    product?.category || 'verduras_hortalizas'
+  );
 
   // Format: 'granel' | 'suelto' | 'pack'
   const [format, setFormat] = useState<ProductFormat>(
@@ -63,12 +77,34 @@ export function ProductForm({ product, isEdit = false }: ProductFormProps) {
   const [availabilityDays, setAvailabilityDays] = useState<number>(
     product?.availability_days || 2
   );
+  const [enableWeekdays, setEnableWeekdays] = useState<boolean>(
+    Boolean(product?.availability_weekdays && product.availability_weekdays.length > 0)
+  );
   const [selectedWeekdays, setSelectedWeekdays] = useState<string[]>(
-    product?.availability_weekdays || ['lunes', 'viernes']
+    product?.availability_weekdays || ['viernes']
   );
   const [availableFromDate, setAvailableFromDate] = useState<string>(
     product?.available_from_date || ''
   );
+
+  // Unique list of previous product names for autocomplete / dropdown
+  const uniquePreviousProducts = Array.from(
+    new Map(existingProducts.map((p) => [p.name.trim().toLowerCase(), p])).values()
+  );
+
+  const handleSelectPreviousProduct = (selectedName: string) => {
+    if (!selectedName) return;
+    const match = uniquePreviousProducts.find(
+      (p) => p.name.trim().toLowerCase() === selectedName.trim().toLowerCase()
+    );
+    setName(selectedName);
+    if (match) {
+      if (match.category) setCategory(match.category);
+      if (match.format) setFormat(match.format);
+      if (match.price) setPrice(match.price);
+      if (match.price_per_kilo) setPricePerKilo(match.price_per_kilo);
+    }
+  };
 
   // Auto calculate for Suelto format with peso mode
   const handlePriceChange = (val: number) => {
@@ -114,6 +150,8 @@ export function ProductForm({ product, isEdit = false }: ProductFormProps) {
     setError(null);
 
     const formData = new FormData(event.currentTarget);
+    formData.set('name', name);
+    formData.set('category', category);
     formData.set('format', format);
     formData.set('price', price.toString());
     formData.set(
@@ -136,14 +174,15 @@ export function ProductForm({ product, isEdit = false }: ProductFormProps) {
     if (availabilityType === 'dias') {
       formData.set('availability_days', availabilityDays.toString());
     }
-    if (availabilityType === 'dias_semana') {
-      formData.delete('availability_weekdays');
+    if (availabilityType === 'fecha_concreta') {
+      formData.set('available_from_date', availableFromDate);
+    }
+
+    formData.delete('availability_weekdays');
+    if (enableWeekdays && selectedWeekdays.length > 0) {
       selectedWeekdays.forEach((day) => {
         formData.append('availability_weekdays', day);
       });
-    }
-    if (availabilityType === 'fecha_concreta') {
-      formData.set('available_from_date', availableFromDate);
     }
 
     const result = isEdit && product
@@ -159,7 +198,7 @@ export function ProductForm({ product, isEdit = false }: ProductFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
-        <div className="p-4 bg-red-50 border-2 border-red-300 text-red-900 font-semibold text-sm rounded-xl flex items-center gap-2">
+        <div className="p-4 bg-red-50 border-2 border-red-300 text-red-900 font-bold text-sm rounded-xl flex items-center gap-2">
           <AlertCircle className="w-5 h-5 shrink-0 text-red-700" />
           <span>{error}</span>
         </div>
@@ -236,20 +275,55 @@ export function ProductForm({ product, isEdit = false }: ProductFormProps) {
         </div>
       </div>
 
-      {/* 2. DATOS PRINCIPALES */}
+      {/* 2. DATOS PRINCIPALES Y DESPLEGABLE DE PRODUCTOS ANTERIORES */}
       <div className="space-y-4">
         <div>
-          <label className="block text-xs font-black text-stone-900 uppercase tracking-wider mb-1">
-            Nombre del Producto *
-          </label>
-          <input
-            name="name"
-            type="text"
-            required
-            defaultValue={product?.name || ''}
-            placeholder="Ej. Lechuga, Tarro de Miel, Queso Idiazabal, Cesta semanal..."
-            className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none placeholder:text-stone-400"
-          />
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-xs font-black text-stone-900 uppercase tracking-wider">
+              Nombre del Producto *
+            </label>
+
+            {uniquePreviousProducts.length > 0 && !isEdit && (
+              <span className="text-[11px] font-bold text-emerald-800 flex items-center gap-1">
+                <History className="w-3.5 h-3.5" /> Opciones de tus productos anteriores:
+              </span>
+            )}
+          </div>
+
+          {/* Desplegable de productos anteriores si existen */}
+          {uniquePreviousProducts.length > 0 && !isEdit && (
+            <div className="mb-2">
+              <select
+                onChange={(e) => handleSelectPreviousProduct(e.target.value)}
+                className="w-full px-3 py-2 border-2 border-emerald-300 rounded-xl text-xs font-bold text-emerald-950 bg-emerald-50 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+              >
+                <option value="">-- Elige uno de tus productos anteriores para rellenar --</option>
+                {uniquePreviousProducts.map((p) => (
+                  <option key={p.id} value={p.name}>
+                    {p.name} ({p.category.replace('_', ' ')})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div className="relative">
+            <input
+              name="name"
+              type="text"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              list="seller-previous-products"
+              placeholder="Ej. Lechuga, Tomate de caserío, Queso Idiazabal..."
+              className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none placeholder:text-stone-400"
+            />
+            <datalist id="seller-previous-products">
+              {uniquePreviousProducts.map((p) => (
+                <option key={`dl-${p.id}`} value={p.name} />
+              ))}
+            </datalist>
+          </div>
         </div>
 
         <div>
@@ -259,7 +333,8 @@ export function ProductForm({ product, isEdit = false }: ProductFormProps) {
           <select
             name="category"
             required
-            defaultValue={product?.category || 'verduras_hortalizas'}
+            value={category}
+            onChange={(e) => setCategory(e.target.value as ProductCategory)}
             className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
           >
             <option value="verduras_hortalizas">Verduras y Hortalizas</option>
@@ -277,7 +352,7 @@ export function ProductForm({ product, isEdit = false }: ProductFormProps) {
       {/* 3. PRECIO Y PESO SEGÚN FORMATO */}
       <div className="bg-stone-50 p-4 sm:p-5 rounded-2xl border border-stone-200 space-y-4">
         <h3 className="text-xs font-black text-stone-900 uppercase tracking-wider">
-          Configuración de Precio y Peso
+          Configuración de Precio y Stock
         </h3>
 
         {/* Formato 1: A GRANEL */}
@@ -319,11 +394,11 @@ export function ProductForm({ product, isEdit = false }: ProductFormProps) {
               </div>
 
               {!isUnlimitedStock ? (
-                <TouchNumberStepper
-                  name="stock_stepper"
+                <TouchNumberInput
+                  name="stock"
+                  label="Kilos disponibles"
                   min={1}
                   max={500}
-                  step={5}
                   value={stock}
                   onChange={setStock}
                   unit="kg"
@@ -341,7 +416,6 @@ export function ProductForm({ product, isEdit = false }: ProductFormProps) {
         {/* Formato 2: SUELTO / POR UNIDAD */}
         {format === 'suelto' && (
           <div className="space-y-4">
-            {/* Selector de Modo: Precio por Unidad (Sin Kilos) vs Pieza Pesada (Con Kilos) */}
             <div className="space-y-1.5">
               <label className="block text-xs font-bold text-stone-800">
                 Modalidad de precio:
@@ -429,11 +503,11 @@ export function ProductForm({ product, isEdit = false }: ProductFormProps) {
                   </div>
 
                   {!isUnlimitedStock ? (
-                    <TouchNumberStepper
-                      name="stock_stepper"
+                    <TouchNumberInput
+                      name="stock"
+                      label="Unidades en stock"
                       min={1}
                       max={200}
-                      step={1}
                       value={stock}
                       onChange={setStock}
                       unit="uds"
@@ -448,7 +522,7 @@ export function ProductForm({ product, isEdit = false }: ProductFormProps) {
               </div>
             )}
 
-            {/* Caso B: Pieza con Peso en Kg (Cálculo Automático) */}
+            {/* Caso B: Pieza con Peso en Kg */}
             {sueltoMode === 'peso' && (
               <div className="space-y-4 p-4 bg-white rounded-xl border border-stone-200 shadow-sm">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -500,16 +574,11 @@ export function ProductForm({ product, isEdit = false }: ProductFormProps) {
                   </div>
                 </div>
 
-                <p className="text-[11px] font-bold text-emerald-800 bg-emerald-50 p-2 rounded-lg border border-emerald-200">
-                  💡 Introduce el peso y el precio (o el precio/kilo) y el otro valor se calculará automáticamente.
-                </p>
-
-                <TouchNumberStepper
-                  name="stock_stepper"
+                <TouchNumberInput
+                  name="stock"
                   label="Piezas disponibles en stock"
                   min={1}
                   max={100}
-                  step={1}
                   value={stock}
                   onChange={setStock}
                   unit="piezas"
@@ -573,11 +642,11 @@ export function ProductForm({ product, isEdit = false }: ProductFormProps) {
               </div>
 
               {!isUnlimitedStock ? (
-                <TouchNumberStepper
-                  name="stock_stepper"
+                <TouchNumberInput
+                  name="stock"
+                  label="Packs disponibles"
                   min={1}
                   max={50}
-                  step={1}
                   value={stock}
                   onChange={setStock}
                   unit="packs"
@@ -593,134 +662,183 @@ export function ProductForm({ product, isEdit = false }: ProductFormProps) {
         )}
       </div>
 
-      {/* 4. CONDICIONES DE ENTREGA */}
+      {/* 4. CONDICIONES DE DISPONIBILIDAD Y ENTREGA (COMBINABLES) */}
       <div className="bg-stone-50 p-4 sm:p-5 rounded-2xl border border-stone-200 space-y-4">
-        <div className="flex items-center gap-2">
-          <Clock className="w-5 h-5 text-emerald-700" />
-          <h3 className="text-xs font-black text-stone-900 uppercase tracking-wider">
-            Condiciones de Entrega y Disponibilidad
-          </h3>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-          <button
-            type="button"
-            onClick={() => setAvailabilityType('inmediato')}
-            className={`p-3 rounded-xl border-2 text-left transition-all ${
-              availabilityType === 'inmediato'
-                ? 'border-emerald-700 bg-white ring-2 ring-emerald-600 font-bold'
-                : 'border-stone-200 bg-white text-stone-700'
-            }`}
-          >
-            <span className="text-xs font-bold block text-stone-900">
-              ⚡ Disponible desde ya
-            </span>
-            <span className="text-[11px] text-stone-600">Listo en 24h</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setAvailabilityType('dias')}
-            className={`p-3 rounded-xl border-2 text-left transition-all ${
-              availabilityType === 'dias'
-                ? 'border-emerald-700 bg-white ring-2 ring-emerald-600 font-bold'
-                : 'border-stone-200 bg-white text-stone-700'
-            }`}
-          >
-            <span className="text-xs font-bold block text-stone-900">
-              ⏳ X días tras el pedido
-            </span>
-            <span className="text-[11px] text-stone-600">Tiempo de recolección/maduración</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setAvailabilityType('dias_semana')}
-            className={`p-3 rounded-xl border-2 text-left transition-all ${
-              availabilityType === 'dias_semana'
-                ? 'border-emerald-700 bg-white ring-2 ring-emerald-600 font-bold'
-                : 'border-stone-200 bg-white text-stone-700'
-            }`}
-          >
-            <span className="text-xs font-bold block text-stone-900">
-              📅 Días fijos de la semana
-            </span>
-            <span className="text-[11px] text-stone-600">Ej. Lunes y Viernes</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setAvailabilityType('fecha_concreta')}
-            className={`p-3 rounded-xl border-2 text-left transition-all ${
-              availabilityType === 'fecha_concreta'
-                ? 'border-emerald-700 bg-white ring-2 ring-emerald-600 font-bold'
-                : 'border-stone-200 bg-white text-stone-700'
-            }`}
-          >
-            <span className="text-xs font-bold block text-stone-900">
-              🗓️ A partir de una fecha concreta
-            </span>
-            <span className="text-[11px] text-stone-600">Próxima cosecha programada</span>
-          </button>
-        </div>
-
-        {/* Sub-configurador según la condición */}
-        {availabilityType === 'dias' && (
-          <div className="pt-2">
-            <TouchNumberStepper
-              name="days_stepper"
-              label="Días necesarios para preparar:"
-              min={1}
-              max={14}
-              step={1}
-              value={availabilityDays}
-              onChange={setAvailabilityDays}
-              unit="días"
-              quickOptions={[1, 2, 3, 5, 7]}
-            />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Clock className="w-5 h-5 text-emerald-700" />
+            <h3 className="text-xs font-black text-stone-900 uppercase tracking-wider">
+              Condiciones de Disponibilidad y Entrega
+            </h3>
           </div>
-        )}
+        </div>
 
-        {availabilityType === 'dias_semana' && (
-          <div className="pt-2 space-y-2">
-            <label className="block text-xs font-bold text-stone-800">
-              Selecciona los días de entrega de tu caserío:
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {WEEKDAYS.map((day) => {
-                const isSelected = selectedWeekdays.includes(day.id);
-                return (
-                  <button
-                    type="button"
-                    key={day.id}
-                    onClick={() => toggleWeekday(day.id)}
-                    className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border ${
-                      isSelected
-                        ? 'bg-emerald-700 text-white border-emerald-800 shadow-sm'
-                        : 'bg-white text-stone-700 border-stone-300 hover:bg-stone-100'
-                    }`}
-                  >
-                    {day.label}
-                  </button>
-                );
-              })}
+        {/* Resumen de Condiciones Seleccionadas Activas con botones para editar o quitar */}
+        <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 space-y-2">
+          <span className="text-[11px] font-black text-emerald-950 block">
+            Condiciones activas para esta cosecha:
+          </span>
+          <div className="flex flex-wrap gap-2">
+            {/* Plazo Base Activo */}
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-emerald-300 rounded-lg text-xs font-extrabold text-emerald-950 shadow-sm">
+              <Clock className="w-3.5 h-3.5 text-emerald-700" />
+              {availabilityType === 'inmediato' && 'Listo en 24h'}
+              {availabilityType === 'dias' && `Preparación en ${availabilityDays} días`}
+              {availabilityType === 'fecha_concreta' &&
+                (availableFromDate ? `A partir del ${availableFromDate}` : 'Fecha concreta')}
+            </span>
+
+            {/* Días Fijos Activos */}
+            {enableWeekdays && selectedWeekdays.length > 0 && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-700 text-white rounded-lg text-xs font-extrabold shadow-sm">
+                <Calendar className="w-3.5 h-3.5" />
+                Entregas: {selectedWeekdays.join(', ')}
+                <button
+                  type="button"
+                  onClick={() => setEnableWeekdays(false)}
+                  className="hover:text-red-300 ml-1"
+                  title="Quitar días fijos"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Paso 1: Plazo base */}
+        <div className="space-y-2">
+          <label className="block text-xs font-bold text-stone-800">
+            1. ¿Cuándo está listo el producto? (Plazo base)
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <button
+              type="button"
+              onClick={() => setAvailabilityType('inmediato')}
+              className={`p-3 rounded-xl border-2 text-left transition-all ${
+                availabilityType === 'inmediato'
+                  ? 'border-emerald-700 bg-white ring-2 ring-emerald-600 font-bold shadow-sm'
+                  : 'border-stone-200 bg-white text-stone-700'
+              }`}
+            >
+              <span className="text-xs font-bold block text-stone-900">
+                ⚡ Disponible ya
+              </span>
+              <span className="text-[11px] text-stone-600">Listo en 24h</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setAvailabilityType('dias')}
+              className={`p-3 rounded-xl border-2 text-left transition-all ${
+                availabilityType === 'dias'
+                  ? 'border-emerald-700 bg-white ring-2 ring-emerald-600 font-bold shadow-sm'
+                  : 'border-stone-200 bg-white text-stone-700'
+              }`}
+            >
+              <span className="text-xs font-bold block text-stone-900">
+                ⏳ X días tras el pedido
+              </span>
+              <span className="text-[11px] text-stone-600">Tiempo de recolección</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setAvailabilityType('fecha_concreta')}
+              className={`p-3 rounded-xl border-2 text-left transition-all ${
+                availabilityType === 'fecha_concreta'
+                  ? 'border-emerald-700 bg-white ring-2 ring-emerald-600 font-bold shadow-sm'
+                  : 'border-stone-200 bg-white text-stone-700'
+              }`}
+            >
+              <span className="text-xs font-bold block text-stone-900">
+                🗓️ A partir de una fecha
+              </span>
+              <span className="text-[11px] text-stone-600">Inicio de cosecha</span>
+            </button>
+          </div>
+
+          {availabilityType === 'dias' && (
+            <div className="pt-2">
+              <TouchNumberInput
+                name="availability_days"
+                label="Días necesarios para preparar:"
+                min={1}
+                max={14}
+                value={availabilityDays}
+                onChange={setAvailabilityDays}
+                unit="días"
+                quickOptions={[1, 2, 3, 5, 7]}
+              />
             </div>
-          </div>
-        )}
+          )}
 
-        {availabilityType === 'fecha_concreta' && (
-          <div className="pt-2 space-y-1.5">
-            <label className="block text-xs font-bold text-stone-800">
-              Fecha en que estará lista la cosecha:
+          {availabilityType === 'fecha_concreta' && (
+            <div className="pt-2 space-y-1">
+              <label className="block text-xs font-bold text-stone-800">
+                Fecha a partir de la cual estará disponible:
+              </label>
+              <input
+                type="date"
+                value={availableFromDate}
+                onChange={(e) => setAvailableFromDate(e.target.value)}
+                className="px-3.5 py-2 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white"
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Paso 2: Combinar con Días Específicos de la semana (Opcional) */}
+        <div className="pt-3 border-t border-stone-200 space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="flex items-center gap-2 text-xs font-bold text-stone-900 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={enableWeekdays}
+                onChange={(e) => setEnableWeekdays(e.target.checked)}
+                className="w-4 h-4 text-emerald-700 rounded border-stone-300 focus:ring-emerald-600"
+              />
+              <span>Combinar con días fijos de entrega semanal (Opcional)</span>
             </label>
-            <input
-              type="date"
-              value={availableFromDate}
-              onChange={(e) => setAvailableFromDate(e.target.value)}
-              className="px-3.5 py-2 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white"
-            />
+
+            {enableWeekdays && (
+              <button
+                type="button"
+                onClick={() => setEnableWeekdays(false)}
+                className="text-[11px] font-bold text-stone-500 hover:text-red-700"
+              >
+                Quitar días fijos
+              </button>
+            )}
           </div>
-        )}
+
+          {enableWeekdays && (
+            <div className="space-y-2 bg-white p-3.5 rounded-xl border border-stone-200">
+              <p className="text-[11px] font-semibold text-stone-700">
+                El pedido estará listo según el plazo anterior, y se entregará en el siguiente día seleccionado:
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {WEEKDAYS.map((day) => {
+                  const isSelected = selectedWeekdays.includes(day.id);
+                  return (
+                    <button
+                      type="button"
+                      key={day.id}
+                      onClick={() => toggleWeekday(day.id)}
+                      className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border ${
+                        isSelected
+                          ? 'bg-emerald-700 text-white border-emerald-800 shadow-sm'
+                          : 'bg-stone-50 text-stone-700 border-stone-300 hover:bg-stone-100'
+                      }`}
+                    >
+                      {day.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 5. FOTO DEL PRODUCTO */}
@@ -757,7 +875,7 @@ export function ProductForm({ product, isEdit = false }: ProductFormProps) {
             className="w-5 h-5 text-emerald-700 rounded border-stone-300 focus:ring-emerald-600"
           />
           <label htmlFor="is_organic" className="text-sm font-bold text-stone-900 cursor-pointer">
-            Certificado / Producto Ecológico
+            Producto ecológico
           </label>
         </div>
       </div>

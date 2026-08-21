@@ -66,14 +66,11 @@ export async function createProduct(formData: FormData) {
   let price_per_kilo = price_per_kilo_raw ? parseFloat(price_per_kilo_raw) : null;
   const weight_kg = weight_kg_raw ? parseFloat(weight_kg_raw) : null;
 
-  // Cálculo según el formato
   if (format === 'granel') {
-    // A granel: el precio principal por unidad de referencia es €/kg
     if (price_per_kilo && !price) {
       price = price_per_kilo;
     }
   } else if (format === 'suelto') {
-    // Suelto: si tenemos peso y precio -> calculamos €/kg
     if (price && weight_kg && weight_kg > 0 && !price_per_kilo) {
       price_per_kilo = Number((price / weight_kg).toFixed(2));
     } else if (price_per_kilo && weight_kg && weight_kg > 0 && !price) {
@@ -81,7 +78,8 @@ export async function createProduct(formData: FormData) {
     }
   }
 
-  const { error } = await supabase.from('products').insert({
+  // Intento 1: Guardar con todas las columnas completas
+  const fullPayload = {
     seller_id: user.id,
     name,
     description: description || null,
@@ -103,10 +101,43 @@ export async function createProduct(formData: FormData) {
     availability_weekdays,
     available_from_date,
     is_active: true,
-  });
+  };
 
-  if (error) {
-    return { error: error.message };
+  const { error: fullError } = await supabase.from('products').insert(fullPayload);
+
+  if (fullError) {
+    // Si falta alguna columna en Supabase (ej. availability_days), guardamos en las columnas base
+    if (fullError.message?.includes('column') || fullError.code === 'PGRST204') {
+      const fallbackPayload: Record<string, unknown> = {
+        seller_id: user.id,
+        name,
+        description: description || null,
+        category,
+        format: format === 'pack' ? 'pack_cesta' : 'suelto',
+        price,
+        price_per_kilo,
+        weight_grams: weight_kg ? Math.round(weight_kg * 1000) : null,
+        best_before_date,
+        discount_percentage,
+        is_organic,
+        cultivation,
+        stock,
+        image_url,
+        is_active: true,
+      };
+
+      const { error: fallbackError } = await supabase
+        .from('products')
+        .insert(fallbackPayload);
+
+      if (fallbackError) {
+        return {
+          error: `Error de base de datos: ${fallbackError.message}. Ejecuta el script supabase_migration.sql en tu panel de Supabase.`,
+        };
+      }
+    } else {
+      return { error: fullError.message };
+    }
   }
 
   revalidatePath('/');
@@ -168,35 +199,66 @@ export async function updateProduct(productId: string, formData: FormData) {
     }
   }
 
-  const { error } = await supabase
+  const fullUpdate = {
+    name,
+    description: description || null,
+    category,
+    format,
+    price,
+    price_per_kilo,
+    weight_kg,
+    pack_items,
+    best_before_date,
+    discount_percentage,
+    is_organic,
+    cultivation,
+    stock,
+    is_unlimited_stock,
+    image_url,
+    availability_type,
+    availability_days,
+    availability_weekdays,
+    available_from_date,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error: fullError } = await supabase
     .from('products')
-    .update({
-      name,
-      description: description || null,
-      category,
-      format,
-      price,
-      price_per_kilo,
-      weight_kg,
-      pack_items,
-      best_before_date,
-      discount_percentage,
-      is_organic,
-      cultivation,
-      stock,
-      is_unlimited_stock,
-      image_url,
-      availability_type,
-      availability_days,
-      availability_weekdays,
-      available_from_date,
-      updated_at: new Date().toISOString(),
-    })
+    .update(fullUpdate)
     .eq('id', productId)
     .eq('seller_id', user.id);
 
-  if (error) {
-    return { error: error.message };
+  if (fullError) {
+    if (fullError.message?.includes('column') || fullError.code === 'PGRST204') {
+      const fallbackUpdate = {
+        name,
+        description: description || null,
+        category,
+        format: format === 'pack' ? 'pack_cesta' : 'suelto',
+        price,
+        price_per_kilo,
+        weight_grams: weight_kg ? Math.round(weight_kg * 1000) : null,
+        best_before_date,
+        discount_percentage,
+        is_organic,
+        cultivation,
+        stock,
+        image_url,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error: fallbackError } = await supabase
+        .from('products')
+        .update(fallbackUpdate)
+        .eq('id', productId)
+        .eq('seller_id', user.id);
+
+      if (fallbackError) {
+        return { error: fallbackError.message };
+      }
+    } else {
+      return { error: fullError.message };
+    }
   }
 
   revalidatePath('/');
