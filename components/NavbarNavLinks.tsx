@@ -9,7 +9,6 @@ import {
   ShieldCheck,
   Calendar,
   MessageCircle,
-  LayoutGrid,
 } from 'lucide-react';
 import type { Profile } from '@/types/database';
 import { CartNavButton } from '@/components/CartNavButton';
@@ -85,22 +84,20 @@ export function NavbarNavLinks({
 
   return (
     <div className="flex items-center gap-1 sm:gap-2">
-      {/* 1. Catálogo */}
+      {/* 1. km0 y Catálogo unificados */}
       <Link
         href="/"
-        title="Catálogo de Productos"
-        className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-xl transition-all ${
+        title="Catálogo de Productos - km0"
+        className={`flex flex-col items-center justify-center px-2 sm:px-3 py-1 rounded-xl transition-all ${
           isCatalogueActive
             ? 'bg-emerald-800 text-white font-black shadow-sm'
             : 'text-stone-700 hover:text-emerald-800 hover:bg-stone-100 font-bold'
         }`}
       >
-        <LayoutGrid
-          className={`w-4 h-4 shrink-0 ${
-            isCatalogueActive ? 'text-white' : 'text-emerald-800'
-          }`}
-        />
-        <span className="text-[9px] sm:text-xs font-bold leading-tight tracking-tight text-center max-w-[44px] sm:max-w-none truncate">
+        <span className={`font-black text-xs sm:text-sm leading-none tracking-tight ${isCatalogueActive ? 'text-white' : 'text-emerald-800'}`}>
+          km0
+        </span>
+        <span className="text-[9px] sm:text-[10px] font-bold leading-none mt-0.5 tracking-tight text-center">
           Catálogo
         </span>
       </Link>

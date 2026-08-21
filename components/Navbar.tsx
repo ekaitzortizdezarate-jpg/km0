@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { signout } from '@/app/actions/auth';
 import { LogOut } from 'lucide-react';
@@ -51,39 +50,27 @@ export default async function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b-2 border-stone-200 shadow-sm">
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 shrink-0">
-          <span className="bg-emerald-800 text-white font-black text-xl px-2.5 py-1 rounded-xl shadow-sm">
-            km0
-          </span>
-          <span className="font-black text-stone-900 text-lg hidden sm:inline">
-            Caserío y Proximidad
-          </span>
-        </Link>
+      <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-1 sm:gap-2">
+        {/* Enlaces y Navegación Unificada con km0 Catálogo */}
+        <NavbarNavLinks
+          user={user}
+          profile={profile}
+          unreadMessagesCount={unreadMessagesCount}
+          sellerPendingCount={sellerPendingCount}
+          buyerConfirmedCount={buyerConfirmedCount}
+        />
 
-        {/* Enlaces con Resaltado Activo y Globos */}
-        <div className="flex items-center gap-1 sm:gap-2">
-          <NavbarNavLinks
-            user={user}
-            profile={profile}
-            unreadMessagesCount={unreadMessagesCount}
-            sellerPendingCount={sellerPendingCount}
-            buyerConfirmedCount={buyerConfirmedCount}
-          />
-
-          {user && (
-            <form action={signout} className="ml-1">
-              <button
-                type="submit"
-                title="Cerrar sesión"
-                className="p-2 text-stone-500 hover:text-red-700 rounded-xl hover:bg-stone-100 transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </form>
-          )}
-        </div>
+        {user && (
+          <form action={signout} className="ml-1 shrink-0">
+            <button
+              type="submit"
+              title="Cerrar sesión"
+              className="p-2 text-stone-500 hover:text-red-700 rounded-xl hover:bg-stone-100 transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </form>
+        )}
       </div>
     </header>
   );
