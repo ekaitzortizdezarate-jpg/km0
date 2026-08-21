@@ -41,6 +41,7 @@ export default function ReviewForm({
   if (!open) {
     return (
       <button
+        type="button"
         onClick={() => setOpen(true)}
         className="text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1"
       >

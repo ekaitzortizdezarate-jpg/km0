@@ -1,9 +1,10 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { createDeliveryPoint, deleteDeliveryPoint } from '@/app/actions/delivery-points';
-import { MapPin, Plus, Trash2, Store, Truck, ArrowLeft, Clock } from 'lucide-react';
+import { MapPin, Store, Truck, ArrowLeft, Clock } from 'lucide-react';
 import Link from 'next/link';
 import type { DeliveryPoint } from '@/types/database';
+import { DeliveryPointForm } from '@/components/DeliveryPointForm';
+import { DeleteDeliveryPointButton } from '@/components/DeleteDeliveryPointButton';
 
 export default async function DeliveryPointsPage() {
   const supabase = await createClient();
@@ -54,91 +55,8 @@ export default async function DeliveryPointsPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Formulario para añadir punto de entrega */}
-        <div className="md:col-span-1 bg-white p-6 rounded-2xl border border-stone-200 shadow-sm space-y-4">
-          <div className="flex items-center gap-2 pb-2 border-b border-stone-100">
-            <Plus className="w-5 h-5 text-emerald-700" />
-            <h2 className="text-sm font-bold text-stone-900">Añadir Nuevo Punto</h2>
-          </div>
-
-          <form
-            action={async (formData: FormData) => {
-              'use server';
-              await createDeliveryPoint(formData);
-            }}
-            className="space-y-3"
-          >
-            <div>
-              <label className="block text-xs font-semibold text-stone-700 mb-1">
-                Nombre del punto *
-              </label>
-              <input
-                name="name"
-                type="text"
-                required
-                placeholder="Ej. Mercado de Gernika, Caserío..."
-                className="w-full px-3 py-2 border border-stone-300 rounded-lg text-xs focus:ring-2 focus:ring-emerald-600 focus:outline-none bg-white"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-stone-700 mb-1">
-                Tipo de entrega *
-              </label>
-              <select
-                name="type"
-                required
-                className="w-full px-3 py-2 border border-stone-300 rounded-lg text-xs bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-              >
-                <option value="sitio_fisico">Punto Físico / Recogida</option>
-                <option value="envio">Ruta de Reparto / Envío</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-stone-700 mb-1">
-                Pueblo / Municipio *
-              </label>
-              <input
-                name="town"
-                type="text"
-                required
-                placeholder="Ej. Gernika-Lumo"
-                className="w-full px-3 py-2 border border-stone-300 rounded-lg text-xs focus:ring-2 focus:ring-emerald-600 focus:outline-none bg-white"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-stone-700 mb-1">
-                Dirección / Ubicación exacta *
-              </label>
-              <input
-                name="address_details"
-                type="text"
-                required
-                placeholder="Ej. Puesto 12, Plaza del Mercado"
-                className="w-full px-3 py-2 border border-stone-300 rounded-lg text-xs focus:ring-2 focus:ring-emerald-600 focus:outline-none bg-white"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-stone-700 mb-1">
-                Horarios / Días de entrega
-              </label>
-              <textarea
-                name="schedule_notes"
-                rows={2}
-                placeholder="Ej. Lunes de 09:00 a 14:00"
-                className="w-full px-3 py-2 border border-stone-300 rounded-lg text-xs focus:ring-2 focus:ring-emerald-600 focus:outline-none bg-white"
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="w-full bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-1.5"
-            >
-              <Plus className="w-4 h-4" /> Guardar Punto
-            </button>
-          </form>
+        <div className="md:col-span-1">
+          <DeliveryPointForm />
         </div>
 
         {/* Lista de puntos de entrega */}
@@ -185,20 +103,7 @@ export default async function DeliveryPointsPage() {
                     )}
                   </div>
 
-                  <form
-                    action={async () => {
-                      'use server';
-                      await deleteDeliveryPoint(point.id);
-                    }}
-                  >
-                    <button
-                      type="submit"
-                      title="Eliminar punto"
-                      className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </form>
+                  <DeleteDeliveryPointButton id={point.id} />
                 </div>
               ))}
             </div>
