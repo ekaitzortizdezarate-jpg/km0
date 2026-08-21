@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useCart, CartItem } from '@/context/CartContext';
 import { createClient } from '@/lib/supabase/client';
-import { createCartOrders, cancelPendingOrder, CartCheckoutSellerGroup } from '@/app/actions/orders';
+import { createCartOrders, CartCheckoutSellerGroup } from '@/app/actions/orders';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   ShoppingBasket,
@@ -18,12 +19,11 @@ import {
   CheckCircle2,
   LogIn,
   UserPlus,
-  Calendar,
-  MessageCircle,
   Layers,
   Sparkles,
+  X,
 } from 'lucide-react';
-import type { DeliveryPoint, OrderStatus } from '@/types/database';
+import type { DeliveryPoint } from '@/types/database';
 
 interface SellerDeliveryConfig {
   deliveryType: 'caserio' | 'sitio_fisico' | 'envio';
@@ -32,36 +32,8 @@ interface SellerDeliveryConfig {
   groupMode: 'junto_tardio' | 'individual';
 }
 
-interface BuyerOrder {
-  id: string;
-  seller_id: string;
-  status: OrderStatus;
-  total_amount: number;
-  estimated_delivery_date: string | null;
-  shipping_address: string | null;
-  created_at: string;
-  profiles?: {
-    id: string;
-    full_name: string;
-    town: string;
-    phone: string | null;
-  } | null;
-  delivery_points?: {
-    name: string;
-    town: string;
-    address_details: string;
-  } | null;
-  order_items?: {
-    id: string;
-    quantity: number;
-    subtotal: number;
-    products?: {
-      name: string;
-    } | null;
-  }[];
-}
-
 export default function CartPage() {
+  const router = useRouter();
   const { items, removeFromCart, updateQuantity, clearCart, totalPrice } = useCart();
   const supabase = createClient();
 
@@ -72,10 +44,7 @@ export default function CartPage() {
   const [sellerDeliveryPoints, setSellerDeliveryPoints] = useState<Record<string, DeliveryPoint[]>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
-
-  // Pedidos activos del comprador
-  const [buyerOrders, setBuyerOrders] = useState<BuyerOrder[]>([]);
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
 
   // Comprobar autenticación
   useEffect(() => {
@@ -83,24 +52,6 @@ export default function CartPage() {
       const { data: { user } } = await supabase.auth.getUser();
       setCurrentUser(user);
       setAuthLoading(false);
-
-      if (user) {
-        // Cargar pedidos del comprador
-        const { data: orders } = await supabase
-          .from('orders')
-          .select(`
-            *,
-            profiles!orders_seller_id_fkey(id, full_name, town, phone),
-            delivery_points(name, town, address_details),
-            order_items(*, products(name))
-          `)
-          .eq('buyer_id', user.id)
-          .order('created_at', { ascending: false });
-
-        if (orders) {
-          setBuyerOrders(orders as unknown as BuyerOrder[]);
-        }
-      }
     }
     checkAuth();
   }, [supabase]);
@@ -145,9 +96,21 @@ export default function CartPage() {
         // Inicializar configuraciones de entrega si no existen
         const initialConfigs: Record<string, SellerDeliveryConfig> = {};
         currentIds.forEach((sId) => {
+          const sellerItems = groupedBySeller[sId]?.items || [];
+          const preferredType =
+            sellerItems.find((i) => i.selectedDeliveryType)?.selectedDeliveryType || 'caserio';
+
           initialConfigs[sId] = {
-            deliveryType: 'sitio_fisico',
-            deliveryPointId: pointsBySeller[sId]?.[0]?.id || null,
+            deliveryType:
+              preferredType === 'domicilio'
+                ? 'envio'
+                : preferredType === 'punto_entrega'
+                ? 'sitio_fisico'
+                : 'caserio',
+            deliveryPointId:
+              sellerItems.find((i) => i.selectedPointId)?.selectedPointId ||
+              pointsBySeller[sId]?.[0]?.id ||
+              null,
             shippingAddress: '',
             groupMode: 'junto_tardio',
           };
@@ -201,19 +164,21 @@ export default function CartPage() {
     }));
   };
 
-  const handleCancelOrder = async (orderId: string) => {
-    if (!confirm('¿Estás seguro de que deseas cancelar y eliminar este pedido?')) return;
-    setCancellingOrderId(orderId);
-    const res = await cancelPendingOrder(orderId);
-    if (res.success) {
-      setBuyerOrders((prev) => prev.filter((o) => o.id !== orderId));
-    } else {
-      alert(res.error || 'No se pudo cancelar el pedido');
+  const handleOpenSummary = () => {
+    setError(null);
+    for (const sellerId of sellerIds) {
+      const group = groupedBySeller[sellerId];
+      const config = deliveryConfigs[sellerId];
+
+      if (config?.deliveryType === 'envio' && !config.shippingAddress.trim()) {
+        setError(`Por favor, introduce la dirección de envío para el caserío ${group.sellerName}.`);
+        return;
+      }
     }
-    setCancellingOrderId(null);
+    setShowSummaryModal(true);
   };
 
-  const handleCheckout = async () => {
+  const handleConfirmAndCheckout = async () => {
     setError(null);
     setLoading(true);
 
@@ -222,12 +187,6 @@ export default function CartPage() {
     for (const sellerId of sellerIds) {
       const group = groupedBySeller[sellerId];
       const config = deliveryConfigs[sellerId];
-
-      if (config?.deliveryType === 'envio' && !config.shippingAddress.trim()) {
-        setError(`Por favor, introduce la dirección de envío para el caserío ${group.sellerName}.`);
-        setLoading(false);
-        return;
-      }
 
       // Calcular fecha estimada según la opción elegida (más tardía vs individual)
       let finalEstimatedDate: string | null = null;
@@ -244,7 +203,7 @@ export default function CartPage() {
 
       payload.push({
         sellerId,
-        deliveryType: config?.deliveryType || 'sitio_fisico',
+        deliveryType: config?.deliveryType || 'caserio',
         deliveryPointId: config?.deliveryType === 'sitio_fisico' ? config.deliveryPointId : null,
         shippingAddress: config?.deliveryType === 'envio' ? config.shippingAddress : null,
         estimatedDeliveryDate: finalEstimatedDate,
@@ -261,25 +220,12 @@ export default function CartPage() {
     if (result.error) {
       setError(result.error);
       setLoading(false);
+      setShowSummaryModal(false);
     } else {
       clearCart();
-      // Recargar pedidos activos
-      if (currentUser) {
-        const { data: orders } = await supabase
-          .from('orders')
-          .select(`
-            *,
-            profiles!orders_seller_id_fkey(id, full_name, town, phone),
-            delivery_points(name, town, address_details),
-            order_items(*, products(name))
-          `)
-          .order('created_at', { ascending: false });
-
-        if (orders) {
-          setBuyerOrders(orders as unknown as BuyerOrder[]);
-        }
-      }
+      setShowSummaryModal(false);
       setLoading(false);
+      router.push('/comprador/pedidos');
     }
   };
 
@@ -634,12 +580,12 @@ export default function CartPage() {
             })}
           </div>
 
-          {/* TOTAL GENERAL Y CONFIRMACIÓN */}
+          {/* TOTAL GENERAL Y BOTÓN REVISAR PEDIDO */}
           <div className="bg-stone-900 text-white rounded-3xl p-6 sm:p-8 space-y-4 shadow-md">
             <div className="flex flex-wrap items-center justify-between gap-4 border-b border-stone-800 pb-4">
               <div>
                 <span className="text-xs font-bold text-stone-400 block uppercase tracking-wider">
-                  Total a confirmar ({items.length} productos)
+                  Total del Pedido ({items.length} productos)
                 </span>
                 <span className="text-3xl sm:text-4xl font-black text-white">
                   {totalPrice.toFixed(2)} €
@@ -654,24 +600,17 @@ export default function CartPage() {
 
             <button
               type="button"
-              onClick={handleCheckout}
-              disabled={loading}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-black py-4 rounded-2xl text-base shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              onClick={handleOpenSummary}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-black py-4 rounded-2xl text-base shadow-lg transition-all flex items-center justify-center gap-2 active:scale-98"
             >
-              {loading ? (
-                'Tramitando pedidos a los caseríos...'
-              ) : (
-                <>
-                  <CheckCircle2 className="w-5 h-5" /> Confirmar y Enviar Pedidos a los Caseríos
-                </>
-              )}
+              <CheckCircle2 className="w-5 h-5" /> Confirmar y Enviar Pedido
             </button>
           </div>
         </div>
       ) : (
         <div className="bg-white rounded-3xl border-2 border-stone-200 p-8 text-center space-y-3 shadow-sm">
           <Sparkles className="w-10 h-10 text-emerald-600 mx-auto" />
-          <h2 className="text-lg font-black text-stone-900">No tienes productos pendientes en la cesta</h2>
+          <h2 className="text-lg font-black text-stone-900">No tienes productos en la cesta</h2>
           <p className="text-xs font-semibold text-stone-600 max-w-sm mx-auto">
             Explora el catálogo y añade verduras, frutas y alimentos de caserío.
           </p>
@@ -684,139 +623,132 @@ export default function CartPage() {
         </div>
       )}
 
-      {/* SECCIÓN B: ESTADO DE PEDIDOS DEL COMPRADOR (EN TRÁMITE / ESPERANDO CONFIRMACIÓN) */}
-      <div className="space-y-4 pt-6 border-t-2 border-stone-200">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Clock className="w-5 h-5 text-emerald-800" />
-            <h2 className="text-lg font-black text-stone-900">
-              Mis Compras Realizadas y Estado ({buyerOrders.length})
-            </h2>
-          </div>
-
-          <Link
-            href="/comprador/calendario"
-            className="text-xs font-bold text-emerald-800 hover:underline flex items-center gap-1"
+      {/* MODAL DE RESUMEN FINAL DEL PEDIDO */}
+      {showSummaryModal && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
+          <div
+            className="bg-white w-full max-w-lg rounded-3xl p-6 sm:p-7 space-y-5 shadow-2xl border-2 border-stone-200 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
           >
-            <Calendar className="w-3.5 h-3.5" /> Ver en Calendario
-          </Link>
-        </div>
-
-        {buyerOrders.length > 0 ? (
-          <div className="space-y-4">
-            {buyerOrders.map((order) => {
-              const isPending = order.status === 'pendiente';
-
-              return (
-                <div
-                  key={order.id}
-                  className={`rounded-3xl border-2 p-5 sm:p-6 shadow-sm space-y-4 bg-white ${
-                    isPending ? 'border-amber-300' : 'border-stone-200'
-                  }`}
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-stone-100">
-                    <div>
-                      <h3 className="text-sm font-black text-stone-900">
-                        Caserío: {order.profiles?.full_name} ({order.profiles?.town})
-                      </h3>
-                      <p className="text-xs font-semibold text-stone-600">
-                        Pedido realizado el {new Date(order.created_at).toLocaleDateString('es-ES')}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <Link
-                        href={`/chat/${order.profiles?.id}`}
-                        className="p-2 bg-stone-100 hover:bg-stone-200 text-stone-900 rounded-xl text-xs font-bold flex items-center gap-1 transition-colors border border-stone-200"
-                      >
-                        <MessageCircle className="w-3.5 h-3.5" /> Chat Caserío
-                      </Link>
-
-                      <span
-                        className={`text-xs font-extrabold px-3 py-1 rounded-full border capitalize ${
-                          isPending
-                            ? 'bg-amber-100 text-amber-950 border-amber-300'
-                            : order.status === 'confirmado'
-                            ? 'bg-emerald-100 text-emerald-950 border-emerald-300'
-                            : 'bg-stone-100 text-stone-900 border-stone-300'
-                        }`}
-                      >
-                        {isPending
-                          ? 'Esperando Confirmación del Caserío'
-                          : order.status === 'confirmado'
-                          ? 'Confirmado por Caserío'
-                          : order.status.replace('_', ' ')}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Estado y Fecha de Entrega */}
-                  {isPending ? (
-                    <div className="p-3.5 bg-amber-50 rounded-2xl border border-amber-200 text-xs font-bold text-amber-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-amber-700 shrink-0 animate-pulse" />
-                        <span>El caserío está revisando tu pedido para confirmar la fecha de entrega.</span>
-                      </div>
-
-                      {/* BOTÓN CANCELAR / ELIMINAR PEDIDO PENDIENTE */}
-                      <button
-                        type="button"
-                        disabled={cancellingOrderId === order.id}
-                        onClick={() => handleCancelOrder(order.id)}
-                        className="bg-white hover:bg-red-50 text-red-700 border border-red-300 font-black text-xs px-3.5 py-1.5 rounded-xl transition-colors flex items-center gap-1 shadow-sm shrink-0"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        {cancellingOrderId === order.id ? 'Cancelando...' : 'Cancelar / Eliminar Pedido'}
-                      </button>
-                    </div>
-                  ) : order.estimated_delivery_date ? (
-                    <div className="p-3.5 bg-emerald-50 rounded-2xl border border-emerald-200 text-xs font-bold text-emerald-950 flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
-                      <span>
-                        Fecha de entrega confirmada:{' '}
-                        <strong>
-                          {new Date(order.estimated_delivery_date).toLocaleDateString('es-ES', {
-                            weekday: 'long',
-                            day: 'numeric',
-                            month: 'long',
-                          })}
-                        </strong>
-                      </span>
-                    </div>
-                  ) : null}
-
-                  {/* Productos del pedido */}
-                  <div className="space-y-1.5 bg-stone-50 p-3.5 rounded-2xl border border-stone-200">
-                    {order.order_items?.map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex justify-between text-xs font-bold text-stone-900"
-                      >
-                        <span>
-                          {item.products?.name} x {item.quantity}
-                        </span>
-                        <span className="font-black">
-                          {Number(item.subtotal).toFixed(2)} €
-                        </span>
-                      </div>
-                    ))}
-                    <div className="pt-2 mt-1 border-t border-stone-300 flex justify-between text-xs font-black text-stone-900">
-                      <span>Total</span>
-                      <span className="text-emerald-900 font-black text-sm">
-                        {Number(order.total_amount).toFixed(2)} €
-                      </span>
-                    </div>
-                  </div>
+            <div className="flex items-center justify-between pb-3 border-b border-stone-100">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 bg-emerald-100 text-emerald-900 rounded-2xl">
+                  <CheckCircle2 className="w-6 h-6" />
                 </div>
-              );
-            })}
+                <div>
+                  <h3 className="text-lg font-black text-stone-900">Resumen de tu Pedido</h3>
+                  <p className="text-xs font-semibold text-stone-500">
+                    Revisa los detalles antes de enviar el pedido al caserío
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowSummaryModal(false)}
+                className="p-1.5 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Desglose por caseríos */}
+            <div className="space-y-3 text-xs">
+              {sellerIds.map((sId) => {
+                const group = groupedBySeller[sId];
+                const config = deliveryConfigs[sId];
+                const points = sellerDeliveryPoints[sId] || [];
+                const pointObj = points.find((p) => p.id === config?.deliveryPointId);
+
+                return (
+                  <div key={sId} className="p-4 bg-stone-50 rounded-2xl border border-stone-200 space-y-2">
+                    <div className="flex justify-between font-black text-stone-900">
+                      <span>🏡 Caserío: {group.sellerName}</span>
+                      <span className="text-emerald-800">{group.sellerTown}</span>
+                    </div>
+
+                    <div className="pl-2 border-l-2 border-emerald-600 space-y-1">
+                      <div className="font-bold text-stone-800">
+                        Modalidad:{' '}
+                        <span className="font-black text-emerald-900">
+                          {config?.deliveryType === 'caserio'
+                            ? 'Recogida en Caserío'
+                            : config?.deliveryType === 'sitio_fisico'
+                            ? `Punto de Entrega (${pointObj?.name || 'Punto acordado'})`
+                            : `Envío a Domicilio (${config?.shippingAddress})`}
+                        </span>
+                      </div>
+
+                      <div className="text-stone-600 font-semibold">
+                        Agrupación:{' '}
+                        {config?.groupMode === 'junto_tardio'
+                          ? 'Entrega agrupada en la fecha más lejana'
+                          : 'Entregas individuales según cosecha'}
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-stone-200 space-y-1 font-semibold text-stone-700">
+                      {group.items.map((it) => (
+                        <div key={it.productId} className="flex justify-between">
+                          <span>
+                            {it.name} x {it.quantity} {it.format === 'granel' ? 'kg' : 'uds'}
+                          </span>
+                          <span className="font-black text-stone-900">
+                            {(it.unitPrice * it.quantity).toFixed(2)} €
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Total final */}
+            <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-bold text-emerald-800 block uppercase">
+                  Total a confirmar
+                </span>
+                <span className="text-2xl font-black text-emerald-950">{totalPrice.toFixed(2)} €</span>
+              </div>
+              <span className="text-xs font-extrabold text-emerald-900 bg-white px-3 py-1.5 rounded-xl border border-emerald-300">
+                {items.length} productos
+              </span>
+            </div>
+
+            <p className="text-[11px] font-medium text-stone-500 leading-snug">
+              Al confirmar, el pedido se enviará al baserritarra. Podrás seguir su estado en la pestaña <strong>Pedidos</strong> y cancelarlo en cualquier momento mientras esté pendiente de validación.
+            </p>
+
+            {/* Botones modal */}
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowSummaryModal(false)}
+                className="flex-1 py-3 px-4 bg-stone-100 hover:bg-stone-200 text-stone-800 font-black rounded-xl text-xs transition-colors"
+              >
+                Atrás
+              </button>
+
+              <button
+                type="button"
+                disabled={loading}
+                onClick={handleConfirmAndCheckout}
+                className="flex-[2] py-3 px-4 bg-emerald-700 hover:bg-emerald-800 text-white font-black rounded-xl text-xs transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {loading ? (
+                  'Enviando pedido...'
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4" /> Confirmar y Enviar Pedido
+                  </>
+                )}
+              </button>
+            </div>
           </div>
-        ) : (
-          <div className="p-6 bg-stone-50 rounded-2xl border border-stone-200 text-center text-xs font-semibold text-stone-600">
-            No tienes pedidos activos en trámite actualmente.
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

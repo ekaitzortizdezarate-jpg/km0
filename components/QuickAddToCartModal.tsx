@@ -86,9 +86,14 @@ export function QuickAddToCartModal({
     e.preventDefault();
     e.stopPropagation();
 
+    const selectedPoint = deliveryPoints.find((p) => p.id === selectedPointId);
+
     addToCart({
       ...item,
       quantity,
+      selectedDeliveryType: deliveryMethod as 'caserio' | 'punto_entrega' | 'domicilio',
+      selectedPointId: deliveryMethod === 'punto_entrega' ? selectedPointId || null : null,
+      selectedPointName: deliveryMethod === 'punto_entrega' ? selectedPoint?.name || null : null,
     });
 
     setAdded(true);
@@ -155,9 +160,20 @@ export function QuickAddToCartModal({
                       <p className="text-xs font-bold text-stone-600 mt-0.5">
                         {item.sellerName} · {item.sellerTown}
                       </p>
-                      <p className="text-xs font-black text-emerald-800 mt-0.5">
-                        {item.unitPrice.toFixed(2)} € / {unitLabel}
-                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs font-black text-emerald-800">
+                          {item.unitPrice.toFixed(2)} € / {unitLabel}
+                        </span>
+                        {item.isUnlimitedStock ? (
+                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                            Ilimitado
+                          </span>
+                        ) : item.stock !== undefined ? (
+                          <span className="text-[10px] font-bold text-stone-600 bg-stone-100 px-1.5 py-0.2 rounded border border-stone-200">
+                            {item.stock} {unitLabel} disponibles
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
 
@@ -170,11 +186,16 @@ export function QuickAddToCartModal({
                   </button>
                 </div>
 
-                {/* Fecha y Plazo de Entrega */}
+                {/* Fecha y Plazo de Entrega en 2 filas */}
                 {item.deliveryBadge && (
-                  <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-200 text-xs font-bold text-emerald-950 flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-emerald-700 shrink-0" />
-                    <span>Entrega estimada: <strong>{item.deliveryBadge}</strong></span>
+                  <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-200 space-y-0.5 text-xs">
+                    <div className="flex items-center gap-1.5 font-bold text-emerald-900">
+                      <Clock className="w-4 h-4 text-emerald-700 shrink-0" />
+                      <span>Entrega estimada:</span>
+                    </div>
+                    <p className="text-xs font-bold text-stone-800 pl-5 leading-snug">
+                      {item.deliveryBadge}
+                    </p>
                   </div>
                 )}
 

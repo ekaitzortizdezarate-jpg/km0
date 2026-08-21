@@ -103,15 +103,15 @@ export async function rejectOrderWithReason(orderId: string, message?: string) {
     }
   }
 
-  // 4. Cambiar estado a 'cancelado' (o eliminar si es necesario)
-  const { error: cancelErr } = await supabase
-    .from('orders')
-    .update({ status: 'cancelado', updated_at: new Date().toISOString() })
-    .eq('id', orderId);
+  // 4. Eliminar pedido y sus ítems de la base de datos
+  await supabase.from('order_items').delete().eq('order_id', orderId);
+  const { error: delErr } = await supabase.from('orders').delete().eq('id', orderId);
 
-  if (cancelErr) {
-    await supabase.from('order_items').delete().eq('order_id', orderId);
-    await supabase.from('orders').delete().eq('id', orderId);
+  if (delErr) {
+    await supabase
+      .from('orders')
+      .update({ status: 'cancelado', updated_at: new Date().toISOString() })
+      .eq('id', orderId);
   }
 
   revalidatePath('/vendedor/pedidos');

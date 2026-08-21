@@ -22,6 +22,11 @@ export interface CartItem {
   availableFromDate?: string | null;
   estimatedDeliveryDate?: string;
   deliveryBadge?: string;
+  selectedDeliveryType?: 'caserio' | 'punto_entrega' | 'domicilio';
+  selectedPointId?: string | null;
+  selectedPointName?: string | null;
+  stock?: number;
+  isUnlimitedStock?: boolean;
 }
 
 interface CartContextType {

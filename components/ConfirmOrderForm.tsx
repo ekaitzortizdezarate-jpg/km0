@@ -61,25 +61,25 @@ export function ConfirmOrderForm({
         </div>
       )}
 
-      <form onSubmit={handleConfirm} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="space-y-1">
-          <label className="block text-xs font-black text-stone-900">
-            Confirmar fecha de entrega al cliente:
-          </label>
-          <input
-            type="date"
-            required
-            value={confirmedDate}
-            onChange={(e) => setConfirmedDate(e.target.value)}
-            className="px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold text-stone-900 bg-stone-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600"
-          />
-        </div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <form onSubmit={handleConfirm} className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="space-y-1">
+            <label className="block text-xs font-black text-stone-900">
+              Confirmar fecha de entrega al cliente:
+            </label>
+            <input
+              type="date"
+              required
+              value={confirmedDate}
+              onChange={(e) => setConfirmedDate(e.target.value)}
+              className="px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold text-stone-900 bg-stone-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600"
+            />
+          </div>
 
-        <div className="flex flex-wrap items-center gap-2 pt-2 sm:pt-0">
           <button
             type="submit"
             disabled={loading}
-            className="bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-xs font-black px-4 py-2.5 rounded-xl shadow-sm transition-all flex items-center gap-1.5 disabled:opacity-50 active:scale-95"
+            className="bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-xs font-black px-4 py-2.5 rounded-xl shadow-sm transition-all flex items-center gap-1.5 disabled:opacity-50 active:scale-95 sm:mt-5"
           >
             {loading ? (
               <>
@@ -93,10 +93,12 @@ export function ConfirmOrderForm({
               </>
             )}
           </button>
+        </form>
 
+        <div className="sm:mt-5">
           <RejectOrderModal orderId={orderId} buyerName={buyerName} />
         </div>
-      </form>
+      </div>
     </div>
   );
 }

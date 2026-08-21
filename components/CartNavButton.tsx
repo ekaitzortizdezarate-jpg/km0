@@ -1,28 +1,32 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { ShoppingCart } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 
 export function CartNavButton() {
-  const { cartCount, totalPrice } = useCart();
+  const pathname = usePathname();
+  const { cartCount } = useCart();
+  const isCestaActive = pathname.startsWith('/cesta');
 
   return (
     <Link
       href="/cesta"
       title="Ver mi cesta de la compra"
-      className="relative flex items-center gap-2 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl transition-all shadow-sm"
+      className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs sm:text-sm transition-all flex items-center gap-1.5 ${
+        isCestaActive
+          ? 'bg-emerald-800 text-white font-black shadow-sm'
+          : cartCount > 0
+          ? 'bg-amber-100 hover:bg-amber-200 text-amber-950 font-black border border-amber-300'
+          : 'text-stone-700 hover:text-emerald-800 hover:bg-stone-100 font-bold'
+      }`}
     >
-      <ShoppingCart className="w-4 h-4" />
+      <ShoppingCart className={`w-4 h-4 ${isCestaActive ? 'text-white' : 'text-emerald-700'}`} />
       <span className="hidden sm:inline">Cesta</span>
       {cartCount > 0 && (
-        <span className="bg-amber-400 text-stone-950 font-black text-[11px] px-1.5 py-0.2 rounded-full min-w-[18px] text-center">
-          {cartCount}
-        </span>
-      )}
-      {cartCount > 0 && totalPrice > 0 && (
-        <span className="hidden md:inline font-bold text-emerald-100 text-[11px]">
-          ({totalPrice.toFixed(2)}€)
+        <span className="text-[11px] font-black">
+          ({cartCount})
         </span>
       )}
     </Link>

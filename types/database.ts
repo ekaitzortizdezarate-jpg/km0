@@ -12,7 +12,7 @@ export type ProductCategory =
 
 export type ProductFormat = 'granel' | 'suelto' | 'pack';
 export type CultivationType = 'exterior' | 'invernadero' | 'no_aplica';
-export type DeliveryType = 'sitio_fisico' | 'envio';
+export type DeliveryType = 'caserio' | 'sitio_fisico' | 'envio';
 export type AvailabilityType = 'inmediato' | 'dias' | 'dias_semana' | 'fecha_concreta';
 
 export type OrderStatus =

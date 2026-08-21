@@ -71,28 +71,28 @@ export function NavbarNavLinks({
 
       {user && profile ? (
         <>
-          {/* 3. Mensajes / Chat (con Globo de No Leídos) */}
+          {/* 3. Mensajes / Chat (Pestaña Naranja si hay mensaje nuevo) */}
           <Link
             href="/chat"
-            title="Mis mensajes y chats"
-            className={`relative px-2.5 sm:px-3 py-1.5 rounded-xl text-xs sm:text-sm transition-all flex items-center gap-1.5 ${
+            title={unreadMessagesCount > 0 ? `${unreadMessagesCount} mensajes nuevos sin leer` : 'Mis mensajes y chats'}
+            className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs sm:text-sm transition-all flex items-center gap-1.5 ${
               isChatActive
                 ? 'bg-emerald-800 text-white font-black shadow-sm'
+                : unreadMessagesCount > 0
+                ? 'bg-amber-500 hover:bg-amber-600 text-stone-950 font-black shadow-md border-2 border-amber-600 animate-pulse'
                 : 'text-stone-700 hover:text-emerald-800 hover:bg-stone-100 font-bold'
             }`}
           >
             <MessageCircle
-              className={`w-4 h-4 ${isChatActive ? 'text-white' : 'text-emerald-700'}`}
+              className={`w-4 h-4 ${
+                isChatActive
+                  ? 'text-white'
+                  : unreadMessagesCount > 0
+                  ? 'text-stone-950'
+                  : 'text-emerald-700'
+              }`}
             />
             <span className="hidden md:inline">Mensajes</span>
-            {unreadMessagesCount > 0 && (
-              <span
-                title={`${unreadMessagesCount} mensajes nuevos sin leer`}
-                className="bg-amber-400 text-stone-950 font-black text-[10px] px-1.5 py-0.2 rounded-full animate-bounce shadow-sm border border-amber-600"
-              >
-                {unreadMessagesCount}
-              </span>
-            )}
           </Link>
 
           {/* 4. Calendario */}
@@ -111,32 +111,32 @@ export function NavbarNavLinks({
             <span className="hidden md:inline">Calendario</span>
           </Link>
 
-          {/* 5. Pedidos (con Globo de Notificaciones) */}
+          {/* 5. Pedidos (Pestaña Naranja si hay aviso de pedido) */}
           <Link
             href={ordersHref}
-            title="Ver mis pedidos"
-            className={`relative px-2.5 sm:px-3 py-1.5 rounded-xl text-xs sm:text-sm transition-all flex items-center gap-1.5 ${
+            title={
+              profile.role === 'vendedor'
+                ? `${ordersBadgeCount} pedidos pendientes por validar`
+                : `${ordersBadgeCount} pedidos confirmados por el caserío`
+            }
+            className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs sm:text-sm transition-all flex items-center gap-1.5 ${
               isOrdersActive
                 ? 'bg-emerald-800 text-white font-black shadow-sm'
+                : ordersBadgeCount > 0
+                ? 'bg-amber-500 hover:bg-amber-600 text-stone-950 font-black shadow-md border-2 border-amber-600 animate-pulse'
                 : 'text-stone-700 hover:text-emerald-800 hover:bg-stone-100 font-bold'
             }`}
           >
             <ShoppingBasket
-              className={`w-4 h-4 ${isOrdersActive ? 'text-white' : 'text-stone-700'}`}
+              className={`w-4 h-4 ${
+                isOrdersActive
+                  ? 'text-white'
+                  : ordersBadgeCount > 0
+                  ? 'text-stone-950'
+                  : 'text-stone-700'
+              }`}
             />
             <span className="hidden md:inline">Pedidos</span>
-            {ordersBadgeCount > 0 && (
-              <span
-                title={
-                  profile.role === 'vendedor'
-                    ? `${ordersBadgeCount} pedidos pendientes por validar`
-                    : `${ordersBadgeCount} pedidos confirmados por el caserío`
-                }
-                className="bg-amber-400 text-stone-950 font-black text-[10px] px-1.5 py-0.2 rounded-full animate-pulse shadow-sm border border-amber-600"
-              >
-                {ordersBadgeCount}
-              </span>
-            )}
           </Link>
 
           {/* 6. Admin (si aplica) */}

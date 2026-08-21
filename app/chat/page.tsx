@@ -81,16 +81,7 @@ export default async function ChatInboxPage() {
   );
 
   return (
-    <div className="max-w-3xl mx-auto py-4 space-y-6">
-      <div className="flex items-center justify-between">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-stone-700 hover:text-stone-900 bg-white px-3 py-1.5 rounded-lg border border-stone-200 shadow-sm"
-        >
-          <ArrowLeft className="w-4 h-4" /> Volver al catálogo
-        </Link>
-      </div>
-
+    <div className="max-w-3xl mx-auto py-4 space-y-4">
       <div className="bg-white rounded-3xl border-2 border-stone-200 shadow-sm overflow-hidden">
         <div className="p-5 sm:p-6 border-b-2 border-stone-100 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -98,10 +89,7 @@ export default async function ChatInboxPage() {
               <MessageCircle className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-xl font-black text-stone-900">Mis Mensajes y Chats</h1>
-              <p className="text-xs font-semibold text-stone-600">
-                Conversaciones directas entre caseríos y compradores
-              </p>
+              <h1 className="text-xl font-black text-stone-900">Mis Mensajes</h1>
             </div>
           </div>
 

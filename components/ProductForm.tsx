@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { createClient } from '@/lib/supabase/client';
 import { createProduct, updateProduct } from '@/app/actions/products';
-import { Product, ProductFormat, AvailabilityType, ProductCategory } from '@/types/database';
+import { Product, ProductFormat, AvailabilityType, ProductCategory, DeliveryPoint } from '@/types/database';
 import {
   Sprout,
   AlertCircle,
@@ -14,6 +16,8 @@ import {
   Tag,
   Calendar,
   History,
+  Store,
+  Truck,
 } from 'lucide-react';
 import { ImageSelector } from '@/components/ImageSelector';
 
@@ -94,6 +98,26 @@ export function ProductForm({
   );
 
   // Opciones de Entrega ofrecidas
+  const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
+  useEffect(() => {
+    async function loadDeliveryPoints() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase
+          .from('delivery_points')
+          .select('*')
+          .eq('seller_id', user.id);
+        if (data) setDeliveryPoints(data as unknown as DeliveryPoint[]);
+      }
+    }
+    loadDeliveryPoints();
+  }, []);
+
+  const hasCaserioPoints = deliveryPoints.some((p) => p.type === 'caserio') || deliveryPoints.length > 0 || Boolean(product?.caserio_schedule);
+  const hasPuntosEntrega = deliveryPoints.some((p) => p.type === 'sitio_fisico');
+  const hasEnvioDomicilio = deliveryPoints.some((p) => p.type === 'envio');
+
   const [deliveryMethods, setDeliveryMethods] = useState<string[]>(
     product?.delivery_methods && product.delivery_methods.length > 0
       ? product.delivery_methods
@@ -958,85 +982,123 @@ export function ProductForm({
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               {/* Opción 1: Recogida en Caserío */}
-              <button
-                type="button"
+              <div
                 onClick={() => toggleDeliveryMethod('caserio')}
-                className={`p-3 rounded-xl border-2 text-left transition-all flex flex-col justify-between gap-1.5 ${
+                className={`p-3.5 rounded-xl border-2 text-left transition-all flex flex-col justify-between gap-1.5 cursor-pointer ${
                   deliveryMethods.includes('caserio')
                     ? 'border-emerald-700 bg-emerald-50 text-emerald-950 shadow-sm'
                     : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300'
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-black">🏡 Recogida en Caserío</span>
+                  <span className="text-xs font-black flex items-center gap-1.5">
+                    <Store className="w-4 h-4 text-emerald-700" />
+                    <span>Recogida en Caserío</span>
+                  </span>
                   <input
                     type="checkbox"
                     checked={deliveryMethods.includes('caserio')}
                     readOnly
-                    className="w-4 h-4 text-emerald-700 rounded"
+                    className="w-4 h-4 text-emerald-700 rounded cursor-pointer"
                   />
                 </div>
                 <span className="text-[10px] font-semibold text-stone-500">
-                  El cliente acude a tu caserío
+                  El cliente acude a tu caserío (con días y horarios).
                 </span>
-              </button>
+              </div>
 
               {/* Opción 2: Punto de Entrega */}
-              <button
-                type="button"
-                onClick={() => toggleDeliveryMethod('punto_entrega')}
-                className={`p-3 rounded-xl border-2 text-left transition-all flex flex-col justify-between gap-1.5 ${
-                  deliveryMethods.includes('punto_entrega')
-                    ? 'border-emerald-700 bg-emerald-50 text-emerald-950 shadow-sm'
-                    : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300'
+              <div
+                onClick={() => {
+                  if (hasPuntosEntrega) {
+                    toggleDeliveryMethod('punto_entrega');
+                  }
+                }}
+                className={`p-3.5 rounded-xl border-2 text-left transition-all flex flex-col justify-between gap-1.5 ${
+                  !hasPuntosEntrega
+                    ? 'border-stone-200 bg-stone-50 opacity-75 cursor-not-allowed'
+                    : deliveryMethods.includes('punto_entrega')
+                    ? 'border-emerald-700 bg-emerald-50 text-emerald-950 shadow-sm cursor-pointer'
+                    : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300 cursor-pointer'
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-black">📍 Punto de Entrega</span>
+                  <span className="text-xs font-black flex items-center gap-1.5">
+                    <Store className="w-4 h-4 text-emerald-700" />
+                    <span>Punto de Entrega</span>
+                  </span>
                   <input
                     type="checkbox"
                     checked={deliveryMethods.includes('punto_entrega')}
+                    disabled={!hasPuntosEntrega}
                     readOnly
-                    className="w-4 h-4 text-emerald-700 rounded"
+                    className="w-4 h-4 text-emerald-700 rounded cursor-pointer"
                   />
                 </div>
-                <span className="text-[10px] font-semibold text-stone-500">
-                  Mercado, plaza o punto fijo
-                </span>
-              </button>
+                {hasPuntosEntrega ? (
+                  <span className="text-[10px] font-semibold text-stone-500">
+                    Mercado, plaza o punto fijo (con días y horarios).
+                  </span>
+                ) : (
+                  <div className="text-[10px] font-bold text-amber-800 bg-amber-50 p-1.5 rounded-lg border border-amber-200">
+                    No disponible: añade primero puntos en{' '}
+                    <Link href="/vendedor/puntos-entrega" className="underline font-black text-amber-950">
+                      Puntos de Entrega
+                    </Link>
+                  </div>
+                )}
+              </div>
 
               {/* Opción 3: Envío a Domicilio */}
-              <button
-                type="button"
-                onClick={() => toggleDeliveryMethod('domicilio')}
-                className={`p-3 rounded-xl border-2 text-left transition-all flex flex-col justify-between gap-1.5 ${
-                  deliveryMethods.includes('domicilio')
-                    ? 'border-emerald-700 bg-emerald-50 text-emerald-950 shadow-sm'
-                    : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300'
+              <div
+                onClick={() => {
+                  if (hasEnvioDomicilio) {
+                    toggleDeliveryMethod('domicilio');
+                  }
+                }}
+                className={`p-3.5 rounded-xl border-2 text-left transition-all flex flex-col justify-between gap-1.5 ${
+                  !hasEnvioDomicilio
+                    ? 'border-stone-200 bg-stone-50 opacity-75 cursor-not-allowed'
+                    : deliveryMethods.includes('domicilio')
+                    ? 'border-emerald-700 bg-emerald-50 text-emerald-950 shadow-sm cursor-pointer'
+                    : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300 cursor-pointer'
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-black">🚚 Envío a Domicilio</span>
+                  <span className="text-xs font-black flex items-center gap-1.5">
+                    <Truck className="w-4 h-4 text-emerald-700" />
+                    <span>Envío a Domicilio</span>
+                  </span>
                   <input
                     type="checkbox"
                     checked={deliveryMethods.includes('domicilio')}
+                    disabled={!hasEnvioDomicilio}
                     readOnly
-                    className="w-4 h-4 text-emerald-700 rounded"
+                    className="w-4 h-4 text-emerald-700 rounded cursor-pointer"
                   />
                 </div>
-                <span className="text-[10px] font-semibold text-stone-500">
-                  Reparto directo a su casa
-                </span>
-              </button>
+                {hasEnvioDomicilio ? (
+                  <span className="text-[10px] font-semibold text-stone-500">
+                    Reparto directo a la casa del comprador.
+                  </span>
+                ) : (
+                  <div className="text-[10px] font-bold text-amber-800 bg-amber-50 p-1.5 rounded-lg border border-amber-200">
+                    No disponible: activa el reparto en{' '}
+                    <Link href="/vendedor/puntos-entrega" className="underline font-black text-amber-950">
+                      Puntos de Entrega
+                    </Link>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Horario de Recogida en Caserío si está activo */}
             {deliveryMethods.includes('caserio') && (
-              <div className="p-3 bg-white rounded-xl border border-stone-200 space-y-1 mt-2">
+              <div className="p-3.5 bg-white rounded-xl border border-stone-200 space-y-1 mt-2">
                 <label className="block text-xs font-bold text-stone-800">
-                  Horario / Días para recoger en el caserío:
+                  Días y Horarios para la recogida en el Caserío:
                 </label>
                 <input
                   type="text"
@@ -1045,6 +1107,40 @@ export function ProductForm({
                   placeholder="Ej. Lunes a Sábado de 10:00 a 14:00"
                   className="w-full px-3 py-2 border border-stone-300 rounded-lg text-xs font-bold text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
                 />
+              </div>
+            )}
+
+            {/* Opciones de Envío a Domicilio si está activo */}
+            {deliveryMethods.includes('domicilio') && (
+              <div className="p-3.5 bg-white rounded-xl border border-stone-200 space-y-2 mt-2">
+                <label className="block text-xs font-bold text-stone-800">
+                  Opciones de entrega a domicilio para este producto:
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  <label className="flex items-center gap-2 p-2 bg-stone-50 rounded-lg border border-stone-200">
+                    <input
+                      type="checkbox"
+                      checked={deliveryMode === 'dias' || deliveryMode === 'dias_semana'}
+                      readOnly
+                      className="text-emerald-700 rounded"
+                    />
+                    <span className="font-bold text-stone-900">
+                      Entrega al día siguiente de disponibilidad (24h)
+                    </span>
+                  </label>
+
+                  <label className="flex items-center gap-2 p-2 bg-stone-50 rounded-lg border border-stone-200">
+                    <input
+                      type="checkbox"
+                      checked={deliveryMode === 'dias_semana' || deliveryMode === 'dias'}
+                      readOnly
+                      className="text-emerald-700 rounded"
+                    />
+                    <span className="font-bold text-stone-900">
+                      Selección de días fijos de reparto semanal
+                    </span>
+                  </label>
+                </div>
               </div>
             )}
           </div>

@@ -292,6 +292,8 @@ export default async function HomePage({
               deliveryBadge: deliveryInfo.badgeText,
               deliveryMethods: product.delivery_methods,
               caserioSchedule: product.caserio_schedule,
+              stock: product.stock,
+              isUnlimitedStock: product.is_unlimited_stock,
             };
 
             return (
@@ -407,10 +409,33 @@ export default async function HomePage({
                       )}
                     </div>
 
-                    {/* Condiciones de Entrega Estimada Según Vendedor */}
-                    <div className="bg-stone-50 p-2.5 rounded-xl border border-stone-200 text-[11px] font-bold text-stone-800 flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                      <span className="truncate">{deliveryInfo.detailText}</span>
+                    {/* Disponibilidad / Stock */}
+                    <div className="flex items-center gap-1.5 text-xs font-bold">
+                      <span className="text-stone-500">Disponibilidad:</span>
+                      {product.is_unlimited_stock ? (
+                        <span className="text-emerald-800 font-black bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                          Ilimitada / Continua
+                        </span>
+                      ) : product.stock > 0 ? (
+                        <span className="text-stone-900 font-black bg-stone-100 px-2 py-0.5 rounded-md border border-stone-200">
+                          {product.stock} {product.format === 'granel' ? 'kg' : 'uds'} disponibles
+                        </span>
+                      ) : (
+                        <span className="text-red-700 font-black bg-red-50 px-2 py-0.5 rounded-md border border-red-200">
+                          Agotado
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Condiciones de Entrega Estimada Según Vendedor en 2 Filas */}
+                    <div className="bg-stone-50 p-2.5 rounded-xl border border-stone-200 space-y-0.5">
+                      <div className="flex items-center gap-1.5 text-[11px] font-black text-emerald-900">
+                        <Clock className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                        <span>Entrega prevista:</span>
+                      </div>
+                      <p className="text-xs font-bold text-stone-800 pl-5 leading-snug">
+                        {deliveryInfo.detailText}
+                      </p>
                     </div>
 
                     {/* Contenido del Pack (si es pack) */}

@@ -49,10 +49,11 @@ export default async function DeliveryPointsPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-stone-700 mb-1">Tipo</label>
-              <select name="type" className="w-full px-3 py-2 border border-stone-300 rounded-lg text-xs bg-white">
-                <option value="sitio_fisico">Punto Físico / Recogida</option>
-                <option value="envio">Zona de Reparto</option>
+              <label className="block text-xs font-semibold text-stone-700 mb-1">Tipo de Modalidad</label>
+              <select name="type" className="w-full px-3 py-2 border border-stone-300 rounded-lg text-xs bg-white font-bold text-stone-900">
+                <option value="caserio">🏡 Recogida en Caserío</option>
+                <option value="sitio_fisico">📍 Punto Físico / Mercado / Plaza</option>
+                <option value="envio">🚚 Servicio de Envío a Domicilio</option>
               </select>
             </div>
             <div>
