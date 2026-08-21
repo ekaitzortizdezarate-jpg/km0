@@ -112,6 +112,12 @@ CREATE TABLE IF NOT EXISTS public.delivery_points (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE public.delivery_points ALTER COLUMN type TYPE TEXT;
+ALTER TABLE public.delivery_points 
+  ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'sitio_fisico',
+  ADD COLUMN IF NOT EXISTS schedule_notes TEXT,
+  ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
+
 -- 4. ACTUALIZAR O CREAR TABLA 'orders'
 CREATE TABLE IF NOT EXISTS public.orders (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,

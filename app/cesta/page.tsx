@@ -414,8 +414,14 @@ export default function CartPage() {
 
                             <button
                               type="button"
-                              onClick={() => updateQuantity(item.productId, item.quantity + 1)}
-                              className="w-7 h-7 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white flex items-center justify-center font-black"
+                              disabled={!item.isUnlimitedStock && item.stock !== undefined && item.quantity >= item.stock}
+                              onClick={() => {
+                                const maxStock = item.isUnlimitedStock ? 9999 : item.stock ?? 9999;
+                                if (item.quantity < maxStock) {
+                                  updateQuantity(item.productId, item.quantity + 1);
+                                }
+                              }}
+                              className="w-7 h-7 rounded-lg bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center font-black"
                               aria-label="Aumentar"
                             >
                               <Plus className="w-3.5 h-3.5" />

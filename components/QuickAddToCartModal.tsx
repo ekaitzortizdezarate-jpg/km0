@@ -201,52 +201,73 @@ export function QuickAddToCartModal({
 
                 {/* Selector de Cantidad */}
                 <div className="space-y-2">
-                  <label className="block text-xs font-black text-stone-900 uppercase tracking-wider">
-                    Cantidad deseada ({unitLabel}):
-                  </label>
-
-                  <div className="flex items-center justify-between gap-3 bg-stone-50 p-2.5 rounded-2xl border border-stone-200">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                        className="w-9 h-9 rounded-xl bg-white border border-stone-300 hover:bg-stone-100 text-stone-900 flex items-center justify-center font-black"
-                      >
-                        <Minus className="w-4 h-4" />
-                      </button>
-
-                      <span className="text-xl font-black text-stone-900 px-3 min-w-[50px] text-center">
-                        {quantity}{' '}
-                        <span className="text-xs font-bold text-stone-600">{unitLabel}</span>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-black text-stone-900 uppercase tracking-wider">
+                      Cantidad deseada ({unitLabel}):
+                    </label>
+                    {!item.isUnlimitedStock && item.stock !== undefined && (
+                      <span className="text-[11px] font-bold text-stone-500">
+                        Máximo disponible: <strong>{item.stock} {unitLabel}</strong>
                       </span>
+                    )}
+                  </div>
 
-                      <button
-                        type="button"
-                        onClick={() => setQuantity(quantity + 1)}
-                        className="w-9 h-9 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white flex items-center justify-center font-black"
-                      >
-                        <Plus className="w-4 h-4" />
-                      </button>
+                  {item.stock !== undefined && !item.isUnlimitedStock && item.stock <= 0 ? (
+                    <div className="p-3 bg-red-50 text-red-800 border border-red-200 rounded-xl text-xs font-bold text-center">
+                      Este producto no tiene stock disponible en este momento.
                     </div>
-
-                    {/* Pastillas de cantidad rápida */}
-                    <div className="flex flex-wrap gap-1">
-                      {(item.format === 'granel' ? [2, 5, 10] : [2, 3, 5]).map((num) => (
+                  ) : (
+                    <div className="flex items-center justify-between gap-3 bg-stone-50 p-2.5 rounded-2xl border border-stone-200">
+                      <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          key={num}
-                          onClick={() => setQuantity(num)}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all border ${
-                            quantity === num
-                              ? 'bg-emerald-700 text-white border-emerald-800'
-                              : 'bg-white text-stone-700 border-stone-300 hover:bg-stone-100'
-                          }`}
+                          onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                          className="w-9 h-9 rounded-xl bg-white border border-stone-300 hover:bg-stone-100 text-stone-900 flex items-center justify-center font-black"
                         >
-                          {num} {unitLabel}
+                          <Minus className="w-4 h-4" />
                         </button>
-                      ))}
+
+                        <span className="text-xl font-black text-stone-900 px-3 min-w-[50px] text-center">
+                          {quantity}{' '}
+                          <span className="text-xs font-bold text-stone-600">{unitLabel}</span>
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const maxStock = item.isUnlimitedStock ? 9999 : item.stock ?? 9999;
+                            if (quantity < maxStock) {
+                              setQuantity(quantity + 1);
+                            }
+                          }}
+                          disabled={!item.isUnlimitedStock && item.stock !== undefined && quantity >= item.stock}
+                          className="w-9 h-9 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center font-black"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {/* Pastillas de cantidad rápida */}
+                      <div className="flex flex-wrap gap-1">
+                        {(item.format === 'granel' ? [2, 5, 10] : [2, 3, 5])
+                          .filter((num) => item.isUnlimitedStock || item.stock === undefined || num <= item.stock)
+                          .map((num) => (
+                            <button
+                              type="button"
+                              key={num}
+                              onClick={() => setQuantity(num)}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all border ${
+                                quantity === num
+                                  ? 'bg-emerald-700 text-white border-emerald-800'
+                                  : 'bg-white text-stone-700 border-stone-300 hover:bg-stone-100'
+                              }`}
+                            >
+                              {num} {unitLabel}
+                            </button>
+                          ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* Modalidad de entrega */}

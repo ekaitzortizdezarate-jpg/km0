@@ -33,6 +33,23 @@ export async function createCartOrders(sellerGroups: CartCheckoutSellerGroup[]) 
   }
 
   try {
+    // 0. Comprobar stock disponible de todos los productos antes de crear pedidos
+    for (const group of sellerGroups) {
+      for (const item of group.items) {
+        const { data: prod } = await supabase
+          .from('products')
+          .select('name, stock, is_unlimited_stock')
+          .eq('id', item.productId)
+          .single();
+
+        if (prod && !prod.is_unlimited_stock && prod.stock < item.quantity) {
+          return {
+            error: `No hay suficiente stock para "${prod.name}". Stock disponible: ${prod.stock} (solicitado en la cesta: ${item.quantity}).`,
+          };
+        }
+      }
+    }
+
     for (const group of sellerGroups) {
       const groupTotal = group.items.reduce(
         (sum, item) => sum + item.unitPrice * item.quantity,
