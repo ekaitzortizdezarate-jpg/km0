@@ -11,6 +11,7 @@ import {
   Scale,
   Package,
   Check,
+  Tag,
 } from 'lucide-react';
 import { ImageSelector } from '@/components/ImageSelector';
 import { TouchNumberStepper } from '@/components/TouchNumberStepper';
@@ -39,6 +40,11 @@ export function ProductForm({ product, isEdit = false }: ProductFormProps) {
     product?.format || 'suelto'
   );
 
+  // Sub-mode for suelto: 'unidad' (precio por unidad sin kilos) o 'peso' (pieza con peso en kg)
+  const [sueltoMode, setSueltoMode] = useState<'unidad' | 'peso'>(
+    product?.weight_kg ? 'peso' : 'unidad'
+  );
+
   // Values for auto-calculation
   const [price, setPrice] = useState<number>(product?.price || 0);
   const [pricePerKilo, setPricePerKilo] = useState<number>(
@@ -64,17 +70,17 @@ export function ProductForm({ product, isEdit = false }: ProductFormProps) {
     product?.available_from_date || ''
   );
 
-  // Auto calculate for Suelto format
+  // Auto calculate for Suelto format with peso mode
   const handlePriceChange = (val: number) => {
     setPrice(val);
-    if (format === 'suelto' && weightKg > 0) {
+    if (format === 'suelto' && sueltoMode === 'peso' && weightKg > 0) {
       setPricePerKilo(Number((val / weightKg).toFixed(2)));
     }
   };
 
   const handlePricePerKiloChange = (val: number) => {
     setPricePerKilo(val);
-    if (format === 'suelto' && weightKg > 0) {
+    if (format === 'suelto' && sueltoMode === 'peso' && weightKg > 0) {
       setPrice(Number((val * weightKg).toFixed(2)));
     } else if (format === 'granel') {
       setPrice(val);
@@ -83,7 +89,7 @@ export function ProductForm({ product, isEdit = false }: ProductFormProps) {
 
   const handleWeightKgChange = (val: number) => {
     setWeightKg(val);
-    if (format === 'suelto') {
+    if (format === 'suelto' && sueltoMode === 'peso') {
       if (pricePerKilo > 0) {
         setPrice(Number((pricePerKilo * val).toFixed(2)));
       } else if (price > 0 && val > 0) {
@@ -110,8 +116,18 @@ export function ProductForm({ product, isEdit = false }: ProductFormProps) {
     const formData = new FormData(event.currentTarget);
     formData.set('format', format);
     formData.set('price', price.toString());
-    formData.set('price_per_kilo', pricePerKilo ? pricePerKilo.toString() : '');
-    formData.set('weight_kg', format === 'suelto' ? weightKg.toString() : '');
+    formData.set(
+      'price_per_kilo',
+      format === 'granel'
+        ? (pricePerKilo || price).toString()
+        : format === 'suelto' && sueltoMode === 'peso' && pricePerKilo
+        ? pricePerKilo.toString()
+        : ''
+    );
+    formData.set(
+      'weight_kg',
+      format === 'suelto' && sueltoMode === 'peso' && weightKg ? weightKg.toString() : ''
+    );
     formData.set('stock', stock.toString());
     if (isUnlimitedStock) {
       formData.set('is_unlimited_stock', 'on');
@@ -189,12 +205,12 @@ export function ProductForm({ product, isEdit = false }: ProductFormProps) {
           >
             <div className="flex items-center justify-between w-full">
               <span className="font-extrabold text-stone-900 text-sm flex items-center gap-1.5">
-                <Layers className="w-4 h-4 text-emerald-700" /> Suelto / Pieza
+                <Layers className="w-4 h-4 text-emerald-700" /> Suelto / Por Unidad
               </span>
               {format === 'suelto' && <Check className="w-4 h-4 text-emerald-700" />}
             </div>
             <p className="text-[11px] font-semibold text-stone-600">
-              Unidad o pieza con peso exacto (ej. un queso de 1.2 kg o lechuga).
+              Por unidad fija (sin kilos) o por pieza con peso en Kg.
             </p>
           </button>
 
@@ -231,7 +247,7 @@ export function ProductForm({ product, isEdit = false }: ProductFormProps) {
             type="text"
             required
             defaultValue={product?.name || ''}
-            placeholder="Ej. Tomate de caserío, Queso Idiazabal, Cesta semanal..."
+            placeholder="Ej. Lechuga, Tarro de Miel, Queso Idiazabal, Cesta semanal..."
             className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none placeholder:text-stone-400"
           />
         </div>
@@ -322,73 +338,185 @@ export function ProductForm({ product, isEdit = false }: ProductFormProps) {
           </div>
         )}
 
-        {/* Formato 2: SUELTO CON CÁLCULO AUTOMÁTICO */}
+        {/* Formato 2: SUELTO / POR UNIDAD */}
         {format === 'suelto' && (
           <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs font-bold text-stone-800 mb-1">
-                  Peso de la pieza (Kg) *
-                </label>
-                <input
-                  type="number"
-                  step="0.05"
-                  min="0.05"
-                  required
-                  value={weightKg || ''}
-                  onChange={(e) => handleWeightKgChange(parseFloat(e.target.value) || 0)}
-                  placeholder="Ej. 1.2"
-                  className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white"
-                />
-              </div>
+            {/* Selector de Modo: Precio por Unidad (Sin Kilos) vs Pieza Pesada (Con Kilos) */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-stone-800">
+                Modalidad de precio:
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSueltoMode('unidad');
+                    setWeightKg(0);
+                    setPricePerKilo(0);
+                  }}
+                  className={`p-3 rounded-xl border-2 text-left transition-all ${
+                    sueltoMode === 'unidad'
+                      ? 'border-emerald-700 bg-white ring-2 ring-emerald-600 shadow-sm'
+                      : 'border-stone-200 bg-white text-stone-700'
+                  }`}
+                >
+                  <span className="font-extrabold text-stone-900 text-xs flex items-center gap-1.5">
+                    <Tag className="w-3.5 h-3.5 text-emerald-700" /> Precio por Unidad (Sin Kilos)
+                  </span>
+                  <span className="text-[10px] font-semibold text-stone-600 block mt-0.5">
+                    Ej. 1 lechuga (1.50€), 1 docena huevos (3€), 1 tarro miel (7€)...
+                  </span>
+                </button>
 
-              <div>
-                <label className="block text-xs font-bold text-stone-800 mb-1">
-                  Precio Total (€) *
-                </label>
-                <input
-                  type="number"
-                  step="0.05"
-                  min="0.1"
-                  required
-                  value={price || ''}
-                  onChange={(e) => handlePriceChange(parseFloat(e.target.value) || 0)}
-                  placeholder="Ej. 12.00"
-                  className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-stone-800 mb-1">
-                  Precio / Kilo (€/kg)
-                </label>
-                <input
-                  type="number"
-                  step="0.05"
-                  min="0.1"
-                  value={pricePerKilo || ''}
-                  onChange={(e) => handlePricePerKiloChange(parseFloat(e.target.value) || 0)}
-                  placeholder="Calculado solo"
-                  className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white"
-                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSueltoMode('peso');
+                    if (weightKg === 0) setWeightKg(1);
+                  }}
+                  className={`p-3 rounded-xl border-2 text-left transition-all ${
+                    sueltoMode === 'peso'
+                      ? 'border-emerald-700 bg-white ring-2 ring-emerald-600 shadow-sm'
+                      : 'border-stone-200 bg-white text-stone-700'
+                  }`}
+                >
+                  <span className="font-extrabold text-stone-900 text-xs flex items-center gap-1.5">
+                    <Scale className="w-3.5 h-3.5 text-emerald-700" /> Pieza con Peso exacto (Kg)
+                  </span>
+                  <span className="text-[10px] font-semibold text-stone-600 block mt-0.5">
+                    Ej. 1 queso entero que pesa 1.2 kg con precio total o €/kg.
+                  </span>
+                </button>
               </div>
             </div>
 
-            <p className="text-[11px] font-bold text-emerald-800 bg-emerald-50 p-2 rounded-lg border border-emerald-200">
-              💡 Introduce el peso y el precio (o el precio/kilo) y el otro valor se calculará automáticamente.
-            </p>
+            {/* Caso A: Precio por Unidad (SIN KILOS) */}
+            {sueltoMode === 'unidad' && (
+              <div className="space-y-4 p-4 bg-white rounded-xl border border-stone-200 shadow-sm">
+                <div>
+                  <label className="block text-xs font-bold text-stone-800 mb-1">
+                    Precio por Unidad / Pieza (€) *
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      step="0.05"
+                      min="0.1"
+                      required
+                      value={price || ''}
+                      onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
+                      placeholder="Ej. 1.80"
+                      className="w-36 px-3.5 py-2 border-2 border-stone-300 rounded-xl text-base font-black text-stone-900 bg-white"
+                    />
+                    <span className="text-sm font-bold text-stone-700">€ / unidad</span>
+                  </div>
+                </div>
 
-            <TouchNumberStepper
-              name="stock_stepper"
-              label="Unidades en stock"
-              min={1}
-              max={100}
-              step={1}
-              value={stock}
-              onChange={setStock}
-              unit="piezas"
-              quickOptions={[1, 5, 10, 20]}
-            />
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-stone-800">
+                      Unidades disponibles:
+                    </label>
+                    <label className="flex items-center gap-1.5 text-xs font-bold text-emerald-800 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={isUnlimitedStock}
+                        onChange={(e) => setIsUnlimitedStock(e.target.checked)}
+                        className="w-4 h-4 rounded text-emerald-700"
+                      />
+                      Ilimitado / Continuo
+                    </label>
+                  </div>
+
+                  {!isUnlimitedStock ? (
+                    <TouchNumberStepper
+                      name="stock_stepper"
+                      min={1}
+                      max={200}
+                      step={1}
+                      value={stock}
+                      onChange={setStock}
+                      unit="uds"
+                      quickOptions={[1, 5, 10, 20, 50]}
+                    />
+                  ) : (
+                    <p className="text-xs font-semibold text-emerald-800 bg-emerald-50 p-2.5 rounded-lg border border-emerald-200">
+                      ✓ Unidades siempre disponibles sin límite de stock.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Caso B: Pieza con Peso en Kg (Cálculo Automático) */}
+            {sueltoMode === 'peso' && (
+              <div className="space-y-4 p-4 bg-white rounded-xl border border-stone-200 shadow-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-stone-800 mb-1">
+                      Peso de la pieza (Kg) *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.05"
+                      min="0.05"
+                      required
+                      value={weightKg || ''}
+                      onChange={(e) => handleWeightKgChange(parseFloat(e.target.value) || 0)}
+                      placeholder="Ej. 1.2"
+                      className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-stone-800 mb-1">
+                      Precio Total (€) *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.05"
+                      min="0.1"
+                      required
+                      value={price || ''}
+                      onChange={(e) => handlePriceChange(parseFloat(e.target.value) || 0)}
+                      placeholder="Ej. 12.00"
+                      className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-stone-800 mb-1">
+                      Precio / Kilo (€/kg)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.05"
+                      min="0.1"
+                      value={pricePerKilo || ''}
+                      onChange={(e) => handlePricePerKiloChange(parseFloat(e.target.value) || 0)}
+                      placeholder="Calculado solo"
+                      className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white"
+                    />
+                  </div>
+                </div>
+
+                <p className="text-[11px] font-bold text-emerald-800 bg-emerald-50 p-2 rounded-lg border border-emerald-200">
+                  💡 Introduce el peso y el precio (o el precio/kilo) y el otro valor se calculará automáticamente.
+                </p>
+
+                <TouchNumberStepper
+                  name="stock_stepper"
+                  label="Piezas disponibles en stock"
+                  min={1}
+                  max={100}
+                  step={1}
+                  value={stock}
+                  onChange={setStock}
+                  unit="piezas"
+                  quickOptions={[1, 5, 10, 20]}
+                />
+              </div>
+            )}
           </div>
         )}
 
@@ -428,17 +556,39 @@ export function ProductForm({ product, isEdit = false }: ProductFormProps) {
               />
             </div>
 
-            <TouchNumberStepper
-              name="stock_stepper"
-              label="Número de packs disponibles"
-              min={1}
-              max={50}
-              step={1}
-              value={stock}
-              onChange={setStock}
-              unit="packs"
-              quickOptions={[1, 3, 5, 10]}
-            />
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-stone-800">
+                  Packs disponibles en stock:
+                </label>
+                <label className="flex items-center gap-1.5 text-xs font-bold text-emerald-800 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isUnlimitedStock}
+                    onChange={(e) => setIsUnlimitedStock(e.target.checked)}
+                    className="w-4 h-4 rounded text-emerald-700"
+                  />
+                  Ilimitado / Continuo
+                </label>
+              </div>
+
+              {!isUnlimitedStock ? (
+                <TouchNumberStepper
+                  name="stock_stepper"
+                  min={1}
+                  max={50}
+                  step={1}
+                  value={stock}
+                  onChange={setStock}
+                  unit="packs"
+                  quickOptions={[1, 3, 5, 10]}
+                />
+              ) : (
+                <p className="text-xs font-semibold text-emerald-800 bg-emerald-50 p-2.5 rounded-lg border border-emerald-200">
+                  ✓ Packs siempre disponibles sin límite de stock.
+                </p>
+              )}
+            </div>
           </div>
         )}
       </div>

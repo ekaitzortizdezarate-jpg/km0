@@ -201,7 +201,9 @@ export default function CheckoutPage() {
                 {product.format === 'granel'
                   ? 'A Granel'
                   : product.format === 'suelto'
-                  ? 'Suelto'
+                  ? product.weight_kg
+                    ? 'Pieza pesada'
+                    : 'Por Unidad'
                   : 'Pack / Cesta'}
               </span>
               <span className="text-xs font-bold text-stone-600 capitalize">

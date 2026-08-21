@@ -279,7 +279,9 @@ export default async function HomePage({
                           {product.format === 'granel'
                             ? 'A Granel'
                             : product.format === 'suelto'
-                            ? 'Suelto'
+                            ? product.weight_kg
+                              ? 'Pieza pesada'
+                              : 'Por Unidad'
                             : 'Pack / Cesta'}
                         </span>
                       </span>
@@ -393,6 +395,16 @@ export default async function HomePage({
                         <div className="font-black text-stone-900 text-xl">
                           {Number(product.price).toFixed(2)} €
                         </div>
+                        {product.format === 'pack' && (
+                          <div className="text-[10px] font-extrabold text-stone-600">
+                            por pack
+                          </div>
+                        )}
+                        {product.format === 'suelto' && !product.weight_kg && (
+                          <div className="text-[10px] font-extrabold text-stone-600">
+                            por unidad
+                          </div>
+                        )}
                         {product.price_per_kilo && (
                           <div className="text-[10px] font-extrabold text-stone-600">
                             {Number(product.price_per_kilo).toFixed(2)} € / kg
