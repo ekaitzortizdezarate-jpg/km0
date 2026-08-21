@@ -97,8 +97,8 @@ export function NavbarNavLinks({
         <span className={`font-black text-xs sm:text-sm leading-none tracking-tight ${isCatalogueActive ? 'text-white' : 'text-emerald-700'}`}>
           km0
         </span>
-        <span className="text-[9px] sm:text-xs font-bold leading-tight tracking-tight text-center sm:text-left max-w-[44px] sm:max-w-none truncate">
-          Catálogo
+        <span className="text-[9px] sm:text-xs font-black uppercase leading-tight tracking-wider text-center sm:text-left max-w-[48px] sm:max-w-none truncate">
+          CATÁLOGO
         </span>
       </Link>
 
@@ -128,8 +128,8 @@ export function NavbarNavLinks({
                   : 'text-emerald-700'
               }`}
             />
-            <span className="text-[9px] sm:text-xs font-bold leading-tight tracking-tight text-center max-w-[44px] sm:max-w-none truncate">
-              Mensajes
+            <span className="text-[9px] sm:text-xs font-black uppercase leading-tight tracking-wider text-center max-w-[48px] sm:max-w-none truncate">
+              MENSAJES
             </span>
           </Link>
 
@@ -146,8 +146,8 @@ export function NavbarNavLinks({
             <Calendar
               className={`w-4 h-4 shrink-0 ${isCalendarActive ? 'text-white' : 'text-emerald-700'}`}
             />
-            <span className="text-[9px] sm:text-xs font-bold leading-tight tracking-tight text-center max-w-[48px] sm:max-w-none truncate">
-              Calendario
+            <span className="text-[9px] sm:text-xs font-black uppercase leading-tight tracking-wider text-center max-w-[54px] sm:max-w-none truncate">
+              CALENDARIO
             </span>
           </Link>
 
@@ -176,8 +176,8 @@ export function NavbarNavLinks({
                   : 'text-emerald-700'
               }`}
             />
-            <span className="text-[9px] sm:text-xs font-bold leading-tight tracking-tight text-center max-w-[44px] sm:max-w-none truncate">
-              Pedidos
+            <span className="text-[9px] sm:text-xs font-black uppercase leading-tight tracking-wider text-center max-w-[48px] sm:max-w-none truncate">
+              PEDIDOS
             </span>
           </Link>
 
@@ -193,8 +193,8 @@ export function NavbarNavLinks({
               }`}
             >
               <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-700" />
-              <span className="text-[9px] sm:text-xs font-bold leading-tight tracking-tight text-center max-w-[44px] sm:max-w-none truncate">
-                Admin
+              <span className="text-[9px] sm:text-xs font-black uppercase leading-tight tracking-wider text-center max-w-[48px] sm:max-w-none truncate">
+                ADMIN
               </span>
             </Link>
           )}
@@ -210,8 +210,8 @@ export function NavbarNavLinks({
             }`}
           >
             <User className={`w-4 h-4 shrink-0 ${isProfileActive ? 'text-white' : 'text-emerald-700'}`} />
-            <span className="text-[9px] sm:text-xs font-bold leading-tight tracking-tight text-center max-w-[44px] sm:max-w-none truncate">
-              {profile.role === 'vendedor' ? 'Caserío' : 'Perfil'}
+            <span className="text-[9px] sm:text-xs font-black uppercase leading-tight tracking-wider text-center max-w-[48px] sm:max-w-none truncate">
+              {profile.role === 'vendedor' ? 'CASERÍO' : 'PERFIL'}
             </span>
           </Link>
         </>
@@ -220,15 +220,15 @@ export function NavbarNavLinks({
         <div className="flex items-center gap-1 sm:gap-2">
           <Link
             href="/login"
-            className="text-stone-700 hover:text-emerald-800 font-bold text-xs sm:text-sm px-2 sm:px-3 py-1.5 rounded-xl hover:bg-stone-100 transition-colors"
+            className="text-stone-700 hover:text-emerald-800 font-black uppercase text-xs sm:text-sm px-2.5 sm:px-3 py-1.5 rounded-xl hover:bg-stone-100 transition-colors"
           >
-            Entrar
+            ENTRAR
           </Link>
           <Link
             href="/register"
-            className="bg-emerald-800 hover:bg-emerald-900 text-white font-black text-xs sm:text-sm px-2.5 sm:px-3.5 py-1.5 rounded-xl shadow-sm transition-all"
+            className="bg-emerald-800 hover:bg-emerald-900 text-white font-black uppercase text-xs sm:text-sm px-2.5 sm:px-3.5 py-1.5 rounded-xl shadow-sm transition-all"
           >
-            Registro
+            REGISTRO
           </Link>
         </div>
       )}

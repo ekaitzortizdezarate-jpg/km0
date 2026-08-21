@@ -32,8 +32,8 @@ export function CartNavButton() {
           </span>
         )}
       </div>
-      <span className="text-[9px] sm:text-xs font-bold leading-tight tracking-tight text-center max-w-[44px] sm:max-w-none truncate">
-        Cesta{cartCount > 0 && isCestaActive ? ` (${cartCount})` : ''}
+      <span className="text-[9px] sm:text-xs font-black uppercase leading-tight tracking-wider text-center max-w-[48px] sm:max-w-none truncate">
+        CESTA{cartCount > 0 && isCestaActive ? ` (${cartCount})` : ''}
       </span>
     </Link>
   );
