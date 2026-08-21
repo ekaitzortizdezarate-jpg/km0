@@ -55,10 +55,10 @@ export async function rejectOrderWithReason(orderId: string, message?: string) {
 
   if (!user) return { error: 'No autorizado.' };
 
-  // 1. Obtener pedido
+  // 1. Obtener pedido con productos
   const { data: order, error: orderErr } = await supabase
     .from('orders')
-    .select('*, order_items(*)')
+    .select('*, order_items(*, products(name, format))')
     .eq('id', orderId)
     .single();
 
@@ -70,37 +70,53 @@ export async function rejectOrderWithReason(orderId: string, message?: string) {
     return { error: 'No tienes permiso para rechazar este pedido.' };
   }
 
-  // 2. Restaurar stock de los productos
+  // 2. Restaurar stock de los productos (usando RPC seguro y fallback)
   if (order.order_items && order.order_items.length > 0) {
     for (const item of order.order_items) {
-      const { data: prod } = await supabase
-        .from('products')
-        .select('stock, is_unlimited_stock')
-        .eq('id', item.product_id)
-        .single();
+      const qty = Number(item.quantity) || 1;
+      const { error: rpcErr } = await supabase.rpc('restore_product_stock', {
+        p_product_id: item.product_id,
+        p_quantity: qty,
+      });
 
-      if (prod && !prod.is_unlimited_stock) {
-        await supabase
+      if (rpcErr) {
+        const { data: prod } = await supabase
           .from('products')
-          .update({ stock: prod.stock + item.quantity })
-          .eq('id', item.product_id);
+          .select('stock, is_unlimited_stock')
+          .eq('id', item.product_id)
+          .single();
+
+        if (prod && !prod.is_unlimited_stock) {
+          await supabase
+            .from('products')
+            .update({ stock: (Number(prod.stock) || 0) + qty })
+            .eq('id', item.product_id);
+        }
       }
     }
   }
 
-  // 3. Enviar mensaje en el chat al comprador si se introdujo motivo
-  if (message && message.trim()) {
-    try {
-      await supabase.from('chat_messages').insert({
-        sender_id: user.id,
-        receiver_id: order.buyer_id,
-        order_id: order.id,
-        message: `❌ Pedido rechazado por el caserío: "${message.trim()}"`,
-        is_read: false,
-      });
-    } catch {
-      // Ignore chat error if chat table is not populated yet
-    }
+  // 3. Enviar mensaje detallado en el chat al comprador
+  const itemsList = order.order_items
+    ?.map((it: { quantity: number; products?: { name: string; format?: string } | null }) => {
+      const unit = it.products?.format === 'granel' ? 'kg' : 'ud/pack';
+      return `${it.products?.name || 'Producto'} (${it.quantity} ${unit})`;
+    })
+    .join(', ') || 'Productos del pedido';
+
+  const reasonText = message && message.trim() ? `Motivo: "${message.trim()}"` : 'Sin motivo especificado.';
+  const chatMsg = `❌ Pedido rechazado por el caserío.\n${reasonText}\n📦 Productos: ${itemsList}\n💰 Total: ${Number(order.total_amount).toFixed(2)} €`;
+
+  try {
+    await supabase.from('chat_messages').insert({
+      sender_id: user.id,
+      receiver_id: order.buyer_id,
+      order_id: order.id,
+      message: chatMsg,
+      is_read: false,
+    });
+  } catch {
+    // Ignore chat fallback
   }
 
   // 4. Eliminar pedido y sus ítems de la base de datos
@@ -123,6 +139,10 @@ export async function rejectOrderWithReason(orderId: string, message?: string) {
   return { success: true };
 }
 
+export async function cancelActiveOrderWithReason(orderId: string, reason?: string) {
+  return rejectOrderWithReason(orderId, reason);
+}
+
 export async function updateOrderStatus(orderId: string, status: OrderStatus) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -132,7 +152,8 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus) {
   const { error } = await supabase
     .from('orders')
     .update({ status, updated_at: new Date().toISOString() })
-    .eq('id', orderId);
+    .eq('id', orderId)
+    .eq('seller_id', user.id);
 
   if (error) return { error: error.message };
 

@@ -114,7 +114,7 @@ export function ProductForm({
     loadDeliveryPoints();
   }, []);
 
-  const hasCaserioPoints = deliveryPoints.some((p) => p.type === 'caserio') || deliveryPoints.length > 0 || Boolean(product?.caserio_schedule);
+  const hasCaserioPoints = deliveryPoints.some((p) => p.type === 'caserio');
   const hasPuntosEntrega = deliveryPoints.some((p) => p.type === 'sitio_fisico');
   const hasEnvioDomicilio = deliveryPoints.some((p) => p.type === 'envio');
 
@@ -128,13 +128,9 @@ export function ProductForm({
   );
 
   const toggleDeliveryMethod = (method: string) => {
-    if (deliveryMethods.includes(method)) {
-      if (deliveryMethods.length > 1) {
-        setDeliveryMethods(deliveryMethods.filter((m) => m !== method));
-      }
-    } else {
-      setDeliveryMethods([...deliveryMethods, method]);
-    }
+    setDeliveryMethods((prev) =>
+      prev.includes(method) ? prev.filter((m) => m !== method) : [...prev, method]
+    );
   };
 
   // Previous products for dropdown autocomplete
@@ -985,11 +981,17 @@ export function ProductForm({
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               {/* Opción 1: Recogida en Caserío */}
               <div
-                onClick={() => toggleDeliveryMethod('caserio')}
-                className={`p-3.5 rounded-xl border-2 text-left transition-all flex flex-col justify-between gap-1.5 cursor-pointer ${
-                  deliveryMethods.includes('caserio')
-                    ? 'border-emerald-700 bg-emerald-50 text-emerald-950 shadow-sm'
-                    : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300'
+                onClick={() => {
+                  if (hasCaserioPoints) {
+                    toggleDeliveryMethod('caserio');
+                  }
+                }}
+                className={`p-3.5 rounded-xl border-2 text-left transition-all flex flex-col justify-between gap-1.5 ${
+                  !hasCaserioPoints
+                    ? 'border-stone-200 bg-stone-50 opacity-75 cursor-not-allowed'
+                    : deliveryMethods.includes('caserio')
+                    ? 'border-emerald-700 bg-emerald-50 text-emerald-950 shadow-sm cursor-pointer'
+                    : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300 cursor-pointer'
                 }`}
               >
                 <div className="flex items-center justify-between">
@@ -1000,13 +1002,23 @@ export function ProductForm({
                   <input
                     type="checkbox"
                     checked={deliveryMethods.includes('caserio')}
+                    disabled={!hasCaserioPoints}
                     readOnly
                     className="w-4 h-4 text-emerald-700 rounded cursor-pointer"
                   />
                 </div>
-                <span className="text-[10px] font-semibold text-stone-500">
-                  El cliente acude a tu caserío (con días y horarios).
-                </span>
+                {hasCaserioPoints ? (
+                  <span className="text-[10px] font-semibold text-stone-500">
+                    El cliente acude a tu caserío (con días y horarios).
+                  </span>
+                ) : (
+                  <div className="text-[10px] font-bold text-amber-800 bg-amber-50 p-1.5 rounded-lg border border-amber-200">
+                    No disponible: añade primero los datos de tu caserío en{' '}
+                    <Link href="/vendedor/puntos-entrega" className="underline font-black text-amber-950">
+                      Puntos de Entrega
+                    </Link>
+                  </div>
+                )}
               </div>
 
               {/* Opción 2: Punto de Entrega */}

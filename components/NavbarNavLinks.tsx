@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -9,6 +10,8 @@ import {
   Calendar,
   MessageCircle,
   Store,
+  Sprout,
+  Carrot,
 } from 'lucide-react';
 import type { Profile } from '@/types/database';
 import { CartNavButton } from '@/components/CartNavButton';
@@ -37,6 +40,36 @@ export function NavbarNavLinks({
   const isAdminActive = pathname.startsWith('/admin');
   const isProfileActive = pathname.startsWith('/perfil');
 
+  // Estado local para limpiar alertas en cuanto se entra en la sección
+  const [localUnread, setLocalUnread] = useState(unreadMessagesCount);
+  const [localSellerPending, setLocalSellerPending] = useState(sellerPendingCount);
+  const [localBuyerConfirmed, setLocalBuyerConfirmed] = useState(buyerConfirmedCount);
+
+  useEffect(() => {
+    setLocalUnread(unreadMessagesCount);
+  }, [unreadMessagesCount]);
+
+  useEffect(() => {
+    setLocalSellerPending(sellerPendingCount);
+  }, [sellerPendingCount]);
+
+  useEffect(() => {
+    setLocalBuyerConfirmed(buyerConfirmedCount);
+  }, [buyerConfirmedCount]);
+
+  useEffect(() => {
+    if (isChatActive) {
+      setLocalUnread(0);
+    }
+    if (isOrdersActive) {
+      if (profile?.role === 'vendedor') {
+        setLocalSellerPending(0);
+      } else {
+        setLocalBuyerConfirmed(0);
+      }
+    }
+  }, [pathname, isChatActive, isOrdersActive, profile?.role]);
+
   const calendarHref =
     profile?.role === 'vendedor'
       ? '/vendedor/calendario'
@@ -49,12 +82,12 @@ export function NavbarNavLinks({
 
   const ordersBadgeCount =
     profile?.role === 'vendedor'
-      ? sellerPendingCount
-      : buyerConfirmedCount;
+      ? localSellerPending
+      : localBuyerConfirmed;
 
   return (
     <div className="flex items-center gap-1.5 sm:gap-2">
-      {/* 1. Catálogo */}
+      {/* 1. Catálogo con icono de huerta */}
       <Link
         href="/"
         className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs sm:text-sm transition-all flex items-center gap-1.5 ${
@@ -63,7 +96,12 @@ export function NavbarNavLinks({
             : 'text-stone-700 hover:text-emerald-800 hover:bg-stone-100 font-bold'
         }`}
       >
-        <span>Catálogo</span>
+        <Sprout
+          className={`w-4 h-4 ${
+            isCatalogueActive ? 'text-white' : 'text-emerald-700'
+          }`}
+        />
+        <span>Huerta & Catálogo</span>
       </Link>
 
       {/* 2. Cesta (solo compradores/visitantes) */}
@@ -74,11 +112,11 @@ export function NavbarNavLinks({
           {/* 3. Mensajes / Chat (Pestaña Naranja si hay mensaje nuevo) */}
           <Link
             href="/chat"
-            title={unreadMessagesCount > 0 ? `${unreadMessagesCount} mensajes nuevos sin leer` : 'Mis mensajes y chats'}
+            title={localUnread > 0 ? `${localUnread} mensajes nuevos sin leer` : 'Mis mensajes y chats'}
             className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs sm:text-sm transition-all flex items-center gap-1.5 ${
               isChatActive
                 ? 'bg-emerald-800 text-white font-black shadow-sm'
-                : unreadMessagesCount > 0
+                : localUnread > 0
                 ? 'bg-amber-500 hover:bg-amber-600 text-stone-950 font-black shadow-md border-2 border-amber-600 animate-pulse'
                 : 'text-stone-700 hover:text-emerald-800 hover:bg-stone-100 font-bold'
             }`}
@@ -87,7 +125,7 @@ export function NavbarNavLinks({
               className={`w-4 h-4 ${
                 isChatActive
                   ? 'text-white'
-                  : unreadMessagesCount > 0
+                  : localUnread > 0
                   ? 'text-stone-950'
                   : 'text-emerald-700'
               }`}
@@ -149,68 +187,43 @@ export function NavbarNavLinks({
                   : 'bg-stone-100 text-stone-900 hover:bg-stone-200 font-black border border-stone-300'
               }`}
             >
-              <ShieldCheck className="w-4 h-4 text-emerald-700" />
-              <span>Admin</span>
+              <ShieldCheck className="w-4 h-4 text-emerald-800" />
+              <span className="hidden md:inline">Admin</span>
             </Link>
           )}
 
-          {/* 7. Perfil */}
+          {/* 7. Perfil / Mi Cuenta */}
           <Link
             href="/perfil"
-            title="Mi Perfil"
-            className={`flex items-center gap-2 p-1.5 rounded-xl transition-all border ${
+            className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs sm:text-sm transition-all flex items-center gap-1.5 ${
               isProfileActive
-                ? 'bg-emerald-800 text-white border-emerald-900 font-black shadow-sm'
-                : 'hover:bg-stone-100 border-stone-200 text-stone-900'
+                ? 'bg-emerald-800 text-white font-black shadow-sm'
+                : 'text-stone-700 hover:text-emerald-800 hover:bg-stone-100 font-bold'
             }`}
           >
-            {profile.avatar_url ? (
-              <img
-                src={profile.avatar_url}
-                alt={profile.full_name}
-                className="w-6 h-6 rounded-full object-cover border border-emerald-500"
-              />
-            ) : (
-              <User
-                className={`w-4 h-4 ${isProfileActive ? 'text-white' : 'text-stone-700'}`}
-              />
-            )}
-            <div className="hidden lg:flex flex-col text-left">
-              <span
-                className={`text-xs font-black leading-none truncate max-w-[100px] ${
-                  isProfileActive ? 'text-white' : 'text-stone-900'
-                }`}
-              >
-                {profile.full_name}
-              </span>
-              <span
-                className={`text-[9px] font-bold capitalize ${
-                  isProfileActive ? 'text-emerald-200' : 'text-stone-500'
-                }`}
-              >
-                {profile.role}
-              </span>
-            </div>
+            <User className={`w-4 h-4 ${isProfileActive ? 'text-white' : 'text-emerald-700'}`} />
+            <span className="hidden sm:inline">
+              {profile.role === 'vendedor' ? 'Mi Caserío' : 'Mi Perfil'}
+            </span>
           </Link>
         </>
       ) : (
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        /* Visitante / No Logueado */
+        <div className="flex items-center gap-1 sm:gap-2">
           <Link
             href="/login"
-            className="text-xs sm:text-sm font-bold text-stone-800 hover:text-emerald-800 px-3 py-1.5 rounded-xl hover:bg-stone-100"
+            className="text-stone-700 hover:text-emerald-800 font-bold text-xs sm:text-sm px-2.5 sm:px-3 py-1.5 rounded-xl hover:bg-stone-100 transition-colors"
           >
             Entrar
           </Link>
           <Link
             href="/register"
-            className="text-xs sm:text-sm font-black bg-emerald-800 hover:bg-emerald-900 text-white px-3.5 py-1.5 rounded-xl transition-colors shadow-sm"
+            className="bg-emerald-800 hover:bg-emerald-900 text-white font-black text-xs sm:text-sm px-3 sm:px-3.5 py-1.5 rounded-xl shadow-sm transition-all"
           >
-            Registrarse
+            Registro
           </Link>
         </div>
       )}
     </div>
   );
 }
-
-export default NavbarNavLinks;

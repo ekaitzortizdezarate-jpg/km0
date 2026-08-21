@@ -143,6 +143,24 @@ export default function RegisterPage() {
             </p>
           )}
 
+          <label className="flex items-start gap-2.5 text-xs text-stone-700 cursor-pointer pt-1">
+            <input
+              type="checkbox"
+              required
+              className="mt-0.5 w-4 h-4 text-emerald-700 rounded border-stone-300 focus:ring-emerald-600"
+            />
+            <span>
+              He leído y acepto los{' '}
+              <Link href="/terminos" target="_blank" className="font-bold text-emerald-800 underline">
+                Términos de Uso
+              </Link>{' '}
+              y la{' '}
+              <Link href="/privacidad" target="_blank" className="font-bold text-emerald-800 underline">
+                Política de Privacidad
+              </Link>.
+            </span>
+          </label>
+
           <button
             type="submit"
             disabled={loading}

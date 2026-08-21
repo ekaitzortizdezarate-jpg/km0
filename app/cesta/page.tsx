@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useCart, CartItem } from '@/context/CartContext';
 import { createClient } from '@/lib/supabase/client';
-import { createCartOrders, CartCheckoutSellerGroup } from '@/app/actions/orders';
+import { createCartOrders, saveBuyerAddresses, CartCheckoutSellerGroup, SavedAddress } from '@/app/actions/orders';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -22,6 +22,8 @@ import {
   Layers,
   Sparkles,
   X,
+  MapPin,
+  Bookmark,
 } from 'lucide-react';
 import type { DeliveryPoint } from '@/types/database';
 
@@ -42,15 +44,37 @@ export default function CartPage() {
 
   const [deliveryConfigs, setDeliveryConfigs] = useState<Record<string, SellerDeliveryConfig>>({});
   const [sellerDeliveryPoints, setSellerDeliveryPoints] = useState<Record<string, DeliveryPoint[]>>({});
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [newAddressLabel, setNewAddressLabel] = useState('Casa');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
 
-  // Comprobar autenticación
+  // Comprobar autenticación y cargar direcciones guardadas
   useEffect(() => {
     async function checkAuth() {
       const { data: { user } } = await supabase.auth.getUser();
       setCurrentUser(user);
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('saved_addresses, address, town')
+          .eq('id', user.id)
+          .single();
+
+        if (profile?.saved_addresses && Array.isArray(profile.saved_addresses)) {
+          setSavedAddresses(profile.saved_addresses);
+        } else if (profile?.address) {
+          setSavedAddresses([
+            {
+              id: '1',
+              label: 'Principal',
+              address: profile.address,
+              town: profile.town || '',
+            },
+          ]);
+        }
+      }
       setAuthLoading(false);
     }
     checkAuth();
@@ -111,7 +135,7 @@ export default function CartPage() {
               sellerItems.find((i) => i.selectedPointId)?.selectedPointId ||
               pointsBySeller[sId]?.[0]?.id ||
               null,
-            shippingAddress: '',
+            shippingAddress: savedAddresses[0]?.address || '',
             groupMode: 'junto_tardio',
           };
         });
@@ -119,7 +143,7 @@ export default function CartPage() {
       }
     }
     loadDeliveryPoints();
-  }, [sellerIdsKey, supabase]);
+  }, [sellerIdsKey, supabase, savedAddresses]);
 
   const handleDeliveryTypeChange = (sellerId: string, type: 'caserio' | 'sitio_fisico' | 'envio') => {
     setDeliveryConfigs((prev) => ({
@@ -128,7 +152,7 @@ export default function CartPage() {
         ...prev[sellerId],
         deliveryType: type,
         deliveryPointId: prev[sellerId]?.deliveryPointId || sellerDeliveryPoints[sellerId]?.[0]?.id || null,
-        shippingAddress: prev[sellerId]?.shippingAddress || '',
+        shippingAddress: prev[sellerId]?.shippingAddress || savedAddresses[0]?.address || '',
         groupMode: prev[sellerId]?.groupMode || 'junto_tardio',
       },
     }));
@@ -164,6 +188,22 @@ export default function CartPage() {
     }));
   };
 
+  const handleSaveCurrentAddress = async (sellerId: string) => {
+    const addr = deliveryConfigs[sellerId]?.shippingAddress;
+    if (!addr || !addr.trim()) return;
+
+    const newObj: SavedAddress = {
+      id: String(Date.now()),
+      label: newAddressLabel,
+      address: addr.trim(),
+      town: '',
+    };
+
+    const updated = [...savedAddresses.filter((a) => a.address !== addr.trim()), newObj].slice(0, 3);
+    setSavedAddresses(updated);
+    await saveBuyerAddresses(updated);
+  };
+
   const handleOpenSummary = () => {
     setError(null);
     for (const sellerId of sellerIds) {
@@ -188,7 +228,6 @@ export default function CartPage() {
       const group = groupedBySeller[sellerId];
       const config = deliveryConfigs[sellerId];
 
-      // Calcular fecha estimada según la opción elegida (más tardía vs individual)
       let finalEstimatedDate: string | null = null;
       if (group.items.length > 0) {
         const dates = group.items
@@ -209,7 +248,7 @@ export default function CartPage() {
         estimatedDeliveryDate: finalEstimatedDate,
         items: group.items.map((it) => ({
           productId: it.productId,
-          quantity: it.quantity,
+          quantity: Number(it.quantity) || 1,
           unitPrice: it.unitPrice,
         })),
       });
@@ -229,11 +268,10 @@ export default function CartPage() {
     }
   };
 
-  // 1. USUARIO NO AUTENTICADO: Mensaje amigable con botones de login / registro
   if (!authLoading && !currentUser) {
     return (
-      <div className="max-w-2xl mx-auto py-12 text-center bg-white rounded-3xl border-2 border-stone-200 p-8 sm:p-10 space-y-6 shadow-sm">
-        <div className="w-16 h-16 bg-emerald-100 text-emerald-800 rounded-3xl flex items-center justify-center mx-auto">
+      <div className="max-w-md mx-auto py-12 px-4 text-center space-y-6">
+        <div className="w-16 h-16 bg-emerald-100 text-emerald-800 rounded-3xl flex items-center justify-center mx-auto shadow-inner">
           <ShoppingBasket className="w-8 h-8" />
         </div>
         <div>
@@ -274,9 +312,9 @@ export default function CartPage() {
       {/* Cabecera Principal */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-black text-stone-900">Cesta de la Compra y Pedidos</h1>
+          <h1 className="text-2xl font-black text-stone-900">Cesta de la Compra</h1>
           <p className="text-xs font-bold text-stone-600 mt-0.5">
-            Tramita tus compras de caserío y revisa el estado de validación de tus pedidos
+            Revisa tus productos directos de caserío y selecciona las opciones de entrega
           </p>
         </div>
 
@@ -289,43 +327,30 @@ export default function CartPage() {
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 border-2 border-red-300 text-red-900 font-bold text-sm rounded-xl flex items-center gap-2">
-          <AlertCircle className="w-5 h-5 shrink-0 text-red-700" />
-          <span>{error}</span>
+        <div className="p-4 bg-red-50 border-2 border-red-300 text-red-900 rounded-2xl flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
+          <p className="text-xs font-black">{error}</p>
         </div>
       )}
 
-      {/* SECCIÓN A: PRODUCTOS EN LA CESTA ACTUAL */}
       {items.length > 0 ? (
         <div className="space-y-6">
-          <div className="flex items-center gap-2">
-            <ShoppingBasket className="w-5 h-5 text-emerald-800" />
-            <h2 className="text-lg font-black text-stone-900">
-              Productos en tu Cesta ({items.length})
-            </h2>
-          </div>
-
+          {/* Grupos por Caserío */}
           <div className="space-y-6">
             {sellerIds.map((sellerId) => {
               const group = groupedBySeller[sellerId];
               const config = deliveryConfigs[sellerId] || {
-                deliveryType: 'sitio_fisico',
+                deliveryType: 'caserio',
                 deliveryPointId: null,
                 shippingAddress: '',
                 groupMode: 'junto_tardio',
               };
               const points = sellerDeliveryPoints[sellerId] || [];
 
-              const sellerTotal = group.items.reduce(
-                (sum, item) => sum + item.unitPrice * item.quantity,
-                0
-              );
-
-              // Detectar si hay distintas fechas de entrega estimadas
-              const uniqueDeliveryBadges = Array.from(
-                new Set(group.items.map((i) => i.deliveryBadge).filter(Boolean))
-              );
-              const hasMultipleDates = uniqueDeliveryBadges.length > 1;
+              const sellerDates = group.items
+                .map((i) => i.deliveryBadge || i.deliveryBadgeDetail)
+                .filter(Boolean);
+              const hasMultipleDates = new Set(sellerDates).size > 1;
 
               return (
                 <div
@@ -333,47 +358,51 @@ export default function CartPage() {
                   className="bg-white rounded-3xl border-2 border-stone-200 p-5 sm:p-6 shadow-sm space-y-5"
                 >
                   {/* Cabecera del Caserío */}
-                  <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b-2 border-stone-100">
-                    <div className="flex items-center gap-2">
-                      <div className="p-2 bg-emerald-100 rounded-xl text-emerald-900 font-black text-xs">
-                        <Store className="w-4 h-4" />
+                  <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-stone-100">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 bg-emerald-100 text-emerald-800 rounded-xl">
+                        <Store className="w-5 h-5" />
                       </div>
                       <div>
-                        <h3 className="text-base font-black text-stone-900">
+                        <h2 className="text-base font-black text-stone-900">
                           Caserío: {group.sellerName}
-                        </h3>
-                        <p className="text-[11px] font-bold text-stone-600">
-                          {group.sellerTown} · Trato directo con el baserritarra
+                        </h2>
+                        <p className="text-xs font-semibold text-stone-500">
+                          {group.sellerTown} · {group.items.length} productos
                         </p>
                       </div>
                     </div>
 
-                    <span className="text-xs font-black text-emerald-950 bg-emerald-100 px-3 py-1 rounded-lg">
-                      Subtotal: {sellerTotal.toFixed(2)} €
-                    </span>
+                    <Link
+                      href={`/chat/${sellerId}`}
+                      className="text-xs font-black text-emerald-800 hover:text-emerald-950 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 transition-colors"
+                    >
+                      Preguntar al Caserío
+                    </Link>
                   </div>
 
-                  {/* Items del Caserío con su Fecha Estimada de Entrega según Vendedor */}
+                  {/* Lista de Productos de este Caserío */}
                   <div className="space-y-3">
                     {group.items.map((item) => (
                       <div
                         key={item.productId}
-                        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 bg-stone-50 rounded-2xl border border-stone-200"
+                        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 bg-stone-50 rounded-2xl border border-stone-200"
                       >
                         <div className="flex items-center gap-3">
                           {item.imageUrl ? (
                             <img
                               src={item.imageUrl}
                               alt={item.name}
-                              className="w-14 h-14 rounded-xl object-cover border border-stone-300 shrink-0"
+                              className="w-14 h-14 rounded-xl object-cover border border-stone-200 shrink-0"
                             />
                           ) : (
-                            <div className="w-14 h-14 rounded-xl bg-stone-200 flex items-center justify-center text-stone-500 font-bold text-xs shrink-0">
+                            <div className="w-14 h-14 rounded-xl bg-white text-emerald-800 flex items-center justify-center border border-stone-200 shrink-0 font-black text-xs">
                               km0
                             </div>
                           )}
+
                           <div>
-                            <h4 className="font-extrabold text-stone-900 text-sm">{item.name}</h4>
+                            <h3 className="text-xs font-black text-stone-900">{item.name}</h3>
                             <p className="text-[11px] font-semibold text-stone-600">
                               {item.unitPrice.toFixed(2)} € /{' '}
                               {item.format === 'granel'
@@ -383,11 +412,10 @@ export default function CartPage() {
                                 : 'ud'}
                             </p>
 
-                            {/* FECHA ESTIMADA DE ENTREGA SEGÚN VENDEDOR */}
                             {item.deliveryBadge && (
-                              <div className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-900 bg-emerald-100/80 px-2 py-0.5 rounded-md mt-1 border border-emerald-300">
+                              <div className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-900 bg-emerald-100 px-2 py-0.5 rounded-md mt-1 border border-emerald-300">
                                 <Clock className="w-3 h-3 text-emerald-700 shrink-0" />
-                                <span>Entrega prevista: {item.deliveryBadge}</span>
+                                <span>Entrega: {item.deliveryBadge}</span>
                               </div>
                             )}
                           </div>
@@ -398,14 +426,18 @@ export default function CartPage() {
                           <div className="flex items-center gap-1.5 bg-white p-1 rounded-xl border border-stone-300">
                             <button
                               type="button"
-                              onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                              onClick={() => {
+                                const step = item.format === 'granel' ? 0.5 : 1;
+                                const nextQty = Math.max(step, item.quantity - step);
+                                updateQuantity(item.productId, nextQty);
+                              }}
                               className="w-7 h-7 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-900 flex items-center justify-center font-black"
                               aria-label="Disminuir"
                             >
                               <Minus className="w-3.5 h-3.5" />
                             </button>
 
-                            <span className="text-xs font-black text-stone-900 px-2 min-w-[32px] text-center">
+                            <span className="text-xs font-black text-stone-900 px-2 min-w-[36px] text-center">
                               {item.quantity}{' '}
                               <span className="text-[10px] font-semibold text-stone-600">
                                 {item.format === 'granel' ? 'kg' : 'uds'}
@@ -416,12 +448,13 @@ export default function CartPage() {
                               type="button"
                               disabled={!item.isUnlimitedStock && item.stock !== undefined && item.quantity >= item.stock}
                               onClick={() => {
+                                const step = item.format === 'granel' ? 0.5 : 1;
                                 const maxStock = item.isUnlimitedStock ? 9999 : item.stock ?? 9999;
                                 if (item.quantity < maxStock) {
-                                  updateQuantity(item.productId, item.quantity + 1);
+                                  updateQuantity(item.productId, item.quantity + step);
                                 }
                               }}
-                              className="w-7 h-7 rounded-lg bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center font-black"
+                              className="w-7 h-7 rounded-lg bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40 text-white flex items-center justify-center font-black"
                               aria-label="Aumentar"
                             >
                               <Plus className="w-3.5 h-3.5" />
@@ -447,47 +480,52 @@ export default function CartPage() {
                     ))}
                   </div>
 
-                  {/* OPCIÓN: FECHAS DE ENTREGA DISTINTAS (TODO JUNTO O INDIVIDUAL) */}
+                  {/* Agrupación de fechas si son distintas */}
                   {hasMultipleDates && (
                     <div className="p-3.5 bg-amber-50 rounded-2xl border border-amber-200 space-y-2">
                       <label className="text-xs font-black text-amber-950 flex items-center gap-1.5">
                         <Layers className="w-4 h-4 text-amber-700" />
-                        Tus productos de este caserío tienen fechas de cosecha o entrega distintas:
+                        Tus productos de este caserío tienen plazos de entrega distintos:
                       </label>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                        <label className="flex items-start gap-2 bg-white p-2.5 rounded-xl border border-amber-200 cursor-pointer">
-                          <input
-                            type="radio"
-                            name={`group_${sellerId}`}
-                            checked={config.groupMode === 'junto_tardio'}
-                            onChange={() => handleGroupModeChange(sellerId, 'junto_tardio')}
-                            className="mt-0.5 text-emerald-700"
-                          />
-                          <span className="font-bold text-stone-900">
-                            Entregar todo junto en la fecha más tardía (1 solo envío/recogida)
-                          </span>
-                        </label>
 
-                        <label className="flex items-start gap-2 bg-white p-2.5 rounded-xl border border-amber-200 cursor-pointer">
-                          <input
-                            type="radio"
-                            name={`group_${sellerId}`}
-                            checked={config.groupMode === 'individual'}
-                            onChange={() => handleGroupModeChange(sellerId, 'individual')}
-                            className="mt-0.5 text-emerald-700"
-                          />
-                          <span className="font-bold text-stone-900">
-                            Entregas por separado según la fecha de cada cosecha
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleGroupModeChange(sellerId, 'junto_tardio')}
+                          className={`p-2.5 rounded-xl border-2 text-left text-xs font-bold transition-all ${
+                            config.groupMode === 'junto_tardio'
+                              ? 'border-amber-700 bg-white ring-2 ring-amber-600 text-amber-950 font-black shadow-sm'
+                              : 'border-amber-200 bg-white/60 text-amber-800 hover:bg-white'
+                          }`}
+                        >
+                          <span className="block font-black">📦 Entregar todo junto</span>
+                          <span className="text-[10px] font-semibold text-amber-700 block">
+                            En la fecha del producto más tardío
                           </span>
-                        </label>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleGroupModeChange(sellerId, 'individual')}
+                          className={`p-2.5 rounded-xl border-2 text-left text-xs font-bold transition-all ${
+                            config.groupMode === 'individual'
+                              ? 'border-amber-700 bg-white ring-2 ring-amber-600 text-amber-950 font-black shadow-sm'
+                              : 'border-amber-200 bg-white/60 text-amber-800 hover:bg-white'
+                          }`}
+                        >
+                          <span className="block font-black">🚚 Entregas separadas</span>
+                          <span className="text-[10px] font-semibold text-amber-700 block">
+                            Según disponibilidad de cada producto
+                          </span>
+                        </button>
                       </div>
                     </div>
                   )}
 
-                  {/* Forma de Entrega para este Caserío */}
-                  <div className="bg-stone-100/70 p-4 rounded-2xl border border-stone-300/80 space-y-3">
+                  {/* Selección de Modalidad de Entrega */}
+                  <div className="p-4 bg-stone-100/70 rounded-2xl border border-stone-200 space-y-3">
                     <label className="block text-xs font-black text-stone-900 uppercase tracking-wider">
-                      Forma de entrega para {group.sellerName}:
+                      Modalidad de Entrega para este Caserío:
                     </label>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -570,14 +608,53 @@ export default function CartPage() {
                     )}
 
                     {config.deliveryType === 'envio' && (
-                      <div>
-                        <input
-                          type="text"
-                          value={config.shippingAddress}
-                          onChange={(e) => handleAddressChange(sellerId, e.target.value)}
-                          placeholder="Calle, número, piso, pueblo para el envío a domicilio..."
-                          className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none placeholder:text-stone-400"
-                        />
+                      <div className="space-y-2">
+                        {/* Selector de hasta 3 direcciones guardadas */}
+                        {savedAddresses.length > 0 && (
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-black text-stone-700 flex items-center gap-1">
+                              <Bookmark className="w-3.5 h-3.5 text-emerald-700" />
+                              <span>Tus direcciones guardadas (hasta 3):</span>
+                            </label>
+                            <div className="flex flex-wrap gap-1.5">
+                              {savedAddresses.map((sa) => (
+                                <button
+                                  type="button"
+                                  key={sa.id}
+                                  onClick={() => handleAddressChange(sellerId, sa.address)}
+                                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                                    config.shippingAddress === sa.address
+                                      ? 'bg-emerald-800 text-white border-emerald-900 shadow-sm'
+                                      : 'bg-white text-stone-700 border-stone-300 hover:bg-stone-50'
+                                  }`}
+                                >
+                                  🏠 {sa.label}: {sa.address}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={config.shippingAddress}
+                            onChange={(e) => handleAddressChange(sellerId, e.target.value)}
+                            placeholder="Calle, número, piso, pueblo para el envío a domicilio..."
+                            className="flex-1 px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none placeholder:text-stone-400"
+                          />
+
+                          {config.shippingAddress.trim() && savedAddresses.length < 3 && !savedAddresses.some((a) => a.address === config.shippingAddress.trim()) && (
+                            <button
+                              type="button"
+                              onClick={() => handleSaveCurrentAddress(sellerId)}
+                              className="px-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold text-xs rounded-xl border border-stone-300 transition-colors shrink-0"
+                              title="Guardar esta dirección en tu perfil"
+                            >
+                              Guardar dirección
+                            </button>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -629,7 +706,7 @@ export default function CartPage() {
         </div>
       )}
 
-      {/* MODAL DE RESUMEN FINAL DEL PEDIDO */}
+      {/* MODAL DE RESUMEN FINAL DEL PEDIDO (CON FOTOS Y FECHAS) */}
       {showSummaryModal && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
           <div
@@ -644,7 +721,7 @@ export default function CartPage() {
                 <div>
                   <h3 className="text-lg font-black text-stone-900">Resumen de tu Pedido</h3>
                   <p className="text-xs font-semibold text-stone-500">
-                    Revisa los detalles antes de enviar el pedido al caserío
+                    Revisa los productos, fotos y plazos antes de enviar el pedido
                   </p>
                 </div>
               </div>
@@ -658,7 +735,7 @@ export default function CartPage() {
               </button>
             </div>
 
-            {/* Desglose por caseríos */}
+            {/* Desglose por caseríos con fotos y fechas */}
             <div className="space-y-3 text-xs">
               {sellerIds.map((sId) => {
                 const group = groupedBySeller[sId];
@@ -667,7 +744,7 @@ export default function CartPage() {
                 const pointObj = points.find((p) => p.id === config?.deliveryPointId);
 
                 return (
-                  <div key={sId} className="p-4 bg-stone-50 rounded-2xl border border-stone-200 space-y-2">
+                  <div key={sId} className="p-4 bg-stone-50 rounded-2xl border border-stone-200 space-y-3">
                     <div className="flex justify-between font-black text-stone-900">
                       <span>🏡 Caserío: {group.sellerName}</span>
                       <span className="text-emerald-800">{group.sellerTown}</span>
@@ -693,13 +770,40 @@ export default function CartPage() {
                       </div>
                     </div>
 
-                    <div className="pt-2 border-t border-stone-200 space-y-1 font-semibold text-stone-700">
+                    {/* Lista de productos con foto y fecha */}
+                    <div className="pt-2 border-t border-stone-200 space-y-2 font-semibold text-stone-700">
                       {group.items.map((it) => (
-                        <div key={it.productId} className="flex justify-between">
-                          <span>
-                            {it.name} x {it.quantity} {it.format === 'granel' ? 'kg' : 'uds'}
-                          </span>
-                          <span className="font-black text-stone-900">
+                        <div key={it.productId} className="flex items-center justify-between gap-3 bg-white p-2 rounded-xl border border-stone-200">
+                          <div className="flex items-center gap-2.5">
+                            {it.imageUrl ? (
+                              <img
+                                src={it.imageUrl}
+                                alt={it.name}
+                                className="w-10 h-10 rounded-lg object-cover border border-stone-200 shrink-0"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-800 font-bold flex items-center justify-center text-[10px] shrink-0 border border-emerald-200">
+                                km0
+                              </div>
+                            )}
+
+                            <div>
+                              <span className="font-black text-stone-900 block leading-tight">
+                                {it.name}
+                              </span>
+                              <span className="text-[11px] font-bold text-stone-500">
+                                {it.quantity} {it.format === 'granel' ? 'kg' : 'uds'} x {it.unitPrice.toFixed(2)} €
+                              </span>
+
+                              {it.deliveryBadge && (
+                                <span className="text-[10px] text-emerald-800 font-bold block">
+                                  📅 Plazo: {it.deliveryBadge}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <span className="font-black text-stone-900 text-xs shrink-0">
                             {(it.unitPrice * it.quantity).toFixed(2)} €
                           </span>
                         </div>
