@@ -94,7 +94,7 @@ export function NavbarNavLinks({
             : 'text-stone-700 hover:text-emerald-800 hover:bg-stone-100 font-bold'
         }`}
       >
-        <span className={`font-black text-xs sm:text-sm leading-none tracking-tight ${isCatalogueActive ? 'text-white' : 'text-emerald-800'}`}>
+        <span className={`font-black text-xs sm:text-sm leading-none tracking-tight ${isCatalogueActive ? 'text-white' : 'text-emerald-700'}`}>
           km0
         </span>
         <span className="text-[9px] sm:text-xs font-bold leading-tight tracking-tight text-center sm:text-left max-w-[44px] sm:max-w-none truncate">
@@ -173,7 +173,7 @@ export function NavbarNavLinks({
                   ? 'text-white'
                   : ordersBadgeCount > 0
                   ? 'text-stone-950'
-                  : 'text-stone-700'
+                  : 'text-emerald-700'
               }`}
             />
             <span className="text-[9px] sm:text-xs font-bold leading-tight tracking-tight text-center max-w-[44px] sm:max-w-none truncate">
@@ -192,7 +192,7 @@ export function NavbarNavLinks({
                   : 'bg-stone-100 text-stone-900 hover:bg-stone-200 font-black border border-stone-300'
               }`}
             >
-              <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-800" />
+              <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-700" />
               <span className="text-[9px] sm:text-xs font-bold leading-tight tracking-tight text-center max-w-[44px] sm:max-w-none truncate">
                 Admin
               </span>
