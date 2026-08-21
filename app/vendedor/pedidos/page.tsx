@@ -5,6 +5,7 @@ import { OrderStatus } from '@/types/database';
 import { RefreshCw, MessageCircle, Phone, Calendar, Clock, MapPin, Store, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
 import ReviewForm from '@/components/ReviewForm';
+import { CancelOrderButton } from '@/components/CancelOrderButton';
 
 interface OrderItemWithProduct {
   id: string;
@@ -177,13 +178,14 @@ export default async function SellerOrdersPage() {
                         />
                       </div>
 
-                      <div className="flex items-center gap-2 pt-2 sm:pt-0">
+                      <div className="flex flex-wrap items-center gap-2 pt-2 sm:pt-0">
                         <button
                           type="submit"
                           className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black px-4 py-2.5 rounded-xl shadow-sm transition-colors flex items-center gap-1.5"
                         >
-                          <CheckCircle2 className="w-4 h-4" /> Aceptar y Confirmar Pedido
+                          <CheckCircle2 className="w-4 h-4" /> Aceptar y Confirmar
                         </button>
+                        <CancelOrderButton orderId={order.id} label="Rechazar Pedido" />
                       </div>
                     </div>
                   </form>

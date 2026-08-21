@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { RefreshCw, MapPin, Store, MessageCircle, Calendar, Clock, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
 import ReviewForm from '@/components/ReviewForm';
+import { CancelOrderButton } from '@/components/CancelOrderButton';
 
 interface OrderItemWithProduct {
   id: string;
@@ -51,13 +52,21 @@ export default async function BuyerOrdersPage() {
           </p>
         </div>
 
-        <Link
-          href="/comprador/calendario"
-          className="inline-flex items-center gap-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-950 font-black text-xs px-3.5 py-2 rounded-xl border border-emerald-300 transition-colors shadow-sm"
-        >
-          <Calendar className="w-4 h-4 text-emerald-800" />
-          <span>Ver en Calendario</span>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/cesta"
+            className="inline-flex items-center gap-1.5 bg-white hover:bg-stone-100 text-stone-900 font-black text-xs px-3.5 py-2 rounded-xl border border-stone-300 transition-colors shadow-sm"
+          >
+            <span>Ver mi Cesta</span>
+          </Link>
+          <Link
+            href="/comprador/calendario"
+            className="inline-flex items-center gap-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-950 font-black text-xs px-3.5 py-2 rounded-xl border border-emerald-300 transition-colors shadow-sm"
+          >
+            <Calendar className="w-4 h-4 text-emerald-800" />
+            <span>Ver en Calendario</span>
+          </Link>
+        </div>
       </div>
 
       <div className="space-y-4">
@@ -105,11 +114,15 @@ export default async function BuyerOrdersPage() {
 
               {/* Mensaje de Validación y Fecha de Entrega */}
               {order.status === 'pendiente' ? (
-                <div className="p-3.5 bg-amber-50 rounded-2xl border border-amber-200 text-xs font-bold text-amber-950 flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-amber-700 shrink-0 animate-pulse" />
-                  <span>
-                    El caserío está revisando tu pedido para confirmar la fecha exacta de entrega.
-                  </span>
+                <div className="p-3.5 bg-amber-50 rounded-2xl border border-amber-200 text-xs font-bold text-amber-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-amber-700 shrink-0 animate-pulse" />
+                    <span>
+                      El caserío está revisando tu pedido para confirmar la fecha exacta de entrega.
+                    </span>
+                  </div>
+
+                  <CancelOrderButton orderId={order.id} />
                 </div>
               ) : order.estimated_delivery_date ? (
                 <div className="p-3.5 bg-emerald-50 rounded-2xl border border-emerald-200 text-xs font-bold text-emerald-950 flex items-center gap-2">

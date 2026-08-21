@@ -19,6 +19,8 @@ export default async function Navbar() {
   } = await supabase.auth.getUser();
 
   let profile: Profile | null = null;
+  let sellerPendingCount = 0;
+
   if (user) {
     const { data } = await supabase
       .from('profiles')
@@ -26,6 +28,15 @@ export default async function Navbar() {
       .eq('id', user.id)
       .single();
     profile = data;
+
+    if (profile?.role === 'vendedor') {
+      const { count } = await supabase
+        .from('orders')
+        .select('*', { count: 'exact', head: true })
+        .eq('seller_id', user.id)
+        .eq('status', 'pendiente');
+      sellerPendingCount = count || 0;
+    }
   }
 
   return (
@@ -91,17 +102,25 @@ export default async function Navbar() {
                 <span className="hidden md:inline">Calendario</span>
               </Link>
 
-              {/* Panel de Pedidos */}
+              {/* Panel de Pedidos con Globo Notificación para Vendedor */}
               <Link
                 href={
                   profile.role === 'vendedor'
                     ? '/vendedor/pedidos'
                     : '/comprador/pedidos'
                 }
-                className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-stone-800 hover:text-emerald-800 p-1.5 sm:px-2 sm:py-1.5 rounded-xl hover:bg-stone-100 transition-colors"
+                className="relative flex items-center gap-1.5 text-xs sm:text-sm font-bold text-stone-800 hover:text-emerald-800 p-1.5 sm:px-2 sm:py-1.5 rounded-xl hover:bg-stone-100 transition-colors"
               >
                 <ShoppingBasket className="w-4 h-4 text-stone-700" />
                 <span className="hidden md:inline">Pedidos</span>
+                {profile.role === 'vendedor' && sellerPendingCount > 0 && (
+                  <span
+                    title={`${sellerPendingCount} nuevos pedidos por validar`}
+                    className="bg-amber-400 text-stone-950 font-black text-[10px] px-1.5 py-0.2 rounded-full animate-bounce shadow-sm border border-amber-600"
+                  >
+                    {sellerPendingCount}
+                  </span>
+                )}
               </Link>
 
               {/* Perfil con Avatar */}

@@ -14,18 +14,22 @@ import {
   Scale,
   Layers,
   Store,
+  Star,
 } from 'lucide-react';
 import Link from 'next/link';
 import { getDeliveryEstimate, formatTimeAgo } from '@/lib/delivery';
 import { DeleteProductButton } from '@/components/DeleteProductButton';
 import { FavoriteButton } from '@/components/FavoriteButton';
-import { AddToCartButton } from '@/components/AddToCartButton';
+import { QuickAddToCartModal } from '@/components/QuickAddToCartModal';
+import { FavoriteSellerFilter } from '@/components/FavoriteSellerFilter';
 
 interface SearchParams {
   category?: ProductCategory;
   organic?: string;
   town?: string;
   tab?: 'mis_productos' | 'todos';
+  fav_sellers?: string;
+  seller_ids?: string;
 }
 
 export default async function HomePage({
@@ -79,9 +83,25 @@ export default async function HomePage({
     query = query.ilike('profiles.town', `%${params.town}%`);
   }
 
-  const { data: rawProducts } = await query.order('created_at', {
-    ascending: false,
-  });
+  // Filtro de vendedores favoritos
+  let emptyFavSellers = false;
+  if (params.fav_sellers === 'true') {
+    if (params.seller_ids && params.seller_ids !== 'none') {
+      const ids = params.seller_ids.split(',').filter(Boolean);
+      if (ids.length > 0) {
+        query = query.in('seller_id', ids);
+      } else {
+        emptyFavSellers = true;
+      }
+    } else {
+      emptyFavSellers = true;
+    }
+  }
+
+  const { data: rawProducts } = emptyFavSellers
+    ? { data: [] }
+    : await query.order('created_at', { ascending: false });
+
   const products = rawProducts as unknown as ProductWithSeller[] | null;
 
   const categories: { label: string; value: ProductCategory }[] = [
@@ -166,7 +186,9 @@ export default async function HomePage({
               key={cat.value}
               href={`/?${isSeller ? `tab=${activeTab}&` : ''}category=${cat.value}${
                 params.organic ? '&organic=true' : ''
-              }${params.town ? `&town=${encodeURIComponent(params.town)}` : ''}`}
+              }${params.town ? `&town=${encodeURIComponent(params.town)}` : ''}${
+                params.fav_sellers ? `&fav_sellers=true&seller_ids=${params.seller_ids || ''}` : ''
+              }`}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
                 params.category === cat.value
                   ? 'bg-emerald-800 text-white border-emerald-800 shadow-sm'
@@ -178,28 +200,35 @@ export default async function HomePage({
           ))}
         </div>
 
-        {/* Filtro Ecológico y Buscador por municipio */}
-        <div className="flex flex-wrap items-center justify-between gap-4 pt-3 border-t border-stone-200 text-sm text-stone-800">
-          <Link
-            href={`/?${isSeller ? `tab=${activeTab}&` : ''}${
-              params.category ? `category=${params.category}&` : ''
-            }${params.organic === 'true' ? '' : 'organic=true'}${
-              params.town ? `&town=${encodeURIComponent(params.town)}` : ''
-            }`}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold transition-colors ${
-              params.organic === 'true'
-                ? 'bg-emerald-100 border-emerald-400 text-emerald-950 shadow-sm'
-                : 'border-stone-300 hover:bg-stone-100 text-stone-800'
-            }`}
-          >
-            <Leaf className="w-4 h-4 text-emerald-700" />
-            Solo Ecológico
-          </Link>
+        {/* Filtros Especiales: Ecológico, Favoritos y Buscador por municipio */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-stone-200 text-sm text-stone-800">
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href={`/?${isSeller ? `tab=${activeTab}&` : ''}${
+                params.category ? `category=${params.category}&` : ''
+              }${params.organic === 'true' ? '' : 'organic=true'}${
+                params.town ? `&town=${encodeURIComponent(params.town)}` : ''
+              }${params.fav_sellers ? `&fav_sellers=true&seller_ids=${params.seller_ids || ''}` : ''}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold transition-colors ${
+                params.organic === 'true'
+                  ? 'bg-emerald-100 border-emerald-400 text-emerald-950 shadow-sm'
+                  : 'border-stone-300 hover:bg-stone-100 text-stone-800'
+              }`}
+            >
+              <Leaf className="w-3.5 h-3.5 text-emerald-700" />
+              Solo Ecológico
+            </Link>
+
+            {/* Filtro Vendedores Favoritos */}
+            <FavoriteSellerFilter />
+          </div>
 
           <form method="GET" action="/" className="flex items-center gap-2">
             {isSeller && <input type="hidden" name="tab" value={activeTab} />}
             {params.category && <input type="hidden" name="category" value={params.category} />}
             {params.organic && <input type="hidden" name="organic" value={params.organic} />}
+            {params.fav_sellers && <input type="hidden" name="fav_sellers" value={params.fav_sellers} />}
+            {params.seller_ids && <input type="hidden" name="seller_ids" value={params.seller_ids} />}
             <div className="relative">
               <Search className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-500" />
               <input
@@ -216,11 +245,9 @@ export default async function HomePage({
             >
               Buscar
             </button>
-            {params.town && (
+            {(params.town || params.fav_sellers || params.organic || params.category) && (
               <Link
-                href={`/?${isSeller ? `tab=${activeTab}&` : ''}${
-                  params.category ? `category=${params.category}&` : ''
-                }${params.organic ? 'organic=true' : ''}`}
+                href={`/?${isSeller ? `tab=${activeTab}` : ''}`}
                 className="text-xs font-bold text-stone-600 hover:text-stone-900 underline"
               >
                 Limpiar
@@ -381,7 +408,7 @@ export default async function HomePage({
                       )}
                     </div>
 
-                    {/* Condiciones de Entrega Estimada */}
+                    {/* Condiciones de Entrega Estimada Según Vendedor */}
                     <div className="bg-stone-50 p-2.5 rounded-xl border border-stone-200 text-[11px] font-bold text-stone-800 flex items-center gap-1.5">
                       <Clock className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
                       <span className="truncate">{deliveryInfo.detailText}</span>
@@ -479,7 +506,7 @@ export default async function HomePage({
                           <MessageCircle className="w-4 h-4" />
                         </Link>
                       )}
-                      <AddToCartButton item={cartItemPayload} />
+                      <QuickAddToCartModal item={cartItemPayload} />
                     </div>
                   )}
                 </div>
@@ -489,18 +516,38 @@ export default async function HomePage({
         </div>
       ) : (
         <div className="text-center py-16 bg-white rounded-3xl border-2 border-stone-200 p-8 space-y-3">
-          <p className="text-stone-800 font-bold text-base">
-            {isSeller && activeTab === 'mis_productos'
-              ? 'Aún no has publicado ningún producto en tu caserío.'
-              : 'No se han encontrado productos con los filtros seleccionados.'}
-          </p>
-          {isSeller && activeTab === 'mis_productos' && (
-            <Link
-              href="/vendedor/productos/nuevo"
-              className="inline-flex items-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-sm px-5 py-2.5 rounded-xl shadow-sm transition-colors"
-            >
-              <PlusCircle className="w-5 h-5" /> Publicar mi primer producto
-            </Link>
+          {emptyFavSellers ? (
+            <div className="space-y-3">
+              <Star className="w-12 h-12 text-amber-400 fill-amber-400 mx-auto" />
+              <h2 className="text-lg font-black text-stone-900">
+                Aún no tienes ningún caserío en favoritos
+              </h2>
+              <p className="text-xs font-semibold text-stone-600 max-w-md mx-auto">
+                Explora el catálogo y pulsa en la estrella al lado del nombre de cualquier caserío para guardarlo en tus favoritos y ver sus productos aquí.
+              </p>
+              <Link
+                href="/"
+                className="inline-block bg-emerald-800 text-white text-xs font-black px-4 py-2 rounded-xl"
+              >
+                Ver todos los productos
+              </Link>
+            </div>
+          ) : (
+            <>
+              <p className="text-stone-800 font-bold text-base">
+                {isSeller && activeTab === 'mis_productos'
+                  ? 'Aún no has publicado ningún producto en tu caserío.'
+                  : 'No se han encontrado productos con los filtros seleccionados.'}
+              </p>
+              {isSeller && activeTab === 'mis_productos' && (
+                <Link
+                  href="/vendedor/productos/nuevo"
+                  className="inline-flex items-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-sm px-5 py-2.5 rounded-xl shadow-sm transition-colors"
+                >
+                  <PlusCircle className="w-5 h-5" /> Publicar mi primer producto
+                </Link>
+              )}
+            </>
           )}
         </div>
       )}
