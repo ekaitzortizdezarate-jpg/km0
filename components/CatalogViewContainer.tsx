@@ -51,6 +51,13 @@ const CATEGORIES: { id: ProductCategory; name: string; icon: string }[] = [
   { id: 'artesania', name: 'Artesanía de Caserío', icon: '🪵' },
 ];
 
+const cachedFavSets: Record<string, { raw: string; set: Set<string> }> = {
+  km0_fav_products: { raw: '', set: new Set() },
+  km0_fav_sellers: { raw: '', set: new Set() },
+};
+
+const EMPTY_FAV_SET = new Set<string>();
+
 function subscribeFavorites(callback: () => void) {
   window.addEventListener('km0_favorites_updated', callback);
   window.addEventListener('storage', callback);
@@ -61,11 +68,18 @@ function subscribeFavorites(callback: () => void) {
 }
 
 function getFavList(key: string): Set<string> {
+  if (typeof window === 'undefined') return EMPTY_FAV_SET;
   try {
     const raw = localStorage.getItem(key) || '[]';
-    return new Set(JSON.parse(raw));
+    if (!cachedFavSets[key] || cachedFavSets[key].raw !== raw) {
+      cachedFavSets[key] = {
+        raw,
+        set: new Set(JSON.parse(raw)),
+      };
+    }
+    return cachedFavSets[key].set;
   } catch {
-    return new Set();
+    return EMPTY_FAV_SET;
   }
 }
 
@@ -85,13 +99,13 @@ export function CatalogViewContainer({
   const favProducts = useSyncExternalStore(
     subscribeFavorites,
     () => getFavList('km0_fav_products'),
-    () => new Set<string>()
+    () => EMPTY_FAV_SET
   );
 
   const favSellers = useSyncExternalStore(
     subscribeFavorites,
     () => getFavList('km0_fav_sellers'),
-    () => new Set<string>()
+    () => EMPTY_FAV_SET
   );
 
   const isSeller = userProfile?.role === 'vendedor';
