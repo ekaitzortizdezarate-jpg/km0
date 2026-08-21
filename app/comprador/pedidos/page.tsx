@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { RefreshCw, MapPin, Store, MessageCircle } from 'lucide-react';
+import { RefreshCw, MapPin, Store, MessageCircle, Calendar, Clock } from 'lucide-react';
 import Link from 'next/link';
 import ReviewForm from '@/components/ReviewForm';
 
@@ -15,7 +15,9 @@ interface OrderItemWithProduct {
 
 export default async function BuyerOrdersPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (!user) redirect('/login');
 
@@ -31,83 +33,129 @@ export default async function BuyerOrdersPage() {
     .order('created_at', { ascending: false });
 
   const statusColors: Record<string, string> = {
-    pendiente: 'bg-amber-50 text-amber-800 border-amber-200',
-    confirmado: 'bg-blue-50 text-blue-800 border-blue-200',
-    preparando: 'bg-purple-50 text-purple-800 border-purple-200',
-    listo_entrega: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-    entregado: 'bg-stone-100 text-stone-700 border-stone-200',
-    cancelado: 'bg-red-50 text-red-700 border-red-200',
+    pendiente: 'bg-amber-100 text-amber-950 border-amber-300',
+    confirmado: 'bg-blue-100 text-blue-950 border-blue-300',
+    preparando: 'bg-purple-100 text-purple-950 border-purple-300',
+    listo_entrega: 'bg-emerald-100 text-emerald-950 border-emerald-300',
+    entregado: 'bg-stone-200 text-stone-900 border-stone-300',
+    cancelado: 'bg-red-100 text-red-950 border-red-300',
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="max-w-4xl mx-auto space-y-6 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-stone-900">Mis Compras</h1>
-          <p className="text-xs text-stone-500 mt-1">Historial, pedidos activos y compras recurrentes</p>
+          <h1 className="text-2xl font-black text-stone-900">Mis Compras</h1>
+          <p className="text-xs font-bold text-stone-600 mt-0.5">
+            Historial, pedidos activos y fechas estimadas de entrega
+          </p>
         </div>
+
+        <Link
+          href="/comprador/calendario"
+          className="inline-flex items-center gap-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-950 font-black text-xs px-3.5 py-2 rounded-xl border border-emerald-300 transition-colors shadow-sm"
+        >
+          <Calendar className="w-4 h-4 text-emerald-800" />
+          <span>Ver en Calendario</span>
+        </Link>
       </div>
 
       <div className="space-y-4">
         {orders && orders.length > 0 ? (
           orders.map((order) => (
-            <div key={order.id} className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm space-y-4">
+            <div
+              key={order.id}
+              className="bg-white rounded-3xl border-2 border-stone-200 p-5 sm:p-6 shadow-sm space-y-4"
+            >
               <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-stone-100">
                 <div>
-                  <span className="text-xs font-bold text-stone-900">
+                  <span className="text-sm font-black text-stone-900">
                     Caserío: {order.profiles?.full_name} ({order.profiles?.town})
                   </span>
-                  <p className="text-[11px] text-stone-500">
-                    Fecha: {new Date(order.created_at).toLocaleDateString('es-ES')}
+                  <p className="text-xs font-semibold text-stone-600">
+                    Fecha del pedido: {new Date(order.created_at).toLocaleDateString('es-ES')}
                   </p>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <Link
                     href={`/chat/${order.profiles?.id}`}
-                    className="p-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-lg text-xs flex items-center gap-1 transition-colors"
+                    className="p-2 bg-stone-100 hover:bg-stone-200 text-stone-900 rounded-xl text-xs font-bold flex items-center gap-1 transition-colors border border-stone-200"
                   >
                     <MessageCircle className="w-3.5 h-3.5" /> Chat
                   </Link>
                   {order.is_recurring && (
-                    <span className="flex items-center gap-1 text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-md">
+                    <span className="flex items-center gap-1 text-[10px] font-black bg-emerald-100 text-emerald-950 border border-emerald-300 px-2 py-0.5 rounded-md">
                       <RefreshCw className="w-3 h-3" /> Recurrente ({order.recurrence_interval_days}d)
                     </span>
                   )}
-                  <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border capitalize ${statusColors[order.status] || ''}`}>
+                  <span
+                    className={`text-xs font-extrabold px-3 py-1 rounded-full border capitalize ${
+                      statusColors[order.status] || ''
+                    }`}
+                  >
                     {order.status.replace('_', ' ')}
                   </span>
                 </div>
               </div>
 
+              {/* Fecha estimada de entrega */}
+              {order.estimated_delivery_date && (
+                <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-xs font-bold text-emerald-950 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-emerald-700 shrink-0" />
+                  <span>
+                    Fecha prevista de entrega:{' '}
+                    {new Date(order.estimated_delivery_date).toLocaleDateString('es-ES', {
+                      weekday: 'long',
+                      day: 'numeric',
+                      month: 'long',
+                    })}
+                  </span>
+                </div>
+              )}
+
               {/* Productos */}
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 bg-stone-50 p-3.5 rounded-2xl border border-stone-200">
                 {order.order_items?.map((item: OrderItemWithProduct) => (
-                  <div key={item.id} className="flex justify-between text-xs text-stone-700">
-                    <span>{item.products?.name} x {item.quantity}</span>
-                    <span className="font-semibold">{Number(item.subtotal).toFixed(2)} €</span>
+                  <div
+                    key={item.id}
+                    className="flex justify-between text-xs font-bold text-stone-900"
+                  >
+                    <span>
+                      {item.products?.name} x {item.quantity}
+                    </span>
+                    <span className="font-black">
+                      {Number(item.subtotal).toFixed(2)} €
+                    </span>
                   </div>
                 ))}
               </div>
 
               {/* Modalidad de entrega */}
-              <div className="text-[11px] text-stone-500 bg-stone-50 p-2.5 rounded-lg flex items-center gap-2">
+              <div className="text-xs font-semibold text-stone-800 bg-stone-50 p-3 rounded-xl border border-stone-200 flex items-center gap-2">
                 {order.delivery_points ? (
                   <>
-                    <Store className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                    <span>Recogida en: {order.delivery_points.name} ({order.delivery_points.address_details})</span>
+                    <Store className="w-4 h-4 text-emerald-800 shrink-0" />
+                    <span>
+                      Recogida en punto:{' '}
+                      <strong className="text-stone-900">{order.delivery_points.name}</strong> (
+                      {order.delivery_points.address_details})
+                    </span>
                   </>
                 ) : (
                   <>
-                    <MapPin className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                    <span>Entrega a domicilio: {order.shipping_address}</span>
+                    <MapPin className="w-4 h-4 text-emerald-800 shrink-0" />
+                    <span>
+                      Entrega a domicilio:{' '}
+                      <strong className="text-stone-900">{order.shipping_address}</strong>
+                    </span>
                   </>
                 )}
               </div>
 
               {/* Total y Valoración */}
               <div className="flex flex-wrap items-center justify-between gap-4 pt-3 border-t border-stone-100">
-                <div className="text-sm font-extrabold text-stone-900">
+                <div className="text-base font-black text-stone-900">
                   Total: {Number(order.total_amount).toFixed(2)} €
                 </div>
 
@@ -118,8 +166,14 @@ export default async function BuyerOrdersPage() {
             </div>
           ))
         ) : (
-          <div className="text-center py-12 bg-white rounded-2xl border border-stone-200 text-xs text-stone-500">
-            No tienes compras registradas aún.
+          <div className="text-center py-16 bg-white rounded-3xl border-2 border-stone-200 text-sm font-bold text-stone-700 p-8 space-y-3">
+            <p>No tienes compras registradas aún.</p>
+            <Link
+              href="/"
+              className="inline-block bg-emerald-800 text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-sm"
+            >
+              Explorar Catálogo km0
+            </Link>
           </div>
         )}
       </div>

@@ -14,14 +14,16 @@ export async function updateProfile(formData: FormData) {
   const phone = (formData.get('phone') as string) || null;
   const address = (formData.get('address') as string) || null;
   const bio = (formData.get('bio') as string) || null;
+  const avatar_url = (formData.get('avatar_url') as string) || null;
 
   const { error } = await supabase
     .from('profiles')
-    .update({ full_name, town, phone, address, bio })
+    .update({ full_name, town, phone, address, bio, avatar_url })
     .eq('id', user.id);
 
   if (error) return { error: error.message };
 
   revalidatePath('/perfil');
+  revalidatePath('/');
   return { success: true };
 }

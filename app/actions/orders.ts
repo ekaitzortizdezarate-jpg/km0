@@ -25,11 +25,12 @@ export async function createOrder(formData: FormData) {
   const recurrenceInterval = isRecurring
     ? parseInt((formData.get('recurrence_interval_days') as string) || '7', 10)
     : null;
+  const estimatedDeliveryDate = (formData.get('estimated_delivery_date') as string) || null;
 
   // Obtener precio y verificar stock
   const { data: product, error: prodError } = await supabase
     .from('products')
-    .select('price, discount_percentage, stock')
+    .select('price, price_per_kilo, format, discount_percentage, stock, is_unlimited_stock')
     .eq('id', productId)
     .single();
 
@@ -37,14 +38,18 @@ export async function createOrder(formData: FormData) {
     return { error: 'Producto no disponible.' };
   }
 
-  if (product.stock < quantity) {
-    return { error: `Stock insuficiente. Solo quedan ${product.stock} unidades.` };
+  if (!product.is_unlimited_stock && product.stock < quantity) {
+    return { error: `Stock insuficiente. Solo quedan ${product.stock} unidades / kg.` };
   }
+
+  const basePrice = product.format === 'granel'
+    ? (product.price_per_kilo || product.price)
+    : product.price;
 
   const unitPrice =
     product.discount_percentage > 0
-      ? product.price * (1 - product.discount_percentage / 100)
-      : product.price;
+      ? basePrice * (1 - product.discount_percentage / 100)
+      : basePrice;
 
   const totalAmount = unitPrice * quantity;
 
@@ -60,6 +65,7 @@ export async function createOrder(formData: FormData) {
       total_amount: totalAmount,
       is_recurring: isRecurring,
       recurrence_interval_days: recurrenceInterval,
+      estimated_delivery_date: estimatedDeliveryDate,
     })
     .select('id')
     .single();
@@ -81,12 +87,17 @@ export async function createOrder(formData: FormData) {
     return { error: itemError.message };
   }
 
-  // 3. Actualizar stock del producto
-  await supabase
-    .from('products')
-    .update({ stock: product.stock - quantity })
-    .eq('id', productId);
+  // 3. Actualizar stock del producto (si no es ilimitado)
+  if (!product.is_unlimited_stock) {
+    await supabase
+      .from('products')
+      .update({ stock: Math.max(0, product.stock - quantity) })
+      .eq('id', productId);
+  }
 
   revalidatePath('/comprador/pedidos');
+  revalidatePath('/vendedor/pedidos');
+  revalidatePath('/comprador/calendario');
+  revalidatePath('/vendedor/calendario');
   redirect('/comprador/pedidos');
 }

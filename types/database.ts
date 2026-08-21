@@ -10,9 +10,11 @@ export type ProductCategory =
   | 'articulos_diversos'
   | 'artesania';
 
-export type ProductFormat = 'suelto' | 'pack_cesta';
+export type ProductFormat = 'granel' | 'suelto' | 'pack';
 export type CultivationType = 'exterior' | 'invernadero' | 'no_aplica';
 export type DeliveryType = 'sitio_fisico' | 'envio';
+export type AvailabilityType = 'inmediato' | 'dias' | 'dias_semana' | 'fecha_concreta';
+
 export type OrderStatus =
   | 'pendiente'
   | 'confirmado'
@@ -42,15 +44,21 @@ export interface Product {
   description: string | null;
   category: ProductCategory;
   format: ProductFormat;
-  price: number;
-  price_per_kilo: number | null;
-  weight_grams: number | null;
+  price: number; // Precio total o precio de partida
+  price_per_kilo: number | null; // €/kg para granel o suelto
+  weight_kg: number | null; // Peso en kg para producto suelto
+  pack_items: string | null; // Contenido/productos incluidos en el pack
   best_before_date: string | null;
   discount_percentage: number;
   is_organic: boolean;
   cultivation: CultivationType;
   stock: number;
+  is_unlimited_stock?: boolean;
   image_url: string | null;
+  availability_type: AvailabilityType;
+  availability_days?: number | null;
+  availability_weekdays?: string[] | null;
+  available_from_date?: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -78,6 +86,7 @@ export interface Order {
   total_amount: number;
   is_recurring: boolean;
   recurrence_interval_days: number | null;
+  estimated_delivery_date?: string | null;
   created_at: string;
   updated_at: string;
 }
