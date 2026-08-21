@@ -14,7 +14,7 @@ export function CartNavButton() {
     <Link
       href="/cesta"
       title="Ver mi cesta de la compra"
-      className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs sm:text-sm transition-all flex items-center gap-1.5 ${
+      className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-xl transition-all ${
         isCestaActive
           ? 'bg-emerald-800 text-white font-black shadow-sm'
           : cartCount > 0
@@ -22,13 +22,10 @@ export function CartNavButton() {
           : 'text-stone-700 hover:text-emerald-800 hover:bg-stone-100 font-bold'
       }`}
     >
-      <ShoppingCart className={`w-4 h-4 ${isCestaActive ? 'text-white' : 'text-emerald-700'}`} />
-      <span className="hidden sm:inline">Cesta</span>
-      {cartCount > 0 && (
-        <span className="text-[11px] font-black">
-          ({cartCount})
-        </span>
-      )}
+      <ShoppingCart className={`w-4 h-4 shrink-0 ${isCestaActive ? 'text-white' : 'text-emerald-700'}`} />
+      <span className="text-[9px] sm:text-xs font-bold leading-tight tracking-tight text-center max-w-[44px] sm:max-w-none truncate">
+        Cesta{cartCount > 0 ? ` (${cartCount})` : ''}
+      </span>
     </Link>
   );
 }

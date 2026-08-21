@@ -9,7 +9,6 @@ import {
   ShieldCheck,
   Calendar,
   MessageCircle,
-  Store,
   LayoutGrid,
 } from 'lucide-react';
 import type { Profile } from '@/types/database';
@@ -85,23 +84,25 @@ export function NavbarNavLinks({
       : localBuyerConfirmed;
 
   return (
-    <div className="flex items-center gap-1.5 sm:gap-2">
-      {/* 1. Catálogo (solo icono) */}
+    <div className="flex items-center gap-1 sm:gap-2">
+      {/* 1. Catálogo */}
       <Link
         href="/"
         title="Catálogo de Productos"
-        aria-label="Catálogo de Productos"
-        className={`p-2 sm:px-3 sm:py-2 rounded-xl text-xs sm:text-sm transition-all flex items-center justify-center ${
+        className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-xl transition-all ${
           isCatalogueActive
             ? 'bg-emerald-800 text-white font-black shadow-sm'
             : 'text-stone-700 hover:text-emerald-800 hover:bg-stone-100 font-bold'
         }`}
       >
         <LayoutGrid
-          className={`w-5 h-5 ${
+          className={`w-4 h-4 shrink-0 ${
             isCatalogueActive ? 'text-white' : 'text-emerald-800'
           }`}
         />
+        <span className="text-[9px] sm:text-xs font-bold leading-tight tracking-tight text-center max-w-[44px] sm:max-w-none truncate">
+          Catálogo
+        </span>
       </Link>
 
       {/* 2. Cesta (solo compradores/visitantes) */}
@@ -113,7 +114,7 @@ export function NavbarNavLinks({
           <Link
             href="/chat"
             title={localUnread > 0 ? `${localUnread} mensajes nuevos sin leer` : 'Mis mensajes y chats'}
-            className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs sm:text-sm transition-all flex items-center gap-1.5 ${
+            className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-xl transition-all ${
               isChatActive
                 ? 'bg-emerald-800 text-white font-black shadow-sm'
                 : localUnread > 0
@@ -122,7 +123,7 @@ export function NavbarNavLinks({
             }`}
           >
             <MessageCircle
-              className={`w-4 h-4 ${
+              className={`w-4 h-4 shrink-0 ${
                 isChatActive
                   ? 'text-white'
                   : localUnread > 0
@@ -130,23 +131,27 @@ export function NavbarNavLinks({
                   : 'text-emerald-700'
               }`}
             />
-            <span className="hidden md:inline">Mensajes</span>
+            <span className="text-[9px] sm:text-xs font-bold leading-tight tracking-tight text-center max-w-[44px] sm:max-w-none truncate">
+              Mensajes
+            </span>
           </Link>
 
           {/* 4. Calendario */}
           <Link
             href={calendarHref}
             title="Calendario de entregas y compras"
-            className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs sm:text-sm transition-all flex items-center gap-1.5 ${
+            className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-xl transition-all ${
               isCalendarActive
                 ? 'bg-emerald-800 text-white font-black shadow-sm'
                 : 'text-stone-700 hover:text-emerald-800 hover:bg-stone-100 font-bold'
             }`}
           >
             <Calendar
-              className={`w-4 h-4 ${isCalendarActive ? 'text-white' : 'text-emerald-700'}`}
+              className={`w-4 h-4 shrink-0 ${isCalendarActive ? 'text-white' : 'text-emerald-700'}`}
             />
-            <span className="hidden md:inline">Calendario</span>
+            <span className="text-[9px] sm:text-xs font-bold leading-tight tracking-tight text-center max-w-[48px] sm:max-w-none truncate">
+              Calendario
+            </span>
           </Link>
 
           {/* 5. Pedidos (Pestaña Naranja si hay aviso de pedido) */}
@@ -157,7 +162,7 @@ export function NavbarNavLinks({
                 ? `${ordersBadgeCount} pedidos pendientes por validar`
                 : `${ordersBadgeCount} pedidos confirmados por el caserío`
             }
-            className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs sm:text-sm transition-all flex items-center gap-1.5 ${
+            className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-xl transition-all ${
               isOrdersActive
                 ? 'bg-emerald-800 text-white font-black shadow-sm'
                 : ordersBadgeCount > 0
@@ -166,7 +171,7 @@ export function NavbarNavLinks({
             }`}
           >
             <ShoppingBasket
-              className={`w-4 h-4 ${
+              className={`w-4 h-4 shrink-0 ${
                 isOrdersActive
                   ? 'text-white'
                   : ordersBadgeCount > 0
@@ -174,36 +179,42 @@ export function NavbarNavLinks({
                   : 'text-stone-700'
               }`}
             />
-            <span className="hidden md:inline">Pedidos</span>
+            <span className="text-[9px] sm:text-xs font-bold leading-tight tracking-tight text-center max-w-[44px] sm:max-w-none truncate">
+              Pedidos
+            </span>
           </Link>
 
           {/* 6. Admin (si aplica) */}
           {profile.role === 'admin' && (
             <Link
               href="/admin"
-              className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs sm:text-sm transition-all flex items-center gap-1.5 ${
+              title="Panel de Administración"
+              className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-xl transition-all ${
                 isAdminActive
                   ? 'bg-emerald-800 text-white font-black shadow-sm'
                   : 'bg-stone-100 text-stone-900 hover:bg-stone-200 font-black border border-stone-300'
               }`}
             >
-              <ShieldCheck className="w-4 h-4 text-emerald-800" />
-              <span className="hidden md:inline">Admin</span>
+              <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-800" />
+              <span className="text-[9px] sm:text-xs font-bold leading-tight tracking-tight text-center max-w-[44px] sm:max-w-none truncate">
+                Admin
+              </span>
             </Link>
           )}
 
           {/* 7. Perfil / Mi Cuenta */}
           <Link
             href="/perfil"
-            className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs sm:text-sm transition-all flex items-center gap-1.5 ${
+            title={profile.role === 'vendedor' ? 'Mi Caserío' : 'Mi Perfil'}
+            className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-xl transition-all ${
               isProfileActive
                 ? 'bg-emerald-800 text-white font-black shadow-sm'
                 : 'text-stone-700 hover:text-emerald-800 hover:bg-stone-100 font-bold'
             }`}
           >
-            <User className={`w-4 h-4 ${isProfileActive ? 'text-white' : 'text-emerald-700'}`} />
-            <span className="hidden sm:inline">
-              {profile.role === 'vendedor' ? 'Mi Caserío' : 'Mi Perfil'}
+            <User className={`w-4 h-4 shrink-0 ${isProfileActive ? 'text-white' : 'text-emerald-700'}`} />
+            <span className="text-[9px] sm:text-xs font-bold leading-tight tracking-tight text-center max-w-[44px] sm:max-w-none truncate">
+              {profile.role === 'vendedor' ? 'Caserío' : 'Perfil'}
             </span>
           </Link>
         </>
@@ -212,13 +223,13 @@ export function NavbarNavLinks({
         <div className="flex items-center gap-1 sm:gap-2">
           <Link
             href="/login"
-            className="text-stone-700 hover:text-emerald-800 font-bold text-xs sm:text-sm px-2.5 sm:px-3 py-1.5 rounded-xl hover:bg-stone-100 transition-colors"
+            className="text-stone-700 hover:text-emerald-800 font-bold text-xs sm:text-sm px-2 sm:px-3 py-1.5 rounded-xl hover:bg-stone-100 transition-colors"
           >
             Entrar
           </Link>
           <Link
             href="/register"
-            className="bg-emerald-800 hover:bg-emerald-900 text-white font-black text-xs sm:text-sm px-3 sm:px-3.5 py-1.5 rounded-xl shadow-sm transition-all"
+            className="bg-emerald-800 hover:bg-emerald-900 text-white font-black text-xs sm:text-sm px-2.5 sm:px-3.5 py-1.5 rounded-xl shadow-sm transition-all"
           >
             Registro
           </Link>
