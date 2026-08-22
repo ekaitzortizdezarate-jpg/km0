@@ -20,6 +20,8 @@ import {
   Bookmark,
   X,
   AlertCircle,
+  Split,
+  Merge,
 } from 'lucide-react';
 import { useCart, CartItem } from '@/context/CartContext';
 import { createCartOrders, CartCheckoutSellerGroup } from '@/app/actions/orders';
@@ -64,11 +66,32 @@ interface SavedAddress {
   address: string;
 }
 
-interface SellerDeliveryConfig {
-  deliveryType: 'caserio' | 'sitio_fisico' | 'envio';
-  deliveryPointId: string | null;
-  shippingAddress: string;
-  groupMode: 'junto_tardio' | 'individual';
+function normalizeDeliveryType(type?: string | null): 'caserio' | 'sitio_fisico' | 'envio' {
+  if (type === 'punto_entrega' || type === 'sitio_fisico') return 'sitio_fisico';
+  if (type === 'domicilio' || type === 'envio') return 'envio';
+  return 'caserio';
+}
+
+function getNormalizedMethods(methods?: string[] | null): ('caserio' | 'sitio_fisico' | 'envio')[] {
+  if (!methods || methods.length === 0) return ['caserio'];
+  const res = new Set<'caserio' | 'sitio_fisico' | 'envio'>();
+  methods.forEach((m) => {
+    if (m === 'caserio') res.add('caserio');
+    if (m === 'punto_entrega' || m === 'sitio_fisico') res.add('sitio_fisico');
+    if (m === 'domicilio' || m === 'envio') res.add('envio');
+  });
+  if (res.size === 0) res.add('caserio');
+  return Array.from(res);
+}
+
+function getCommonDeliveryMethods(items: CartItem[]): ('caserio' | 'sitio_fisico' | 'envio')[] {
+  if (items.length === 0) return ['caserio'];
+  let common = new Set<'caserio' | 'sitio_fisico' | 'envio'>(getNormalizedMethods(items[0].deliveryMethods));
+  for (let i = 1; i < items.length; i++) {
+    const itemMethods = new Set(getNormalizedMethods(items[i].deliveryMethods));
+    common = new Set(Array.from(common).filter((m) => itemMethods.has(m)));
+  }
+  return Array.from(common);
 }
 
 function formatFullAddress(details: SellerShippingDetails): string {
@@ -103,7 +126,7 @@ function formatFullAddress(details: SellerShippingDetails): string {
 
 export default function CartPage() {
   const router = useRouter();
-  const { items, updateQuantity, removeFromCart, removeSellerItems, clearCart, totalPrice } = useCart();
+  const { items, updateQuantity, removeFromCart, removeSellerItems, totalPrice } = useCart();
   const [currentUser, setCurrentUser] = useState<{ id: string } | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
 
@@ -112,10 +135,23 @@ export default function CartPage() {
     Record<string, DeliveryPoint[]>
   >({});
 
-  // Configuración de entrega elegida para cada caserío
-  const [deliveryConfigs, setDeliveryConfigs] = useState<
-    Record<string, SellerDeliveryConfig>
+  // 1. Configuración de unificación de modalidad de entrega por vendedor: 'separadas' (default) o 'unificado'
+  const [deliveryUnifyModes, setDeliveryUnifyModes] = useState<
+    Record<string, 'separadas' | 'unificado'>
   >({});
+
+  // Modalidad elegida cuando se unifica (ej. 'caserio', 'sitio_fisico', 'envio')
+  const [unifiedDeliveryTypes, setUnifiedDeliveryTypes] = useState<
+    Record<string, 'caserio' | 'sitio_fisico' | 'envio'>
+  >({});
+
+  // 2. Configuración de plazos de entrega por vendedor: 'individual' (entregas separadas, default) o 'junto_tardio'
+  const [dateGroupModes, setDateGroupModes] = useState<
+    Record<string, 'individual' | 'junto_tardio'>
+  >({});
+
+  // Puntos de entrega seleccionados (por vendedor o por sub-bloque)
+  const [selectedPoints, setSelectedPoints] = useState<Record<string, string>>({});
 
   // Formulario estructurado de envío a domicilio por cada vendedor
   const [shippingForms, setShippingForms] = useState<
@@ -150,7 +186,7 @@ export default function CartPage() {
 
   const supabase = createClient();
 
-  // 1. Cargar usuario y direcciones guardadas
+  // Cargar usuario y direcciones guardadas
   useEffect(() => {
     async function loadUser() {
       const {
@@ -200,17 +236,19 @@ export default function CartPage() {
               codigoPostal: a.codigoPostal || a.postalCode || a.postal_code || '',
               poblacion: a.poblacion || a.town || '',
               provincia: a.provincia || '',
-              telefono: a.telefono || a.recipientPhone || userDefaults.telefono,
-              instrucciones: a.instrucciones || a.deliveryNotes || '',
-              address: a.address || `${a.calle || a.address || ''} ${a.poblacion || a.town || ''}`.trim(),
+              telefono: a.telefono || userDefaults.telefono,
+              instrucciones: a.instrucciones || '',
+              address: a.address || '',
             }));
-          } else if (profile.address) {
+          }
+
+          if (list.length === 0 && profile.address) {
             list = [
               {
-                id: 'default',
-                label: 'Casa',
-                nombre: fName,
-                apellidos: lName,
+                id: 'default-profile-addr',
+                label: 'Principal',
+                nombre: userDefaults.nombre,
+                apellidos: userDefaults.apellidos,
                 calle: profile.address,
                 numero: '',
                 piso: '',
@@ -220,18 +258,19 @@ export default function CartPage() {
                 provincia: '',
                 telefono: profile.phone || '',
                 instrucciones: '',
-                address: `${profile.address}, ${profile.postal_code || ''} ${profile.town || ''}`.trim(),
+                address: profile.address,
               },
             ];
           }
-          setSavedAddresses(list.slice(0, 5));
+
+          setSavedAddresses(list);
         }
       }
     }
     loadUser();
   }, [supabase]);
 
-  // 2. Agrupar productos por Caserío / Vendedor
+  // Agrupar productos por Caserío / Vendedor
   const groupedBySeller = items.reduce(
     (acc, item) => {
       if (!acc[item.sellerId]) {
@@ -253,7 +292,7 @@ export default function CartPage() {
 
   const sellerIds = Object.keys(groupedBySeller);
 
-  // 3. Cargar puntos de entrega físicos para cada vendedor
+  // Cargar puntos de entrega físicos para cada vendedor
   useEffect(() => {
     async function fetchPoints() {
       if (sellerIds.length === 0) return;
@@ -271,112 +310,11 @@ export default function CartPage() {
           map[pt.seller_id].push(pt);
         }
         setSellerDeliveryPoints(map);
-
-        // Inicializar configuraciones respetando lo seleccionado al añadir a la cesta
-        setDeliveryConfigs((prev) => {
-          const next = { ...prev };
-          for (const sId of sellerIds) {
-            const sellerItems = groupedBySeller[sId]?.items || [];
-            const firstItem = sellerItems[0];
-
-            let chosenType: 'caserio' | 'sitio_fisico' | 'envio' = 'caserio';
-            if (firstItem?.selectedDeliveryType === 'punto_entrega') {
-              chosenType = 'sitio_fisico';
-            } else if (firstItem?.selectedDeliveryType === 'domicilio') {
-              chosenType = 'envio';
-            } else {
-              chosenType = 'caserio';
-            }
-
-            // Validar si el tipo está permitido por los métodos del producto
-            const allowedMethods = new Set<string>();
-            sellerItems.forEach((it) => {
-              const methods = (it.deliveryMethods && it.deliveryMethods.length > 0)
-                ? it.deliveryMethods
-                : ['caserio'];
-              methods.forEach((m: string) => {
-                if (m === 'caserio') allowedMethods.add('caserio');
-                if (m === 'punto_entrega' || m === 'sitio_fisico') allowedMethods.add('sitio_fisico');
-                if (m === 'domicilio' || m === 'envio') allowedMethods.add('envio');
-              });
-            });
-
-            if (!allowedMethods.has(chosenType)) {
-              if (allowedMethods.has('caserio')) chosenType = 'caserio';
-              else if (allowedMethods.has('sitio_fisico')) chosenType = 'sitio_fisico';
-              else if (allowedMethods.has('envio')) chosenType = 'envio';
-            }
-
-            const chosenPointId = firstItem?.selectedPointId || map[sId]?.[0]?.id || null;
-            const defaultAddr = savedAddresses[0]?.address || '';
-
-            if (!next[sId]) {
-              next[sId] = {
-                deliveryType: chosenType,
-                deliveryPointId: chosenPointId,
-                shippingAddress: defaultAddr,
-                groupMode: 'junto_tardio',
-              };
-            }
-          }
-          return next;
-        });
       }
     }
 
     fetchPoints();
-  }, [sellerIds.join(','), savedAddresses.length, supabase]);
-
-  const handleDeliveryTypeChange = (
-    sellerId: string,
-    type: 'caserio' | 'sitio_fisico' | 'envio'
-  ) => {
-    const physicalPoints = (sellerDeliveryPoints[sellerId] || []).filter(
-      (p) => p.type === 'sitio_fisico'
-    );
-    setDeliveryConfigs((prev) => ({
-      ...prev,
-      [sellerId]: {
-        deliveryType: type,
-        deliveryPointId:
-          type === 'sitio_fisico'
-            ? prev[sellerId]?.deliveryPointId || physicalPoints[0]?.id || null
-            : null,
-        shippingAddress: prev[sellerId]?.shippingAddress || savedAddresses[0]?.address || '',
-        groupMode: prev[sellerId]?.groupMode || 'junto_tardio',
-      },
-    }));
-  };
-
-  const handleDeliveryPointChange = (sellerId: string, pointId: string) => {
-    setDeliveryConfigs((prev) => ({
-      ...prev,
-      [sellerId]: {
-        ...prev[sellerId],
-        deliveryPointId: pointId,
-      },
-    }));
-  };
-
-  const handleAddressChange = (sellerId: string, address: string) => {
-    setDeliveryConfigs((prev) => ({
-      ...prev,
-      [sellerId]: {
-        ...prev[sellerId],
-        shippingAddress: address,
-      },
-    }));
-  };
-
-  const handleGroupModeChange = (sellerId: string, mode: 'junto_tardio' | 'individual') => {
-    setDeliveryConfigs((prev) => ({
-      ...prev,
-      [sellerId]: {
-        ...prev[sellerId],
-        groupMode: mode,
-      },
-    }));
-  };
+  }, [sellerIds.join(','), supabase]);
 
   const handleShippingFieldChange = (
     sellerId: string,
@@ -388,144 +326,60 @@ export default function CartPage() {
       ...current,
       [field]: value,
     };
-
     setShippingForms((prev) => ({
       ...prev,
       [sellerId]: updated,
     }));
-
-    handleAddressChange(sellerId, formatFullAddress(updated));
   };
 
   const handleApplySavedAddress = (sellerId: string, sa: SavedAddress) => {
-    const details: SellerShippingDetails = {
-      nombre: sa.nombre || defaultShippingDetails.nombre || '',
-      apellidos: sa.apellidos || defaultShippingDetails.apellidos || '',
+    const applied: SellerShippingDetails = {
+      nombre: sa.nombre || defaultShippingDetails.nombre,
+      apellidos: sa.apellidos || defaultShippingDetails.apellidos,
       calle: sa.calle || sa.address,
       numero: sa.numero || '',
       piso: sa.piso || '',
       puerta: sa.puerta || '',
-      codigoPostal: sa.codigoPostal || defaultShippingDetails.codigoPostal || '',
-      poblacion: sa.poblacion || defaultShippingDetails.poblacion || '',
+      codigoPostal: sa.codigoPostal || '',
+      poblacion: sa.poblacion || '',
       provincia: sa.provincia || '',
-      telefono: sa.telefono || defaultShippingDetails.telefono || '',
+      telefono: sa.telefono || defaultShippingDetails.telefono,
       instrucciones: sa.instrucciones || '',
     };
-
     setShippingForms((prev) => ({
       ...prev,
-      [sellerId]: details,
+      [sellerId]: applied,
     }));
-
-    handleAddressChange(sellerId, formatFullAddress(details));
   };
 
   const handleSaveFavoriteAddress = async (sellerId: string) => {
-    const details = shippingForms[sellerId] || defaultShippingDetails;
-    if (!details.calle.trim()) {
-      setError('Por favor, introduce al menos la calle antes de guardar en favoritas.');
+    const current = shippingForms[sellerId] || defaultShippingDetails;
+    if (!current.calle.trim()) {
+      alert('Debes indicar al menos la calle para guardarla como dirección favorita.');
       return;
     }
 
-    const fullStr = formatFullAddress(details);
-    const newObj: SavedAddress = {
+    const newSaved: SavedAddress = {
       id: String(Date.now()),
       label: newAddressLabel.trim() || 'Favorita',
-      nombre: details.nombre.trim(),
-      apellidos: details.apellidos.trim(),
-      calle: details.calle.trim(),
-      numero: details.numero.trim(),
-      piso: details.piso.trim(),
-      puerta: details.puerta.trim(),
-      codigoPostal: details.codigoPostal.trim(),
-      poblacion: details.poblacion.trim(),
-      provincia: details.provincia.trim(),
-      telefono: details.telefono.trim(),
-      instrucciones: details.instrucciones.trim(),
-      address: fullStr,
+      nombre: current.nombre,
+      apellidos: current.apellidos,
+      calle: current.calle,
+      numero: current.numero,
+      piso: current.piso,
+      puerta: current.puerta,
+      codigoPostal: current.codigoPostal,
+      poblacion: current.poblacion,
+      provincia: current.provincia,
+      telefono: current.telefono,
+      instrucciones: current.instrucciones,
+      address: formatFullAddress(current),
     };
 
-    const updated = [...savedAddresses.filter((a) => a.address !== fullStr), newObj].slice(0, 5);
+    const updated = [newSaved, ...savedAddresses.slice(0, 4)];
     setSavedAddresses(updated);
     await saveBuyerAddresses(updated);
     setNewAddressLabel('Casa');
-  };
-
-  const getSellerConfig = (sellerId: string): SellerDeliveryConfig => {
-    const group = groupedBySeller[sellerId];
-    if (!group || group.items.length === 0) {
-      return {
-        deliveryType: 'caserio',
-        deliveryPointId: null,
-        shippingAddress: savedAddresses[0]?.address || '',
-        groupMode: 'junto_tardio',
-      };
-    }
-
-    const firstItem = group.items[0];
-    const itemSelectedType = firstItem?.selectedDeliveryType;
-    const itemSelectedPointId = firstItem?.selectedPointId;
-
-    // Métodos permitidos según los productos de este vendedor
-    const allowedMethods = new Set<string>();
-    group.items.forEach((it) => {
-      (it.deliveryMethods || []).forEach((m: string) => {
-        if (m === 'caserio') allowedMethods.add('caserio');
-        if (m === 'punto_entrega' || m === 'sitio_fisico') allowedMethods.add('sitio_fisico');
-        if (m === 'domicilio' || m === 'envio') allowedMethods.add('envio');
-      });
-    });
-
-    if (allowedMethods.size === 0) {
-      allowedMethods.add('caserio');
-    }
-
-    // Modalidad por defecto respetando lo elegido al añadir a la cesta
-    let defaultType: 'caserio' | 'sitio_fisico' | 'envio' = 'caserio';
-    if (itemSelectedType === 'punto_entrega') {
-      defaultType = 'sitio_fisico';
-    } else if (itemSelectedType === 'domicilio') {
-      defaultType = 'envio';
-    } else {
-      defaultType = 'caserio';
-    }
-
-    // Si la opción elegida no está permitida por el vendedor, usar la primera permitida
-    if (!allowedMethods.has(defaultType)) {
-      if (allowedMethods.has('caserio')) defaultType = 'caserio';
-      else if (allowedMethods.has('sitio_fisico')) defaultType = 'sitio_fisico';
-      else if (allowedMethods.has('envio')) defaultType = 'envio';
-    }
-
-    const currentConfig = deliveryConfigs[sellerId];
-    const effectiveDeliveryType =
-      currentConfig?.deliveryType && allowedMethods.has(currentConfig.deliveryType)
-        ? currentConfig.deliveryType
-        : defaultType;
-
-    const physicalPoints = (sellerDeliveryPoints[sellerId] || []).filter(
-      (p) => p.type === 'sitio_fisico'
-    );
-
-    const effectiveDeliveryPointId =
-      currentConfig?.deliveryPointId && physicalPoints.some((p) => p.id === currentConfig.deliveryPointId)
-        ? currentConfig.deliveryPointId
-        : itemSelectedPointId && physicalPoints.some((p) => p.id === itemSelectedPointId)
-        ? itemSelectedPointId
-        : physicalPoints[0]?.id || null;
-
-    const currentDetails = shippingForms[sellerId] || defaultShippingDetails;
-    const computedShippingAddress =
-      currentConfig?.shippingAddress && currentConfig.shippingAddress.trim()
-        ? currentConfig.shippingAddress
-        : formatFullAddress(currentDetails) || savedAddresses[0]?.address || '';
-
-    return {
-      deliveryType: effectiveDeliveryType,
-      deliveryPointId: effectiveDeliveryPointId,
-      shippingAddress: computedShippingAddress,
-      groupMode: currentConfig?.groupMode || 'junto_tardio',
-    };
   };
 
   // Abrir resumen para UN VENDEDOR específico
@@ -535,9 +389,19 @@ export default function CartPage() {
     const group = groupedBySeller[sellerId];
     if (!group) return;
 
-    const config = getSellerConfig(sellerId);
+    const unifyMode = deliveryUnifyModes[sellerId] || 'separadas';
+    const distinctTypes = Array.from(
+      new Set(group.items.map((i) => normalizeDeliveryType(i.selectedDeliveryType)))
+    );
+    const hasMultipleTypes = distinctTypes.length > 1;
 
-    if (config.deliveryType === 'envio') {
+    // Si es unificado a 'envio' o si hay entregas separadas con algún sub-bloque de 'envio'
+    const needsShippingCheck =
+      (hasMultipleTypes && unifyMode === 'unificado' && (unifiedDeliveryTypes[sellerId] || 'caserio') === 'envio') ||
+      (!hasMultipleTypes && distinctTypes[0] === 'envio') ||
+      (hasMultipleTypes && unifyMode === 'separadas' && distinctTypes.includes('envio'));
+
+    if (needsShippingCheck) {
       const details = shippingForms[sellerId] || defaultShippingDetails;
       if (
         !details.nombre?.trim() ||
@@ -570,34 +434,85 @@ export default function CartPage() {
       return;
     }
 
-    const config = getSellerConfig(sellerId);
+    const unifyMode = deliveryUnifyModes[sellerId] || 'separadas';
+    const dateMode = dateGroupModes[sellerId] || 'individual';
+    const distinctTypes = Array.from(
+      new Set(group.items.map((i) => normalizeDeliveryType(i.selectedDeliveryType)))
+    );
+    const hasMultipleTypes = distinctTypes.length > 1;
+    const physicalPoints = (sellerDeliveryPoints[sellerId] || []).filter((p) => p.type === 'sitio_fisico');
 
-    let finalEstimatedDate: string | null = null;
-    if (group.items.length > 0) {
-      const dates = group.items
-        .map((i) => (i.estimatedDeliveryDate ? new Date(i.estimatedDeliveryDate).getTime() : 0))
-        .filter((t) => t > 0);
+    const details = shippingForms[sellerId] || defaultShippingDetails;
+    const computedShippingAddress = formatFullAddress(details) || savedAddresses[0]?.address || 'Dirección de entrega';
 
-      if (dates.length > 0) {
-        const maxTime = Math.max(...dates);
-        finalEstimatedDate = new Date(maxTime).toISOString();
+    const payloads: CartCheckoutSellerGroup[] = [];
+
+    // Fechas unificadas si se seleccionó 'junto_tardio'
+    const allDatesMs = group.items
+      .map((i) => (i.estimatedDeliveryDate ? new Date(i.estimatedDeliveryDate).getTime() : 0))
+      .filter((t) => t > 0);
+    const maxAllDateMs = allDatesMs.length > 0 ? Math.max(...allDatesMs) : 0;
+    const globalUnifiedDateStr = maxAllDateMs > 0 ? new Date(maxAllDateMs).toISOString() : null;
+
+    if (hasMultipleTypes && unifyMode === 'unificado') {
+      // 1 solo pedido con la modalidad unificada
+      const uType = unifiedDeliveryTypes[sellerId] || 'caserio';
+      const pointId = selectedPoints[sellerId] || physicalPoints[0]?.id || null;
+
+      payloads.push({
+        sellerId,
+        deliveryType: uType,
+        deliveryPointId: uType === 'sitio_fisico' ? pointId : null,
+        shippingAddress: uType === 'envio' ? computedShippingAddress : null,
+        estimatedDeliveryDate: dateMode === 'junto_tardio' ? globalUnifiedDateStr : null,
+        items: group.items.map((it) => ({
+          productId: it.productId,
+          quantity: Number(it.quantity) || 1,
+          unitPrice: it.unitPrice,
+        })),
+      });
+    } else {
+      // Entregas separadas: creamos 1 sub-pedido por cada modalidad de entrega distinta
+      for (const dType of distinctTypes) {
+        const subItems = group.items.filter(
+          (it) => normalizeDeliveryType(it.selectedDeliveryType) === dType
+        );
+        if (subItems.length === 0) continue;
+
+        const subDatesMs = subItems
+          .map((i) => (i.estimatedDeliveryDate ? new Date(i.estimatedDeliveryDate).getTime() : 0))
+          .filter((t) => t > 0);
+        const maxSubDateMs = subDatesMs.length > 0 ? Math.max(...subDatesMs) : 0;
+        const subDateStr =
+          dateMode === 'junto_tardio'
+            ? globalUnifiedDateStr
+            : maxSubDateMs > 0
+            ? new Date(maxSubDateMs).toISOString()
+            : null;
+
+        const pointId =
+          selectedPoints[`${sellerId}_${dType}`] ||
+          selectedPoints[sellerId] ||
+          subItems[0]?.selectedPointId ||
+          physicalPoints[0]?.id ||
+          null;
+
+        payloads.push({
+          sellerId,
+          deliveryType: dType,
+          deliveryPointId: dType === 'sitio_fisico' ? pointId : null,
+          shippingAddress: dType === 'envio' ? computedShippingAddress : null,
+          estimatedDeliveryDate: subDateStr,
+          items: subItems.map((it) => ({
+            productId: it.productId,
+            quantity: Number(it.quantity) || 1,
+            unitPrice: it.unitPrice,
+          })),
+        });
       }
     }
 
-    const singlePayload: CartCheckoutSellerGroup = {
-      sellerId,
-      deliveryType: config.deliveryType,
-      deliveryPointId: config.deliveryType === 'sitio_fisico' ? config.deliveryPointId : null,
-      shippingAddress: config.deliveryType === 'envio' ? config.shippingAddress : null,
-      estimatedDeliveryDate: finalEstimatedDate,
-      items: group.items.map((it) => ({
-        productId: it.productId,
-        quantity: Number(it.quantity) || 1,
-        unitPrice: it.unitPrice,
-      })),
-    };
-
-    const result = await createCartOrders([singlePayload]);
+    const result = await createCartOrders(payloads);
 
     if (result.error) {
       setError(result.error);
@@ -685,8 +600,16 @@ export default function CartPage() {
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 text-red-900 border-2 border-red-200 rounded-2xl text-xs font-bold">
-          {error}
+        <div className="p-4 bg-red-50 text-red-900 border-2 border-red-200 rounded-2xl text-xs font-bold flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0 text-red-700" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {successOrderMsg && (
+        <div className="p-4 bg-emerald-50 text-emerald-900 border-2 border-emerald-300 rounded-2xl text-xs font-bold flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-700" />
+          <span>{successOrderMsg}</span>
         </div>
       )}
 
@@ -695,10 +618,25 @@ export default function CartPage() {
         <div className="lg:col-span-8 space-y-6">
           {sellerIds.map((sellerId) => {
             const group = groupedBySeller[sellerId];
-            const config = getSellerConfig(sellerId);
-            const points = sellerDeliveryPoints[sellerId] || [];
+            const physicalPoints = (sellerDeliveryPoints[sellerId] || []).filter(
+              (p) => p.type === 'sitio_fisico'
+            );
 
-            // Calcular fecha unificada más tardía para este caserío
+            // 1. Detección de modalidades de entrega distintas
+            const distinctTypes = Array.from(
+              new Set(group.items.map((i) => normalizeDeliveryType(i.selectedDeliveryType)))
+            );
+            const hasMultipleDeliveryTypes = distinctTypes.length > 1;
+
+            // Modalidades comunes compartidas por todos los productos de este caserío
+            const commonMethods = getCommonDeliveryMethods(group.items);
+            const hasCommonMethods = commonMethods.length > 0;
+
+            // Estado de unificación de modalidad (por defecto: 'separadas')
+            const unifyDeliveryMode = deliveryUnifyModes[sellerId] || 'separadas';
+            const unifiedType = unifiedDeliveryTypes[sellerId] || commonMethods[0] || 'caserio';
+
+            // 2. Detección de fechas de entrega distintas
             const datesMs = group.items
               .map((i) => (i.estimatedDeliveryDate ? new Date(i.estimatedDeliveryDate).getTime() : 0))
               .filter((t) => t > 0);
@@ -709,6 +647,11 @@ export default function CartPage() {
               group.items.map((i) => i.estimatedDeliveryDate || i.deliveryBadge).filter(Boolean)
             );
             const hasMultipleDates = datesSet.size > 1;
+
+            // Estado de agrupación de fechas (por defecto: 'individual' -> entregas separadas)
+            const dateGroupMode = dateGroupModes[sellerId] || 'individual';
+
+            const currentDetails = shippingForms[sellerId] || defaultShippingDetails;
 
             return (
               <div
@@ -764,16 +707,189 @@ export default function CartPage() {
                   );
                 })()}
 
-                {/* Lista de Productos de este Caserío */}
-                <div className="space-y-3">
-                  {group.items.map((item) => {
+                {/* BANNER 1: MODALIDADES DE ENTREGA DISTINTAS (Opciones de Unificar o Entregas Separadas) */}
+                {hasMultipleDeliveryTypes && (
+                  <div className="p-4 bg-sky-50/90 rounded-2xl border-2 border-sky-200 space-y-3">
+                    <div className="flex items-start gap-2">
+                      <Split className="w-4 h-4 text-sky-800 shrink-0 mt-0.5" />
+                      <div>
+                        <label className="text-xs font-black text-sky-950 block">
+                          Tus productos de este caserío tienen modalidades de entrega distintas:
+                        </label>
+                        <p className="text-[11px] font-semibold text-sky-800">
+                          Aparecen separados por modalidad. Puedes mantenerlos separados o unificarlos si comparten alguna modalidad en común.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                      {/* Opción A: Entregas separadas (POR DEFECTO) */}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDeliveryUnifyModes((prev) => ({ ...prev, [sellerId]: 'separadas' }))
+                        }
+                        className={`p-3 rounded-xl border-2 text-left text-xs transition-all ${
+                          unifyDeliveryMode === 'separadas'
+                            ? 'border-sky-700 bg-white ring-2 ring-sky-600 text-sky-950 font-black shadow-sm'
+                            : 'border-sky-200 bg-white/70 text-sky-800 hover:bg-white font-bold'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="block font-black">📦 Entregas separadas por modalidad</span>
+                          {unifyDeliveryMode === 'separadas' && (
+                            <span className="text-[9px] font-black bg-sky-100 text-sky-900 px-1.5 py-0.5 rounded">
+                              Por defecto
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[10px] font-semibold text-sky-700 block mt-0.5">
+                          Cada producto se entrega según la opción elegida al añadir a la cesta.
+                        </span>
+                      </button>
+
+                      {/* Opción B: Unificar modalidad de entrega */}
+                      {hasCommonMethods ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setDeliveryUnifyModes((prev) => ({ ...prev, [sellerId]: 'unificado' }))
+                          }
+                          className={`p-3 rounded-xl border-2 text-left text-xs transition-all ${
+                            unifyDeliveryMode === 'unificado'
+                              ? 'border-sky-700 bg-white ring-2 ring-sky-600 text-sky-950 font-black shadow-sm'
+                              : 'border-sky-200 bg-white/70 text-sky-800 hover:bg-white font-bold'
+                          }`}
+                        >
+                          <span className="block font-black">🔄 Unificar modalidad de entrega</span>
+                          <span className="text-[10px] font-semibold text-sky-700 block mt-0.5">
+                            Unificar todos los productos en una modalidad común compartida.
+                          </span>
+                        </button>
+                      ) : (
+                        <div className="p-3 rounded-xl border border-stone-200 bg-stone-100 text-stone-500 text-[11px] font-semibold flex items-center">
+                          <span>Sin modalidad común disponible para unificar.</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Si seleccionó Unificar y hay más de 1 modalidad común, selector para elegir cuál */}
+                    {unifyDeliveryMode === 'unificado' && hasCommonMethods && (
+                      <div className="p-3 bg-white rounded-xl border border-sky-300 space-y-2">
+                        <label className="block text-[11px] font-black text-stone-800">
+                          Selecciona la modalidad común para unificar todos los productos:
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {commonMethods.map((method) => {
+                            const isSelected = unifiedType === method;
+                            return (
+                              <button
+                                key={method}
+                                type="button"
+                                onClick={() =>
+                                  setUnifiedDeliveryTypes((prev) => ({
+                                    ...prev,
+                                    [sellerId]: method,
+                                  }))
+                                }
+                                className={`px-3 py-1.5 rounded-xl border-2 text-xs font-black transition-all flex items-center gap-1.5 ${
+                                  isSelected
+                                    ? 'bg-sky-800 text-white border-sky-900 shadow-sm'
+                                    : 'bg-stone-50 text-stone-700 border-stone-300 hover:bg-stone-100'
+                                }`}
+                              >
+                                {method === 'caserio' && <Store className="w-3.5 h-3.5" />}
+                                {method === 'sitio_fisico' && <MapPin className="w-3.5 h-3.5" />}
+                                {method === 'envio' && <Truck className="w-3.5 h-3.5" />}
+                                <span>
+                                  {method === 'caserio'
+                                    ? 'Recogida en Caserío'
+                                    : method === 'sitio_fisico'
+                                    ? 'Punto de Entrega'
+                                    : 'Envío a Domicilio'}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* BANNER 2: PLAZOS DE ENTREGA DISTINTOS (Por defecto: Entregas separadas) */}
+                {hasMultipleDates && (
+                  <div className="p-4 bg-amber-50/90 rounded-2xl border-2 border-amber-200 space-y-3">
+                    <label className="text-xs font-black text-amber-950 flex items-center gap-1.5">
+                      <Layers className="w-4 h-4 text-amber-700" />
+                      Tus productos de este caserío tienen plazos de entrega distintos:
+                    </label>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {/* Opción 1: Entregas separadas (POR DEFECTO) */}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDateGroupModes((prev) => ({ ...prev, [sellerId]: 'individual' }))
+                        }
+                        className={`p-3 rounded-xl border-2 text-left text-xs transition-all ${
+                          dateGroupMode === 'individual'
+                            ? 'border-amber-700 bg-white ring-2 ring-amber-600 text-amber-950 font-black shadow-sm'
+                            : 'border-amber-200 bg-white/70 text-amber-800 hover:bg-white font-bold'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="block font-black">🚚 Entregas separadas por fecha</span>
+                          {dateGroupMode === 'individual' && (
+                            <span className="text-[9px] font-black bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded">
+                              Por defecto
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[10px] font-semibold text-amber-700 block mt-0.5">
+                          Según disponibilidad y fecha prevista de cada producto.
+                        </span>
+                      </button>
+
+                      {/* Opción 2: Entregar todo junto */}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDateGroupModes((prev) => ({ ...prev, [sellerId]: 'junto_tardio' }))
+                        }
+                        className={`p-3 rounded-xl border-2 text-left text-xs transition-all ${
+                          dateGroupMode === 'junto_tardio'
+                            ? 'border-amber-700 bg-white ring-2 ring-amber-600 text-amber-950 font-black shadow-sm'
+                            : 'border-amber-200 bg-white/70 text-amber-800 hover:bg-white font-bold'
+                        }`}
+                      >
+                        <span className="block font-black">📦 Entregar todo junto</span>
+                        <span className="text-[10px] font-semibold text-amber-700 block mt-0.5">
+                          {unifiedDateObj
+                            ? `Fecha calculada: ${unifiedDateObj.toLocaleDateString('es-ES', {
+                                weekday: 'short',
+                                day: 'numeric',
+                                month: 'short',
+                              })}`
+                            : 'En la fecha del producto más tardío'}
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* RENDERIZADO DE PRODUCTOS Y SECCIONES */}
+                {(() => {
+                  // Si tiene modalidades distintas y están separadas (o si solo tiene 1 modalidad)
+                  const isSeparatedView = hasMultipleDeliveryTypes && unifyDeliveryMode === 'separadas';
+
+                  const renderProductRow = (item: CartItem) => {
                     const itemKey =
                       item.cartItemId ||
                       `${item.productId}_${item.selectedDeliveryType || 'caserio'}_${item.selectedPointId || 'none'}`;
 
-                    // Si se eligió entregar todo junto, se muestra la fecha unificada calculada
                     const displayDeliveryDate =
-                      config.groupMode === 'junto_tardio' && unifiedDateObj
+                      dateGroupMode === 'junto_tardio' && unifiedDateObj
                         ? unifiedDateObj.toISOString()
                         : item.estimatedDeliveryDate;
 
@@ -782,7 +898,7 @@ export default function CartPage() {
                         key={itemKey}
                         className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 bg-stone-50 rounded-2xl border border-stone-200"
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
                           {item.imageUrl ? (
                             <img
                               src={item.imageUrl}
@@ -795,9 +911,11 @@ export default function CartPage() {
                             </div>
                           )}
 
-                          <div>
+                          <div className="min-w-0 space-y-0.5">
                             <div className="flex flex-wrap items-center gap-1.5">
-                              <h3 className="text-xs font-black text-stone-900">{item.name}</h3>
+                              <h3 className="text-xs font-black text-stone-900 leading-tight truncate">
+                                {item.name}
+                              </h3>
                               <DeliveryMethodsBadges deliveryMethods={item.deliveryMethods} />
                             </div>
                             <p className="text-[11px] font-semibold text-stone-600">
@@ -809,8 +927,8 @@ export default function CartPage() {
                                 : 'ud'}
                             </p>
 
-                            {/* Modalidad de Entrega del producto */}
-                            <div className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border mt-1 bg-white text-stone-800 border-stone-300">
+                            {/* Modalidad de Entrega */}
+                            <div className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border bg-white text-stone-800 border-stone-300">
                               {item.selectedDeliveryType === 'caserio' ? (
                                 <>
                                   <Store className="w-3 h-3 text-emerald-700 shrink-0" />
@@ -824,14 +942,14 @@ export default function CartPage() {
                               ) : (
                                 <>
                                   <Truck className="w-3 h-3 text-emerald-700 shrink-0" />
-                                  <span>Envío</span>
+                                  <span>Envío a Domicilio</span>
                                 </>
                               )}
                             </div>
 
                             {/* Fecha de Entrega */}
                             {displayDeliveryDate ? (
-                              <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-900 bg-emerald-100 px-2 py-0.5 rounded-md mt-1 border border-emerald-300">
+                              <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-900 bg-emerald-100 px-2 py-0.5 rounded-md border border-emerald-300">
                                 <Clock className="w-3 h-3 text-emerald-700 shrink-0" />
                                 <span>
                                   Fecha estimada de entrega:{' '}
@@ -840,13 +958,13 @@ export default function CartPage() {
                                     day: 'numeric',
                                     month: 'short',
                                   })}
-                                  {config.groupMode === 'junto_tardio' && hasMultipleDates ? ' (unificada)' : ''}
+                                  {dateGroupMode === 'junto_tardio' && hasMultipleDates ? ' (unificada)' : ''}
                                 </span>
                               </div>
                             ) : item.deliveryBadge ? (
-                              <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-900 bg-emerald-100 px-2 py-0.5 rounded-md mt-1 border border-emerald-300">
+                              <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-900 bg-emerald-100 px-2 py-0.5 rounded-md border border-emerald-300">
                                 <Clock className="w-3 h-3 text-emerald-700 shrink-0" />
-                                <span>Fecha estimada de entrega: {item.deliveryBadge}</span>
+                                <span>Fecha estimada: {item.deliveryBadge}</span>
                               </div>
                             ) : null}
                           </div>
@@ -909,518 +1027,453 @@ export default function CartPage() {
                         </div>
                       </div>
                     );
-                  })}
-                </div>
+                  };
 
-                {/* Agrupación de fechas si son distintas */}
-                {hasMultipleDates && (
-                  <div className="p-3.5 bg-amber-50 rounded-2xl border border-amber-200 space-y-2">
-                    <label className="text-xs font-black text-amber-950 flex items-center gap-1.5">
-                      <Layers className="w-4 h-4 text-amber-700" />
-                      Tus productos de este caserío tienen plazos de entrega distintos:
-                    </label>
+                  const renderDeliveryConfigBox = (
+                    dType: 'caserio' | 'sitio_fisico' | 'envio',
+                    subKey?: string
+                  ) => {
+                    const firstItem = group.items[0];
+                    const caserioEst = getCaserioEstimate(firstItem);
+                    const ptKey = subKey || sellerId;
+                    const selectedPt =
+                      physicalPoints.find((p) => p.id === selectedPoints[ptKey]) || physicalPoints[0];
+                    const puntoEst = getPuntoEntregaEstimate(firstItem, selectedPt);
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleGroupModeChange(sellerId, 'junto_tardio')}
-                        className={`p-2.5 rounded-xl border-2 text-left text-xs font-bold transition-all ${
-                          config.groupMode === 'junto_tardio'
-                            ? 'border-amber-700 bg-white ring-2 ring-amber-600 text-amber-950 font-black shadow-sm'
-                            : 'border-amber-200 bg-white/60 text-amber-800 hover:bg-white'
-                        }`}
-                      >
-                        <span className="block font-black">📦 Entregar todo junto</span>
-                        <span className="text-[10px] font-semibold text-amber-700 block">
-                          {unifiedDateObj
-                            ? `Fecha calculada: ${unifiedDateObj.toLocaleDateString('es-ES', {
-                                weekday: 'short',
-                                day: 'numeric',
-                                month: 'short',
-                              })}`
-                            : 'En la fecha del producto más tardío'}
-                        </span>
-                      </button>
+                    if (dType === 'caserio') {
+                      return (
+                        <div className="p-3.5 bg-emerald-50/90 rounded-2xl border border-emerald-200 text-xs text-stone-800 space-y-1.5 shadow-2xs">
+                          <div className="flex items-center justify-between">
+                            <span className="flex items-center gap-2 font-black text-emerald-950 text-xs">
+                              <Store className="w-4 h-4 text-emerald-800" />
+                              <span>Recogida directa en Caserío</span>
+                            </span>
+                            <span className="text-[10px] font-extrabold text-emerald-800 capitalize">
+                              📅 {caserioEst.dateStr}
+                            </span>
+                          </div>
+                          <p className="text-stone-700 font-semibold text-[11px]">
+                            🏡 Instalaciones del caserío en {group.sellerTown}.
+                          </p>
+                          {firstItem?.caserioSchedule && (
+                            <p className="text-emerald-950 font-bold text-[10px]">
+                              🕒 Horario habitual: {firstItem.caserioSchedule}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    }
 
-                      <button
-                        type="button"
-                        onClick={() => handleGroupModeChange(sellerId, 'individual')}
-                        className={`p-2.5 rounded-xl border-2 text-left text-xs font-bold transition-all ${
-                          config.groupMode === 'individual'
-                            ? 'border-amber-700 bg-white ring-2 ring-amber-600 text-amber-950 font-black shadow-sm'
-                            : 'border-amber-200 bg-white/60 text-amber-800 hover:bg-white'
-                        }`}
-                      >
-                        <span className="block font-black">🚚 Entregas separadas</span>
-                        <span className="text-[10px] font-semibold text-amber-700 block">
-                          Según disponibilidad de cada producto
-                        </span>
-                      </button>
-                    </div>
-                  </div>
-                )}
+                    if (dType === 'sitio_fisico') {
+                      return (
+                        <div className="p-3.5 bg-emerald-50/90 rounded-2xl border border-emerald-200 text-xs text-stone-800 space-y-2 shadow-2xs">
+                          <div className="flex items-center justify-between">
+                            <span className="flex items-center gap-2 font-black text-emerald-950 text-xs">
+                              <MapPin className="w-4 h-4 text-emerald-800" />
+                              <span>Punto de Entrega físico</span>
+                            </span>
+                            <span className="text-[10px] font-extrabold text-emerald-800 capitalize">
+                              📅 {puntoEst.dateStr}
+                            </span>
+                          </div>
 
-                {/* Selección de Modalidad de Entrega (solo las permitidas por el vendedor para este producto) */}
-                {(() => {
-                  const allowedMethods = new Set<string>();
-                  group.items.forEach((it) => {
-                    const methods = (it.deliveryMethods && it.deliveryMethods.length > 0)
-                      ? it.deliveryMethods
-                      : ['caserio'];
-                    methods.forEach((m: string) => {
-                      if (m === 'caserio') allowedMethods.add('caserio');
-                      if (m === 'punto_entrega' || m === 'sitio_fisico') allowedMethods.add('sitio_fisico');
-                      if (m === 'domicilio' || m === 'envio') allowedMethods.add('envio');
-                    });
-                  });
+                          {physicalPoints.length > 1 ? (
+                            <div className="pt-1">
+                              <label className="block text-[10px] font-bold text-stone-700 mb-1">
+                                Selecciona el punto de entrega:
+                              </label>
+                              <select
+                                value={selectedPoints[ptKey] || physicalPoints[0]?.id}
+                                onChange={(e) =>
+                                  setSelectedPoints((prev) => ({
+                                    ...prev,
+                                    [ptKey]: e.target.value,
+                                  }))
+                                }
+                                className="w-full px-3 py-1.5 border border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                              >
+                                {physicalPoints.map((pt) => (
+                                  <option key={pt.id} value={pt.id}>
+                                    {pt.name} - {pt.town} ({pt.address_details})
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          ) : physicalPoints.length === 1 ? (
+                            <div className="flex items-start gap-2.5 pt-1 text-[11px] text-stone-700">
+                              {physicalPoints[0].image_url ? (
+                                <img
+                                  src={physicalPoints[0].image_url}
+                                  alt={physicalPoints[0].name}
+                                  className="w-10 h-10 rounded-lg object-cover border border-stone-200 shrink-0"
+                                />
+                              ) : null}
+                              <div className="space-y-0.5">
+                                <p className="font-bold text-stone-900">
+                                  {physicalPoints[0].name} ({physicalPoints[0].town})
+                                </p>
+                                <p>{physicalPoints[0].address_details}</p>
+                                {physicalPoints[0].schedule_notes && (
+                                  <p className="text-[10px] text-amber-900 font-bold">
+                                    🕒 {physicalPoints[0].schedule_notes}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-[11px] text-stone-600">
+                              Punto físico acordado con el caserío ({group.sellerTown}).
+                            </p>
+                          )}
+                        </div>
+                      );
+                    }
 
-                  if (allowedMethods.size === 0) allowedMethods.add('caserio');
+                    if (dType === 'envio') {
+                      return (
+                        <div className="p-4 bg-emerald-50/80 rounded-2xl border border-emerald-200 space-y-3 shadow-2xs">
+                          <div className="flex items-center justify-between">
+                            <span className="flex items-center gap-2 font-black text-emerald-950 text-xs">
+                              <Truck className="w-4 h-4 text-emerald-800" />
+                              <span>Datos de Envío a Domicilio</span>
+                            </span>
+                          </div>
 
-                  const allowsCaserio = allowedMethods.has('caserio');
-                  const allowsPunto = allowedMethods.has('sitio_fisico');
-                  const allowsEnvio = allowedMethods.has('envio');
+                          {/* Direcciones Guardadas */}
+                          {savedAddresses.length > 0 && (
+                            <div className="p-3 bg-white rounded-xl border border-stone-200 space-y-2">
+                              <span className="text-[10px] font-black text-stone-700 uppercase block">
+                                Usar una de tus direcciones guardadas:
+                              </span>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                {savedAddresses.map((sa) => {
+                                  const isSelected =
+                                    currentDetails.calle === (sa.calle || sa.address) &&
+                                    currentDetails.numero === sa.numero;
+                                  return (
+                                    <button
+                                      key={sa.id}
+                                      type="button"
+                                      onClick={() => handleApplySavedAddress(sellerId, sa)}
+                                      className={`p-2 rounded-xl border text-left text-xs transition-all flex flex-col justify-between ${
+                                        isSelected
+                                          ? 'bg-emerald-800 text-white border-emerald-900 shadow-sm'
+                                          : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
+                                      }`}
+                                    >
+                                      <span className="font-black flex items-center gap-1">
+                                        <span>🏠 {sa.label}</span>
+                                        {isSelected && (
+                                          <span className="text-[10px] ml-auto bg-white/20 px-1.5 py-0.5 rounded font-bold">
+                                            Activa
+                                          </span>
+                                        )}
+                                      </span>
+                                      <span
+                                        className={`text-[11px] truncate ${
+                                          isSelected ? 'text-emerald-100' : 'text-stone-600'
+                                        }`}
+                                      >
+                                        {sa.calle || sa.address} {sa.poblacion ? `(${sa.poblacion})` : ''}
+                                      </span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
 
-                  // Calcular estimaciones para este caserío / productos
-                  const firstItem = group.items[0];
-                  const caserioEst = getCaserioEstimate(firstItem);
-                  const physicalPoints = (sellerDeliveryPoints[sellerId] || []).filter(
-                    (p) => p.type === 'sitio_fisico'
-                  );
-                  const selectedPt = physicalPoints.find((p) => p.id === config.deliveryPointId) || physicalPoints[0];
-                  const puntoEst = getPuntoEntregaEstimate(firstItem, selectedPt);
-                  const domicilioEst = getDomicilioEstimate(firstItem);
+                          {/* Formulario de campos */}
+                          <div className="p-3.5 bg-white rounded-xl border border-stone-200 space-y-3 shadow-2xs">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                              <div>
+                                <label className="block text-[10px] font-black text-stone-700 uppercase mb-1">
+                                  Nombre *
+                                </label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={currentDetails.nombre}
+                                  onChange={(e) =>
+                                    handleShippingFieldChange(sellerId, 'nombre', e.target.value)
+                                  }
+                                  placeholder="Ej. Ane"
+                                  className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-[10px] font-black text-stone-700 uppercase mb-1">
+                                  Apellidos *
+                                </label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={currentDetails.apellidos}
+                                  onChange={(e) =>
+                                    handleShippingFieldChange(sellerId, 'apellidos', e.target.value)
+                                  }
+                                  placeholder="Ej. Goikoetxea"
+                                  className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                              <div className="sm:col-span-6">
+                                <label className="block text-[10px] font-black text-stone-700 uppercase mb-1">
+                                  Calle / Avenida *
+                                </label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={currentDetails.calle}
+                                  onChange={(e) =>
+                                    handleShippingFieldChange(sellerId, 'calle', e.target.value)
+                                  }
+                                  placeholder="Ej. Gran Vía"
+                                  className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                                />
+                              </div>
+
+                              <div className="sm:col-span-2">
+                                <label className="block text-[10px] font-black text-stone-700 uppercase mb-1">
+                                  Nº *
+                                </label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={currentDetails.numero}
+                                  onChange={(e) =>
+                                    handleShippingFieldChange(sellerId, 'numero', e.target.value)
+                                  }
+                                  placeholder="14"
+                                  className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                                />
+                              </div>
+
+                              <div className="sm:col-span-2">
+                                <label className="block text-[10px] font-black text-stone-700 uppercase mb-1">
+                                  Piso
+                                </label>
+                                <input
+                                  type="text"
+                                  value={currentDetails.piso}
+                                  onChange={(e) =>
+                                    handleShippingFieldChange(sellerId, 'piso', e.target.value)
+                                  }
+                                  placeholder="3º"
+                                  className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                                />
+                              </div>
+
+                              <div className="sm:col-span-2">
+                                <label className="block text-[10px] font-black text-stone-700 uppercase mb-1">
+                                  Puerta
+                                </label>
+                                <input
+                                  type="text"
+                                  value={currentDetails.puerta}
+                                  onChange={(e) =>
+                                    handleShippingFieldChange(sellerId, 'puerta', e.target.value)
+                                  }
+                                  placeholder="B"
+                                  className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                              <div>
+                                <label className="block text-[10px] font-black text-stone-700 uppercase mb-1">
+                                  Código Postal *
+                                </label>
+                                <input
+                                  type="text"
+                                  required
+                                  maxLength={5}
+                                  value={currentDetails.codigoPostal}
+                                  onChange={(e) =>
+                                    handleShippingFieldChange(sellerId, 'codigoPostal', e.target.value)
+                                  }
+                                  placeholder="48001"
+                                  className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-[10px] font-black text-stone-700 uppercase mb-1">
+                                  Población *
+                                </label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={currentDetails.poblacion}
+                                  onChange={(e) =>
+                                    handleShippingFieldChange(sellerId, 'poblacion', e.target.value)
+                                  }
+                                  placeholder="Bilbao"
+                                  className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-[10px] font-black text-stone-700 uppercase mb-1">
+                                  Provincia *
+                                </label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={currentDetails.provincia}
+                                  onChange={(e) =>
+                                    handleShippingFieldChange(sellerId, 'provincia', e.target.value)
+                                  }
+                                  placeholder="Bizkaia"
+                                  className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                              <div>
+                                <label className="block text-[10px] font-black text-stone-700 uppercase mb-1">
+                                  Teléfono
+                                </label>
+                                <input
+                                  type="tel"
+                                  value={currentDetails.telefono}
+                                  onChange={(e) =>
+                                    handleShippingFieldChange(sellerId, 'telefono', e.target.value)
+                                  }
+                                  placeholder="600 123 456"
+                                  className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-[10px] font-black text-stone-700 uppercase mb-1">
+                                  Instrucciones (Opcional)
+                                </label>
+                                <input
+                                  type="text"
+                                  value={currentDetails.instrucciones}
+                                  onChange={(e) =>
+                                    handleShippingFieldChange(sellerId, 'instrucciones', e.target.value)
+                                  }
+                                  placeholder="Dejar en portería..."
+                                  className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="pt-2 border-t border-stone-100 flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[11px] font-bold text-stone-700">Guardar como favorita:</span>
+                                <input
+                                  type="text"
+                                  value={newAddressLabel}
+                                  onChange={(e) => setNewAddressLabel(e.target.value)}
+                                  placeholder="Etiqueta"
+                                  className="w-28 px-2.5 py-1 border border-stone-300 rounded-lg text-xs font-bold bg-stone-50 text-stone-900"
+                                />
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => handleSaveFavoriteAddress(sellerId)}
+                                disabled={!currentDetails.calle.trim()}
+                                className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40 text-white text-xs font-black rounded-xl transition-colors flex items-center gap-1.5 shadow-sm"
+                              >
+                                <Bookmark className="w-3.5 h-3.5" />
+                                <span>Guardar en Favoritas</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return null;
+                  };
+
+                  if (isSeparatedView) {
+                    // Vista de entregas separadas por modalidad
+                    return (
+                      <div className="space-y-6">
+                        {distinctTypes.map((dType) => {
+                          const subItems = group.items.filter(
+                            (it) => normalizeDeliveryType(it.selectedDeliveryType) === dType
+                          );
+                          if (subItems.length === 0) return null;
+
+                          const subTotal = subItems.reduce(
+                            (sum, it) => sum + it.unitPrice * (Number(it.quantity) || 1),
+                            0
+                          );
+
+                          return (
+                            <div
+                              key={dType}
+                              className="p-4 sm:p-5 rounded-3xl border-2 border-stone-200 bg-white space-y-3.5 shadow-2xs"
+                            >
+                              {/* Título de la sub-entrega */}
+                              <div className="flex items-center justify-between pb-2 border-b border-stone-200">
+                                <div className="flex items-center gap-2 font-black text-xs sm:text-sm text-stone-900">
+                                  {dType === 'caserio' && (
+                                    <>
+                                      <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                        <Store className="w-4 h-4" />
+                                      </span>
+                                      <span>Entrega 1: Recogida en Caserío</span>
+                                    </>
+                                  )}
+                                  {dType === 'sitio_fisico' && (
+                                    <>
+                                      <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                        <MapPin className="w-4 h-4" />
+                                      </span>
+                                      <span>Entrega 2: Punto de Entrega Físico</span>
+                                    </>
+                                  )}
+                                  {dType === 'envio' && (
+                                    <>
+                                      <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                        <Truck className="w-4 h-4" />
+                                      </span>
+                                      <span>Entrega 3: Envío a Domicilio</span>
+                                    </>
+                                  )}
+                                </div>
+
+                                <span className="text-xs font-black text-emerald-950 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200">
+                                  {subTotal.toFixed(2)} € ({subItems.length} {subItems.length === 1 ? 'producto' : 'productos'})
+                                </span>
+                              </div>
+
+                              {/* Lista de productos de esta modalidad */}
+                              <div className="space-y-2">
+                                {subItems.map(renderProductRow)}
+                              </div>
+
+                              {/* Cuadro de configuración para esta modalidad */}
+                              {renderDeliveryConfigBox(dType, `${sellerId}_${dType}`)}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  }
+
+                  // Vista estándar / unificada
+                  const effectiveType = hasMultipleDeliveryTypes && unifyDeliveryMode === 'unificado' ? unifiedType : distinctTypes[0] || 'caserio';
 
                   return (
-                    <div className="p-4 sm:p-5 bg-stone-100/70 rounded-3xl border border-stone-200 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <label className="block text-xs font-black text-stone-900 uppercase tracking-wider">
-                          Modalidad de Entrega para este Caserío:
-                        </label>
-                        <span className="text-[10px] font-bold text-stone-500">
-                          {allowedMethods.size} {allowedMethods.size === 1 ? 'modalidad disponible' : 'modalidades disponibles'}
-                        </span>
+                    <div className="space-y-4">
+                      <div className="space-y-2.5">
+                        {group.items.map(renderProductRow)}
                       </div>
 
-                      <div className="space-y-3">
-                        {/* 1. Caserío */}
-                        {allowsCaserio && (
-                          <div
-                            onClick={() => handleDeliveryTypeChange(sellerId, 'caserio')}
-                            className={`p-3.5 rounded-2xl border-2 transition-all cursor-pointer space-y-2 ${
-                              config.deliveryType === 'caserio'
-                                ? 'border-emerald-700 bg-white ring-2 ring-emerald-600 shadow-sm'
-                                : 'border-stone-200 bg-white/70 hover:bg-white text-stone-700'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="flex items-center gap-2 text-xs font-black text-stone-900">
-                                <Store className="w-4 h-4 text-emerald-800" />
-                                <span>Recogida en Caserío</span>
-                              </span>
-                              <input
-                                type="radio"
-                                name={`delivery_type_${sellerId}`}
-                                checked={config.deliveryType === 'caserio'}
-                                onChange={() => handleDeliveryTypeChange(sellerId, 'caserio')}
-                                className="w-4 h-4 text-emerald-700 cursor-pointer"
-                              />
-                            </div>
-
-                            {/* Estimación y Datos de Caserío */}
-                            <div className="p-2.5 bg-emerald-50/80 rounded-xl border border-emerald-200 text-xs text-stone-800 space-y-1 shadow-sm">
-                              <div className="flex items-center gap-1.5 text-emerald-800 text-[10px] uppercase font-black">
-                                <Clock className="w-3 h-3 shrink-0" />
-                                <span>Entrega Prevista:</span>
-                              </div>
-                              <p className="text-stone-900 font-extrabold capitalize text-xs">
-                                {caserioEst.dateStr}
-                              </p>
-                              <div className="flex items-center gap-2 pt-0.5">
-                                {(() => {
-                                  const caserioPt = (sellerDeliveryPoints[sellerId] || []).find((p) => p.type === 'caserio');
-                                  return caserioPt?.image_url ? (
-                                    <img
-                                      src={caserioPt.image_url}
-                                      alt={caserioPt.name}
-                                      className="w-10 h-10 rounded-lg object-cover border border-stone-200 shrink-0"
-                                    />
-                                  ) : null;
-                                })()}
-                                <p className="text-stone-600 font-semibold text-[11px]">
-                                  🏡 Instalaciones del caserío en {group.sellerTown}.
-                                </p>
-                              </div>
-                              {firstItem.caserioSchedule && (
-                                <p className="text-emerald-950 font-bold text-[10px]">
-                                  🕒 Horario habitual: {firstItem.caserioSchedule}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* 2. Punto de Entrega */}
-                        {allowsPunto && (
-                          <div
-                            onClick={() => handleDeliveryTypeChange(sellerId, 'sitio_fisico')}
-                            className={`p-3.5 rounded-2xl border-2 transition-all cursor-pointer space-y-2 ${
-                              config.deliveryType === 'sitio_fisico'
-                                ? 'border-emerald-700 bg-white ring-2 ring-emerald-600 shadow-sm'
-                                : 'border-stone-200 bg-white/70 hover:bg-white text-stone-700'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="flex items-center gap-2 text-xs font-black text-stone-900">
-                                <MapPin className="w-4 h-4 text-emerald-800" />
-                                <span>Punto de Entrega</span>
-                              </span>
-                              <input
-                                type="radio"
-                                name={`delivery_type_${sellerId}`}
-                                checked={config.deliveryType === 'sitio_fisico'}
-                                onChange={() => handleDeliveryTypeChange(sellerId, 'sitio_fisico')}
-                                className="w-4 h-4 text-emerald-700 cursor-pointer"
-                              />
-                            </div>
-
-                            {/* Estimación y Datos de Punto de Entrega */}
-                            <div className="p-2.5 bg-emerald-50/80 rounded-xl border border-emerald-200 text-xs text-stone-800 space-y-1.5 shadow-sm">
-                              <div className="flex items-center gap-1.5 text-emerald-800 text-[10px] uppercase font-black">
-                                <Clock className="w-3 h-3 shrink-0" />
-                                <span>Entrega Prevista:</span>
-                              </div>
-                              <p className="text-stone-900 font-extrabold capitalize text-xs">
-                                {puntoEst.dateStr}
-                              </p>
-
-                              {physicalPoints.length > 1 ? (
-                                <div className="pt-1" onClick={(e) => e.stopPropagation()}>
-                                  <label className="block text-[10px] font-bold text-stone-700 mb-1">
-                                    Selecciona el punto de entrega:
-                                  </label>
-                                  <select
-                                    value={config.deliveryPointId || physicalPoints[0]?.id}
-                                    onChange={(e) => handleDeliveryPointChange(sellerId, e.target.value)}
-                                    className="w-full px-3 py-1.5 border border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-                                  >
-                                    {physicalPoints.map((pt) => (
-                                      <option key={pt.id} value={pt.id}>
-                                        {pt.name} - {pt.town} ({pt.address_details})
-                                      </option>
-                                    ))}
-                                  </select>
-                                </div>
-                              ) : physicalPoints.length === 1 ? (
-                                <div className="flex items-start gap-2.5 pt-1 text-[11px] text-stone-600">
-                                  {physicalPoints[0].image_url ? (
-                                    <img
-                                      src={physicalPoints[0].image_url}
-                                      alt={physicalPoints[0].name}
-                                      className="w-10 h-10 rounded-lg object-cover border border-stone-200 shrink-0"
-                                    />
-                                  ) : null}
-                                  <div className="space-y-0.5">
-                                    <p className="font-bold text-stone-900">{physicalPoints[0].name} ({physicalPoints[0].town})</p>
-                                    <p>{physicalPoints[0].address_details}</p>
-                                    {physicalPoints[0].schedule_notes && (
-                                      <p className="text-[10px] text-amber-900 font-bold">🕒 {physicalPoints[0].schedule_notes}</p>
-                                    )}
-                                  </div>
-                                </div>
-                              ) : (
-                                <p className="text-[11px] text-stone-600">Punto físico acordado con el caserío ({group.sellerTown}).</p>
-                              )}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* 3. Envío a Domicilio */}
-                        {allowsEnvio && (
-                          <div
-                            onClick={() => handleDeliveryTypeChange(sellerId, 'envio')}
-                            className={`p-3.5 rounded-2xl border-2 transition-all cursor-pointer space-y-2 ${
-                              config.deliveryType === 'envio'
-                                ? 'border-emerald-700 bg-white ring-2 ring-emerald-600 shadow-sm'
-                                : 'border-stone-200 bg-white/70 hover:bg-white text-stone-700'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="flex items-center gap-2 text-xs font-black text-stone-900">
-                                <Truck className="w-4 h-4 text-emerald-800" />
-                                <span>Envío a Domicilio</span>
-                              </span>
-                              <input
-                                type="radio"
-                                name={`delivery_type_${sellerId}`}
-                                checked={config.deliveryType === 'envio'}
-                                onChange={() => handleDeliveryTypeChange(sellerId, 'envio')}
-                                className="w-4 h-4 text-emerald-700 cursor-pointer"
-                              />
-                            </div>
-
-                            {/* Estimación y Datos de Domicilio */}
-                            <div className="p-2.5 bg-emerald-50/80 rounded-xl border border-emerald-200 text-xs text-stone-800 space-y-2 shadow-sm">
-                              <div className="flex items-center gap-1.5 text-emerald-800 text-[10px] uppercase font-black">
-                                <Clock className="w-3 h-3 shrink-0" />
-                                <span>Entrega Prevista:</span>
-                              </div>
-                              <p className="text-stone-900 font-extrabold capitalize text-xs">
-                                {domicilioEst.dateStr}
-                              </p>
-                              {domicilioEst.detailLead && (
-                                <p className="text-stone-600 font-semibold text-[11px]">
-                                  🚚 Reparto directo ({domicilioEst.detailLead})
-                                </p>
-                              )}
-
-                              {/* Formulario Completo de Dirección y Mis Direcciones Favoritas si Envío a Domicilio está seleccionado */}
-                              {config.deliveryType === 'envio' && (() => {
-                                const currentDetails = shippingForms[sellerId] || defaultShippingDetails;
-
-                                return (
-                                  <div className="space-y-3 pt-2 border-t border-emerald-200/70" onClick={(e) => e.stopPropagation()}>
-                                    {/* 1. Selector de Mis Direcciones Favoritas */}
-                                    {savedAddresses.length > 0 && (
-                                      <div className="space-y-1.5 p-3 bg-white rounded-2xl border border-emerald-200 shadow-sm">
-                                        <label className="text-[11px] font-black text-stone-800 flex items-center gap-1.5 uppercase tracking-wider">
-                                          <Bookmark className="w-3.5 h-3.5 text-emerald-700" />
-                                          <span>⭐ Mis Direcciones Favoritas:</span>
-                                        </label>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                                          {savedAddresses.map((sa) => {
-                                            const isSelected =
-                                              (currentDetails.calle && sa.calle === currentDetails.calle) ||
-                                              sa.address === config.shippingAddress;
-                                            return (
-                                              <button
-                                                type="button"
-                                                key={sa.id}
-                                                onClick={() => handleApplySavedAddress(sellerId, sa)}
-                                                className={`p-2.5 rounded-xl text-left text-xs transition-all border flex flex-col justify-between gap-0.5 ${
-                                                  isSelected
-                                                    ? 'bg-emerald-800 text-white border-emerald-900 shadow-sm'
-                                                    : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
-                                                }`}
-                                              >
-                                                <span className="font-black flex items-center gap-1">
-                                                  <span>🏠 {sa.label}</span>
-                                                  {isSelected && (
-                                                    <span className="text-[10px] ml-auto bg-white/20 px-1.5 py-0.5 rounded font-bold">
-                                                      Activa
-                                                    </span>
-                                                  )}
-                                                </span>
-                                                <span className={`text-[11px] truncate ${isSelected ? 'text-emerald-100' : 'text-stone-600'}`}>
-                                                  {sa.calle || sa.address} {sa.poblacion ? `(${sa.poblacion})` : ''}
-                                                </span>
-                                              </button>
-                                            );
-                                          })}
-                                        </div>
-                                      </div>
-                                    )}
-
-                                    {/* 2. Todos los 9 campos individuales para el envío a domicilio */}
-                                    <div className="p-3.5 bg-white rounded-2xl border border-stone-200 space-y-3 shadow-sm">
-                                      <div className="text-xs font-black text-stone-900 flex items-center gap-1.5">
-                                        <Truck className="w-4 h-4 text-emerald-700" />
-                                        <span>Datos para el Envío a Domicilio:</span>
-                                      </div>
-
-                                      {/* Fila 1: Nombre y Apellidos */}
-                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                                        <div>
-                                          <label className="block text-[10px] font-black text-stone-700 uppercase mb-1">
-                                            Nombre *
-                                          </label>
-                                          <input
-                                            type="text"
-                                            required
-                                            value={currentDetails.nombre}
-                                            onChange={(e) => handleShippingFieldChange(sellerId, 'nombre', e.target.value)}
-                                            placeholder="Ej. Ane"
-                                            className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-                                          />
-                                        </div>
-
-                                        <div>
-                                          <label className="block text-[10px] font-black text-stone-700 uppercase mb-1">
-                                            Apellidos *
-                                          </label>
-                                          <input
-                                            type="text"
-                                            required
-                                            value={currentDetails.apellidos}
-                                            onChange={(e) => handleShippingFieldChange(sellerId, 'apellidos', e.target.value)}
-                                            placeholder="Ej. Goikoetxea Uriarte"
-                                            className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-                                          />
-                                        </div>
-                                      </div>
-
-                                      {/* Fila 2: Calle, Número, Piso, Puerta */}
-                                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
-                                        <div className="sm:col-span-6">
-                                          <label className="block text-[10px] font-black text-stone-700 uppercase mb-1">
-                                            Calle / Avenida / Plaza *
-                                          </label>
-                                          <input
-                                            type="text"
-                                            required
-                                            value={currentDetails.calle}
-                                            onChange={(e) => handleShippingFieldChange(sellerId, 'calle', e.target.value)}
-                                            placeholder="Ej. Gran Vía"
-                                            className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-                                          />
-                                        </div>
-
-                                        <div className="sm:col-span-2">
-                                          <label className="block text-[10px] font-black text-stone-700 uppercase mb-1">
-                                            Número *
-                                          </label>
-                                          <input
-                                            type="text"
-                                            required
-                                            value={currentDetails.numero}
-                                            onChange={(e) => handleShippingFieldChange(sellerId, 'numero', e.target.value)}
-                                            placeholder="Ej. 14"
-                                            className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-                                          />
-                                        </div>
-
-                                        <div className="sm:col-span-2">
-                                          <label className="block text-[10px] font-black text-stone-700 uppercase mb-1">
-                                            Piso
-                                          </label>
-                                          <input
-                                            type="text"
-                                            value={currentDetails.piso}
-                                            onChange={(e) => handleShippingFieldChange(sellerId, 'piso', e.target.value)}
-                                            placeholder="Ej. 3º"
-                                            className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-                                          />
-                                        </div>
-
-                                        <div className="sm:col-span-2">
-                                          <label className="block text-[10px] font-black text-stone-700 uppercase mb-1">
-                                            Puerta
-                                          </label>
-                                          <input
-                                            type="text"
-                                            value={currentDetails.puerta}
-                                            onChange={(e) => handleShippingFieldChange(sellerId, 'puerta', e.target.value)}
-                                            placeholder="Ej. B / Izq"
-                                            className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-                                          />
-                                        </div>
-                                      </div>
-
-                                      {/* Fila 3: Código Postal, Población, Provincia */}
-                                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                                        <div>
-                                          <label className="block text-[10px] font-black text-stone-700 uppercase mb-1">
-                                            Código Postal (CP) *
-                                          </label>
-                                          <input
-                                            type="text"
-                                            required
-                                            maxLength={5}
-                                            value={currentDetails.codigoPostal}
-                                            onChange={(e) => handleShippingFieldChange(sellerId, 'codigoPostal', e.target.value)}
-                                            placeholder="Ej. 48001"
-                                            className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-                                          />
-                                        </div>
-
-                                        <div>
-                                          <label className="block text-[10px] font-black text-stone-700 uppercase mb-1">
-                                            Población / Municipio *
-                                          </label>
-                                          <input
-                                            type="text"
-                                            required
-                                            value={currentDetails.poblacion}
-                                            onChange={(e) => handleShippingFieldChange(sellerId, 'poblacion', e.target.value)}
-                                            placeholder="Ej. Bilbao"
-                                            className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-                                          />
-                                        </div>
-
-                                        <div>
-                                          <label className="block text-[10px] font-black text-stone-700 uppercase mb-1">
-                                            Provincia *
-                                          </label>
-                                          <input
-                                            type="text"
-                                            required
-                                            value={currentDetails.provincia}
-                                            onChange={(e) => handleShippingFieldChange(sellerId, 'provincia', e.target.value)}
-                                            placeholder="Ej. Bizkaia"
-                                            className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-                                          />
-                                        </div>
-                                      </div>
-
-                                      {/* Fila 4: Teléfono e Instrucciones */}
-                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                                        <div>
-                                          <label className="block text-[10px] font-black text-stone-700 uppercase mb-1">
-                                            Teléfono de Contacto (para el repartidor)
-                                          </label>
-                                          <input
-                                            type="tel"
-                                            value={currentDetails.telefono}
-                                            onChange={(e) => handleShippingFieldChange(sellerId, 'telefono', e.target.value)}
-                                            placeholder="Ej. 600 123 456"
-                                            className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-                                          />
-                                        </div>
-
-                                        <div>
-                                          <label className="block text-[10px] font-black text-stone-700 uppercase mb-1">
-                                            Instrucciones para la entrega (Opcional)
-                                          </label>
-                                          <input
-                                            type="text"
-                                            value={currentDetails.instrucciones}
-                                            onChange={(e) => handleShippingFieldChange(sellerId, 'instrucciones', e.target.value)}
-                                            placeholder="Ej. Dejar en conserjería..."
-                                            className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-                                          />
-                                        </div>
-                                      </div>
-
-                                      {/* Guardar en mis direcciones favoritas */}
-                                      <div className="pt-2 border-t border-stone-100 flex flex-wrap items-center justify-between gap-2">
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-[11px] font-bold text-stone-700">Guardar como favorita:</span>
-                                          <input
-                                            type="text"
-                                            value={newAddressLabel}
-                                            onChange={(e) => setNewAddressLabel(e.target.value)}
-                                            placeholder="Etiqueta (ej. Casa, Trabajo)"
-                                            className="w-36 px-2.5 py-1 border border-stone-300 rounded-lg text-xs font-bold bg-stone-50 text-stone-900 focus:outline-none focus:ring-1 focus:ring-emerald-600"
-                                          />
-                                        </div>
-
-                                        <button
-                                          type="button"
-                                          onClick={() => handleSaveFavoriteAddress(sellerId)}
-                                          disabled={!currentDetails.calle.trim()}
-                                          className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40 text-white text-xs font-black rounded-xl transition-colors flex items-center gap-1.5 shadow-sm"
-                                        >
-                                          <Bookmark className="w-3.5 h-3.5" />
-                                          <span>Guardar en Favoritas</span>
-                                        </button>
-                                      </div>
-                                    </div>
-                                  </div>
-                                );
-                              })()}
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                      {renderDeliveryConfigBox(effectiveType)}
                     </div>
                   );
                 })()}
@@ -1453,9 +1506,9 @@ export default function CartPage() {
                     </div>
                   );
                 })()}
-          </div>
-        );
-      })}
+              </div>
+            );
+          })}
         </div>
 
         {/* Columna Derecha: Resumen Global de la Cesta */}
@@ -1498,22 +1551,29 @@ export default function CartPage() {
       {showSummaryModal && activeCheckoutSellerId && groupedBySeller[activeCheckoutSellerId] && (() => {
         const sId = activeCheckoutSellerId;
         const group = groupedBySeller[sId];
-        const config = getSellerConfig(sId);
+        const unifyMode = deliveryUnifyModes[sId] || 'separadas';
+        const dateMode = dateGroupModes[sId] || 'individual';
+        const distinctTypes = Array.from(
+          new Set(group.items.map((i) => normalizeDeliveryType(i.selectedDeliveryType)))
+        );
+        const hasMultipleTypes = distinctTypes.length > 1;
         const physicalPoints = (sellerDeliveryPoints[sId] || []).filter(
           (p) => p.type === 'sitio_fisico'
         );
-        const pointObj = physicalPoints.find((p) => p.id === config.deliveryPointId);
 
-        const datesMs = group.items
-          .map((i) => (i.estimatedDeliveryDate ? new Date(i.estimatedDeliveryDate).getTime() : 0))
-          .filter((t) => t > 0);
-        const maxDateMs = datesMs.length > 0 ? Math.max(...datesMs) : 0;
-        const unifiedDateObj = maxDateMs > 0 ? new Date(maxDateMs) : null;
+        const commonMethods = getCommonDeliveryMethods(group.items);
+        const unifiedType = unifiedDeliveryTypes[sId] || commonMethods[0] || 'caserio';
+
+        const details = shippingForms[sId] || defaultShippingDetails;
+        const computedShippingAddress = formatFullAddress(details) || savedAddresses[0]?.address || 'Dirección indicada';
 
         const sellerTotal = group.items.reduce(
           (sum, it) => sum + it.unitPrice * (Number(it.quantity) || 1),
           0
         );
+
+        const isSeparated = hasMultipleTypes && unifyMode === 'separadas';
+        const effectiveType = hasMultipleTypes && unifyMode === 'unificado' ? unifiedType : distinctTypes[0] || 'caserio';
 
         return (
           <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
@@ -1543,91 +1603,82 @@ export default function CartPage() {
                 </button>
               </div>
 
-              {/* Detalle del caserío */}
-              <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200 space-y-3 text-xs">
-                <div className="flex justify-between font-black text-stone-900">
-                  <span>🏡 {group.sellerName}</span>
-                  <span className="text-emerald-800">{group.sellerTown}</span>
-                </div>
+              {/* Detalle del pedido / sub-pedidos */}
+              <div className="space-y-3">
+                {isSeparated ? (
+                  <div className="space-y-3">
+                    <div className="p-3 bg-sky-50 rounded-2xl border border-sky-200 text-xs font-bold text-sky-950 flex items-center gap-2">
+                      <Split className="w-4 h-4 text-sky-800 shrink-0" />
+                      <span>Se tramitarán {distinctTypes.length} pedidos separados con este caserío:</span>
+                    </div>
 
-                <div className="pl-2 border-l-2 border-emerald-600 space-y-1">
-                  <div className="font-bold text-stone-800">
-                    Modalidad de Entrega:{' '}
-                    <span className="font-black text-emerald-900">
-                      {config?.deliveryType === 'caserio'
-                        ? 'Recogida en Caserío'
-                        : config?.deliveryType === 'sitio_fisico'
-                        ? `Punto de Entrega (${pointObj?.name || 'Punto acordado'})`
-                        : `Envío a Domicilio (${config?.shippingAddress})`}
-                    </span>
-                  </div>
+                    {distinctTypes.map((dType, idx) => {
+                      const subItems = group.items.filter(
+                        (it) => normalizeDeliveryType(it.selectedDeliveryType) === dType
+                      );
+                      const subTotal = subItems.reduce(
+                        (sum, it) => sum + it.unitPrice * (Number(it.quantity) || 1),
+                        0
+                      );
+                      const ptId = selectedPoints[`${sId}_${dType}`] || selectedPoints[sId] || subItems[0]?.selectedPointId || physicalPoints[0]?.id;
+                      const ptObj = physicalPoints.find((p) => p.id === ptId);
 
-                  <div className="text-stone-600 font-semibold">
-                    Plan de entrega:{' '}
-                    {config?.groupMode === 'junto_tardio'
-                      ? 'Entrega agrupada en la fecha calculada'
-                      : 'Entregas individuales según disponibilidad'}
-                  </div>
-                </div>
+                      return (
+                        <div key={dType} className="p-4 bg-stone-50 rounded-2xl border border-stone-200 space-y-2 text-xs">
+                          <div className="flex justify-between font-black text-stone-900 pb-1 border-b border-stone-200">
+                            <span>Pedido {idx + 1}: {dType === 'caserio' ? '🏡 Recogida en Caserío' : dType === 'sitio_fisico' ? `📍 Punto de Entrega (${ptObj?.name || 'Punto acordado'})` : `🚚 Envío a Domicilio`}</span>
+                            <span className="text-emerald-900">{subTotal.toFixed(2)} €</span>
+                          </div>
 
-                {/* Lista de productos de este caserío */}
-                <div className="pt-2 border-t border-stone-200 space-y-2 font-semibold text-stone-700">
-                  {group.items.map((it) => {
-                    const itKey =
-                      it.cartItemId ||
-                      `${it.productId}_${it.selectedDeliveryType || 'caserio'}_${it.selectedPointId || 'none'}`;
-
-                    const dateToDisplay =
-                      config.groupMode === 'junto_tardio' && unifiedDateObj
-                        ? unifiedDateObj.toISOString()
-                        : it.estimatedDeliveryDate;
-
-                    return (
-                      <div
-                        key={itKey}
-                        className="flex items-center justify-between gap-3 bg-white p-2.5 rounded-xl border border-stone-200"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          {it.imageUrl ? (
-                            <img
-                              src={it.imageUrl}
-                              alt={it.name}
-                              className="w-11 h-11 rounded-lg object-cover border border-stone-200 shrink-0"
-                            />
-                          ) : (
-                            <div className="w-11 h-11 rounded-lg bg-emerald-50 text-emerald-800 font-bold flex items-center justify-center text-[10px] shrink-0 border border-emerald-200">
-                              km0
-                            </div>
-                          )}
-
-                          <div>
-                            <span className="font-black text-stone-900 block leading-tight">
-                              {it.name}
-                            </span>
-                            <span className="text-[11px] font-bold text-stone-500">
-                              {it.quantity} {it.format === 'granel' ? 'kg' : 'uds'} x {it.unitPrice.toFixed(2)} €
-                            </span>
-
-                            {dateToDisplay ? (
-                              <span className="text-[10px] text-emerald-900 font-bold block">
-                                📅 Entrega prevista:{' '}
-                                {new Date(dateToDisplay).toLocaleDateString('es-ES', {
-                                  weekday: 'long',
-                                  day: 'numeric',
-                                  month: 'long',
-                                })}
-                              </span>
-                            ) : null}
+                          <div className="space-y-1 text-[11px] text-stone-700">
+                            {subItems.map((it) => (
+                              <div key={it.productId} className="flex justify-between">
+                                <span>• {it.name} ({it.quantity} {it.format === 'granel' ? 'kg' : 'uds'})</span>
+                                <span className="font-bold">{(it.unitPrice * it.quantity).toFixed(2)} €</span>
+                              </div>
+                            ))}
                           </div>
                         </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200 space-y-3 text-xs">
+                    <div className="flex justify-between font-black text-stone-900">
+                      <span>🏡 {group.sellerName}</span>
+                      <span className="text-emerald-800">{group.sellerTown}</span>
+                    </div>
 
-                        <span className="font-black text-stone-900 text-xs shrink-0">
-                          {(it.unitPrice * it.quantity).toFixed(2)} €
+                    <div className="pl-2 border-l-2 border-emerald-600 space-y-1">
+                      <div className="font-bold text-stone-800">
+                        Modalidad de Entrega:{' '}
+                        <span className="font-black text-emerald-900">
+                          {effectiveType === 'caserio'
+                            ? 'Recogida en Caserío'
+                            : effectiveType === 'sitio_fisico'
+                            ? `Punto de Entrega (${physicalPoints.find((p) => p.id === selectedPoints[sId])?.name || physicalPoints[0]?.name || 'Punto acordado'})`
+                            : `Envío a Domicilio (${computedShippingAddress})`}
                         </span>
                       </div>
-                    );
-                  })}
-                </div>
+
+                      <div className="text-stone-600 font-semibold">
+                        Plan de entrega:{' '}
+                        {dateMode === 'junto_tardio'
+                          ? 'Entrega agrupada en la fecha calculada'
+                          : 'Entregas individuales según disponibilidad'}
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-stone-200 space-y-1.5 text-stone-700 text-[11px]">
+                      {group.items.map((it) => (
+                        <div key={it.productId} className="flex justify-between">
+                          <span>• {it.name} ({it.quantity} {it.format === 'granel' ? 'kg' : 'uds'})</span>
+                          <span className="font-bold">{(it.unitPrice * it.quantity).toFixed(2)} €</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Total individual a confirmar */}
