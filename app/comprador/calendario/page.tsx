@@ -8,6 +8,7 @@ interface OrderWithSellerAndItems extends Order {
     id: string;
     full_name: string;
     town: string;
+    address?: string | null;
     avatar_url?: string | null;
   } | null;
   delivery_points?: {
@@ -40,7 +41,7 @@ export default async function BuyerCalendarPage() {
     .from('orders')
     .select(`
       *,
-      profiles!orders_seller_id_fkey(id, full_name, town, avatar_url),
+      profiles!orders_seller_id_fkey(id, full_name, town, address, avatar_url),
       delivery_points(name, address_details, opening_time, closing_time, schedule_notes),
       order_items(*, products(id, name, format, price, image_url, delivery_methods))
     `)
@@ -78,6 +79,10 @@ export default async function BuyerCalendarPage() {
         ? `Envío: ${ord.shipping_address?.replace(/^Para:\s*/i, '')}`
         : 'Recogida en caserío';
 
+      const sellerAddr = ord.profiles?.address
+        ? `${ord.profiles.address}${ord.profiles.town ? `, ${ord.profiles.town}` : ''}`
+        : ord.profiles?.town || '';
+
       const scheduleStr = ord.delivery_points?.opening_time && ord.delivery_points?.closing_time
         ? `${ord.delivery_points.opening_time} - ${ord.delivery_points.closing_time}`
         : ord.delivery_points?.schedule_notes || null;
@@ -91,6 +96,7 @@ export default async function BuyerCalendarPage() {
         amount: Number(ord.total_amount),
         sellerName: ord.profiles?.full_name,
         sellerAvatarUrl: ord.profiles?.avatar_url || null,
+        sellerAddress: sellerAddr,
         deliveryType: dType,
         deliveryLocation: dLoc,
         deliverySchedule: scheduleStr,

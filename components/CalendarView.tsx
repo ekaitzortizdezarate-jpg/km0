@@ -36,6 +36,7 @@ export interface CalendarEvent {
   customerAvatarUrl?: string | null;
   sellerName?: string;
   sellerAvatarUrl?: string | null;
+  sellerAddress?: string | null;
   deliveryType?: string;
   deliveryLocation?: string;
   deliverySchedule?: string | null;
@@ -309,15 +310,34 @@ export function CalendarView({ events, role }: CalendarViewProps) {
                                 </div>
                               </div>
 
-                              {/* 3. TERCERA LÍNEA (Abajo del todo): Nombre y apellido, seguido de dirección de entrega si no es caserío */}
+                              {/* 3. TERCERA LÍNEA (Abajo del todo): */}
                               <div className="text-xs font-bold text-stone-900 pt-0.5">
                                 <span>{personName}</span>
 
-                                {/* Si no se recoge en caserío: seguido de dirección sin nombre ni apellidos */}
-                                {ev.deliveryType !== 'caserio' && addressText && (
-                                  <span className="text-stone-700 font-semibold ml-1.5">
-                                    • {addressText}
-                                  </span>
+                                {role === 'vendedor' ? (
+                                  /* Si el vendedor está viendo: si no es caserío, muestra dirección del comprador */
+                                  ev.deliveryType !== 'caserio' && addressText ? (
+                                    <span className="text-stone-700 font-semibold ml-1.5">
+                                      • {addressText}
+                                    </span>
+                                  ) : null
+                                ) : (
+                                  /* Si el comprador está viendo: */
+                                  <>
+                                    {/* Si es recogida en caserío: pone la dirección del vendedor o caserío */}
+                                    {ev.deliveryType === 'caserio' && (ev.sellerAddress || addressText) ? (
+                                      <span className="text-stone-700 font-semibold ml-1.5">
+                                        • {ev.sellerAddress || addressText}
+                                      </span>
+                                    ) : null}
+                                    {/* Si es punto de entrega: pone el punto de entrega */}
+                                    {ev.deliveryType === 'sitio_fisico' && addressText ? (
+                                      <span className="text-stone-700 font-semibold ml-1.5">
+                                        • {addressText}
+                                      </span>
+                                    ) : null}
+                                    {/* Si es envío a domicilio: que SOLO ponga el nombre del vendedor */}
+                                  </>
                                 )}
                               </div>
                             </div>

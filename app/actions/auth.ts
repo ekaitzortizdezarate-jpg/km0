@@ -74,3 +74,35 @@ export async function signout() {
   revalidatePath('/', 'layout');
   redirect('/login');
 }
+
+export async function changePassword(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: 'No autorizado.' };
+  }
+
+  const newPassword = formData.get('new_password') as string;
+  const confirmPassword = formData.get('confirm_password') as string;
+
+  if (!newPassword || newPassword.length < 6) {
+    return { error: 'La nueva contraseña debe tener al menos 6 caracteres.' };
+  }
+
+  if (newPassword !== confirmPassword) {
+    return { error: 'Las contraseñas no coinciden.' };
+  }
+
+  const { error } = await supabase.auth.updateUser({
+    password: newPassword,
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  return { success: true };
+}
