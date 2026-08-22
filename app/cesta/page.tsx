@@ -754,10 +754,10 @@ export default function CartPage() {
                       <Link
                         href={`/chat/${sellerId}`}
                         title="Chatear con el caserío"
-                        className="inline-flex items-center gap-1.5 bg-stone-100 hover:bg-stone-200 text-stone-900 font-black text-xs px-3.5 py-2 rounded-xl border border-stone-200 transition-colors shrink-0 shadow-sm"
+                        className="h-12 w-12 rounded-2xl bg-stone-100 hover:bg-stone-200 text-stone-900 flex flex-col items-center justify-center gap-0.5 border border-stone-200 transition-colors shrink-0 shadow-sm"
                       >
-                        <MessageCircle className="w-4 h-4 text-emerald-700" />
-                        <span>Chat</span>
+                        <MessageCircle className="w-4 h-4 text-emerald-700 shrink-0" />
+                        <span className="text-[9px] font-black uppercase leading-none">Chat</span>
                       </Link>
                     </div>
                   );
