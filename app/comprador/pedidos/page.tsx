@@ -17,7 +17,7 @@ export default async function BuyerOrdersPage() {
     .from('orders')
     .select(`
       *,
-      profiles!orders_seller_id_fkey(id, full_name, town, phone, avatar_url),
+      profiles!orders_seller_id_fkey(id, full_name, town, address, phone, avatar_url),
       delivery_points(name, town, address_details, opening_time, closing_time, schedule_notes),
       order_items(*, products(id, name, format, image_url))
     `)
@@ -148,28 +148,14 @@ export default async function BuyerOrdersPage() {
 
                 {/* 3, 4, 5, 6: Información estructurada de Pedido realizado, validado, fecha entrega y entrega */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs font-bold text-stone-800 bg-stone-50 p-3.5 rounded-2xl border border-stone-200">
-                  {/* 3. Pedido realizado: fecha y hora en la que se ha realizado */}
+                  {/* 3. Pedido realizado: fecha y hora con día de la semana */}
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4 text-stone-500 shrink-0" />
                     <span>
                       <strong className="text-stone-900">Pedido realizado:</strong>{' '}
-                      {new Date(order.created_at).toLocaleDateString('es-ES', {
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
-                  </div>
-
-                  {/* 4. Pedido validado: fecha en la que se ha validado por el vendedor (si ya lo está) */}
-                  {isValidated && (
-                    <div className="flex items-center gap-2 text-emerald-950">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
-                      <span>
-                        <strong className="text-stone-900">Pedido validado:</strong>{' '}
-                        {new Date(order.updated_at || order.created_at).toLocaleDateString('es-ES', {
+                      <span className="capitalize">
+                        {new Date(order.created_at).toLocaleDateString('es-ES', {
+                          weekday: 'long',
                           day: 'numeric',
                           month: 'long',
                           year: 'numeric',
@@ -177,62 +163,94 @@ export default async function BuyerOrdersPage() {
                           minute: '2-digit',
                         })}
                       </span>
+                    </span>
+                  </div>
+
+                  {/* 4. Pedido validado: fecha y hora con día de la semana (si ya lo está) */}
+                  {isValidated && (
+                    <div className="flex items-center gap-2 text-emerald-950">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+                      <span>
+                        <strong className="text-stone-900">Pedido validado:</strong>{' '}
+                        <span className="capitalize">
+                          {new Date(order.updated_at || order.created_at).toLocaleDateString('es-ES', {
+                            weekday: 'long',
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </span>
                     </div>
                   )}
 
-                  {/* 5. Fecha entrega: fecha en la que se hará la entrega (si está validado por el vendedor) */}
+                  {/* 5. Fecha entrega: fecha en la que se hará la entrega (con hora si no es domicilio) */}
                   {isValidated && order.estimated_delivery_date && (
                     <div className="flex items-center gap-2 text-emerald-950 sm:col-span-2 bg-emerald-100/70 p-2.5 rounded-xl border border-emerald-300">
                       <Calendar className="w-4 h-4 text-emerald-700 shrink-0" />
                       <span>
                         <strong className="text-stone-900">Fecha entrega:</strong>{' '}
-                        {new Date(order.estimated_delivery_date).toLocaleDateString('es-ES', {
-                          weekday: 'long',
-                          day: 'numeric',
-                          month: 'long',
-                          year: 'numeric',
-                        })}
+                        <span className="capitalize">
+                          {new Date(order.estimated_delivery_date).toLocaleDateString('es-ES', {
+                            weekday: 'long',
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric',
+                          })}
+                        </span>
+                        {order.delivery_points ? (
+                          order.delivery_points.opening_time && order.delivery_points.closing_time ? (
+                            <span className="font-bold ml-1.5 text-emerald-900">
+                              (de {order.delivery_points.opening_time} a {order.delivery_points.closing_time})
+                            </span>
+                          ) : order.delivery_points.schedule_notes ? (
+                            <span className="font-bold ml-1.5 text-emerald-900">
+                              ({order.delivery_points.schedule_notes})
+                            </span>
+                          ) : null
+                        ) : null}
                       </span>
                     </div>
                   )}
 
-                  {/* 6. Entrega: la opción de envio seleccionada y hora (la hora si no es envio a domicilio) */}
+                  {/* 6. Entrega: Recogida caserío / Punto de entrega / Envío a domicilio */}
                   <div className="flex items-start gap-2 sm:col-span-2 pt-1 border-t border-stone-200">
                     {order.delivery_points ? (
                       <>
                         <Store className="w-4 h-4 text-emerald-800 shrink-0 mt-0.5" />
-                        <div>
-                          <span>
-                            <strong className="text-stone-900">Entrega:</strong> Punto de recogida en{' '}
-                            <span className="font-semibold text-stone-700">
-                              {order.delivery_points.name} ({order.delivery_points.address_details || order.delivery_points.town})
-                            </span>
-                          </span>
+                        <div className="space-y-0.5">
+                          <strong className="text-stone-900 block">Punto de entrega:</strong>
+                          <p className="text-stone-700 font-semibold">
+                            {order.delivery_points.name} — {order.delivery_points.address_details} ({order.delivery_points.town})
+                          </p>
                           {(order.delivery_points.opening_time || order.delivery_points.schedule_notes) && (
-                            <span className="block text-[11px] text-emerald-900 font-bold mt-0.5">
-                              🕒 Hora:{' '}
+                            <p className="text-[11px] text-emerald-900 font-bold">
+                              🕒 Horario:{' '}
                               {order.delivery_points.opening_time && order.delivery_points.closing_time
                                 ? `de ${order.delivery_points.opening_time} a ${order.delivery_points.closing_time}`
                                 : order.delivery_points.schedule_notes}
-                            </span>
+                            </p>
                           )}
                         </div>
                       </>
                     ) : order.shipping_address ? (
                       <>
                         <Truck className="w-4 h-4 text-emerald-800 shrink-0 mt-0.5" />
-                        <span>
-                          <strong className="text-stone-900">Entrega:</strong> Envío a domicilio en{' '}
-                          <span className="font-semibold text-stone-700">{order.shipping_address}</span>
-                        </span>
+                        <div className="space-y-0.5">
+                          <strong className="text-stone-900 block">Envío a domicilio:</strong>
+                          <p className="text-stone-700 font-semibold">{order.shipping_address}</p>
+                        </div>
                       </>
                     ) : (
                       <>
                         <Store className="w-4 h-4 text-emerald-800 shrink-0 mt-0.5" />
-                        <div>
-                          <span>
-                            <strong className="text-stone-900">Entrega:</strong> Recogida directa en las instalaciones del caserío ({order.profiles?.town})
-                          </span>
+                        <div className="space-y-0.5">
+                          <strong className="text-stone-900 block">Recogida caserío:</strong>
+                          <p className="text-stone-700 font-semibold">
+                            {order.profiles?.address ? `${order.profiles.address}, ` : ''}{order.profiles?.town || 'Caserío del productor'}
+                          </p>
                         </div>
                       </>
                     )}
