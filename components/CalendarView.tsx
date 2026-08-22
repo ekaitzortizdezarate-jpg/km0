@@ -16,7 +16,6 @@ import {
   ArrowUpRight,
 } from 'lucide-react';
 import Link from 'next/link';
-import { DeliveryMethodsBadges } from '@/components/DeliveryMethodsBadges';
 
 export interface CalendarProductItem {
   name: string;
@@ -204,7 +203,7 @@ export function CalendarView({ events, role }: CalendarViewProps) {
                 </div>
 
                 {/* LISTA DE EVENTOS Y PRODUCTOS EN ESTA FECHA */}
-                <div className="space-y-2.5">
+                <div className="space-y-3">
                   {dateEvents.map((ev) => {
                     const isOrder = ev.type === 'order';
                     const stStyle = ev.status ? statusStyles[ev.status] : null;
@@ -212,61 +211,62 @@ export function CalendarView({ events, role }: CalendarViewProps) {
                     // Si es un pedido con varios productos, desglosamos cada producto
                     if (isOrder && ev.orderProducts && ev.orderProducts.length > 0) {
                       return ev.orderProducts.map((product, pIdx) => {
+                        const totalProductPrice = product.unitPrice
+                          ? product.unitPrice * product.quantity
+                          : null;
+
                         return (
                           <div
                             key={`${ev.id}-${pIdx}`}
-                            className="flex items-center justify-between gap-3.5 p-3.5 sm:p-4 rounded-2xl border-2 border-stone-200 bg-stone-50/70 hover:bg-stone-50 hover:border-emerald-400 transition-all shadow-2xs"
+                            className="flex items-center gap-3.5 sm:gap-5 p-3.5 sm:p-4 rounded-2xl border-2 border-stone-200 bg-stone-50/70 hover:bg-stone-50 hover:border-emerald-400 transition-all shadow-2xs"
                           >
-                            {/* A la izquierda: El dibujo del producto (ocupa tres líneas de altura) */}
-                            <div className="shrink-0 self-stretch flex items-center">
+                            {/* A LA IZQUIERDA: DIBUJO DEL PRODUCTO Y NOMBRE JUSTO DEBAJO */}
+                            <div className="w-20 sm:w-24 shrink-0 flex flex-col items-center text-center">
                               {product.imageUrl ? (
                                 <img
                                   src={product.imageUrl}
                                   alt={product.name}
-                                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-stone-200 shrink-0 shadow-2xs bg-white"
+                                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-stone-200 shadow-2xs bg-white"
                                 />
                               ) : (
-                                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-emerald-100/80 text-emerald-800 font-black text-base flex items-center justify-center border-2 border-emerald-300 shrink-0 shadow-2xs">
+                                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-emerald-100/80 text-emerald-800 font-black text-base flex items-center justify-center border-2 border-emerald-300 shadow-2xs">
                                   🌿
                                 </div>
                               )}
+                              <span className="font-black text-stone-900 text-xs sm:text-sm mt-1.5 line-clamp-2 leading-tight">
+                                {product.name}
+                              </span>
                             </div>
 
-                            {/* A su derecha: Las 3 líneas requeridas */}
-                            <div className="flex-1 min-w-0 space-y-1">
-                              {/* Línea 1 (Arriba): Nombre, Cantidad y Precio */}
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="font-black text-stone-900 text-sm sm:text-base leading-tight truncate">
-                                  {product.name}
-                                </span>
-                                <span className="font-extrabold text-stone-700 text-xs sm:text-sm bg-white px-2 py-0.5 rounded-lg border border-stone-300">
-                                  {product.quantity} {product.format === 'granel' ? 'kg' : 'uds'}
-                                </span>
-                                {product.unitPrice && (
-                                  <span className="font-black text-emerald-950 text-xs sm:text-sm">
-                                    {(product.unitPrice * product.quantity).toFixed(2)} €
-                                    <span className="text-[10px] text-stone-500 font-bold ml-1">
-                                      ({product.unitPrice.toFixed(2)} €/{product.format === 'granel' ? 'kg' : 'ud'})
+                            {/* A SU DERECHA: LAS 3 LÍNEAS */}
+                            <div className="flex-1 min-w-0 space-y-1.5">
+                              {/* 1. PRIMERA LÍNEA: Cantidad x Precio unidad = Precio total (sin nada más) */}
+                              <div className="text-xs sm:text-sm font-black text-stone-900">
+                                {product.quantity} {product.format === 'granel' ? 'kg' : 'uds'}
+                                {product.unitPrice ? (
+                                  <>
+                                    {' x '}
+                                    {product.unitPrice.toFixed(2)} €/{product.format === 'granel' ? 'kg' : 'ud'}
+                                    {' = '}
+                                    <span className="text-emerald-950 text-sm sm:text-base font-black">
+                                      {totalProductPrice ? totalProductPrice.toFixed(2) : '0.00'} €
                                     </span>
-                                  </span>
-                                )}
-                                {product.deliveryMethods && (
-                                  <DeliveryMethodsBadges deliveryMethods={product.deliveryMethods} />
-                                )}
+                                  </>
+                                ) : null}
                               </div>
 
-                              {/* Línea 2 (Debajo): Modalidad de envío y horario (si lo tiene definido), y SEGUIDO el estado del pedido */}
+                              {/* 2. SEGUNDA LÍNEA: Modalidad de envío y horario (si lo tiene definido), y SEGUIDO el estado del pedido */}
                               <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-stone-700">
                                 <div className="flex items-center gap-1.5">
                                   {ev.deliveryType === 'sitio_fisico' ? (
                                     <>
                                       <MapPin className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                                      <span>{ev.deliveryLocation}</span>
+                                      <span>Punto de entrega</span>
                                     </>
                                   ) : ev.deliveryType === 'envio' ? (
                                     <>
                                       <Truck className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                                      <span>{ev.deliveryLocation}</span>
+                                      <span>Envío a domicilio</span>
                                     </>
                                   ) : (
                                     <>
@@ -297,24 +297,40 @@ export function CalendarView({ events, role }: CalendarViewProps) {
                                 )}
                               </div>
 
-                              {/* Línea 3 (Abajo del todo): Nombre y apellido del comprador / vendedor */}
+                              {/* 3. TERCERA LÍNEA (Abajo del todo): Nombre y apellido del comprador, seguido de dirección de entrega (si no se recoge en caserío) */}
                               <div className="flex items-center justify-between gap-2 pt-0.5 text-xs">
-                                <div className="flex items-center gap-1.5 text-stone-800 font-bold">
+                                <div className="flex flex-wrap items-center gap-1 text-stone-800 font-bold min-w-0">
                                   {role === 'vendedor' ? (
                                     <>
                                       <User className="w-3.5 h-3.5 text-stone-500 shrink-0" />
-                                      <span>Comprador: <strong className="text-stone-900 font-black">{ev.customerName || 'Cliente'}</strong></span>
+                                      <span>
+                                        Comprador: <strong className="text-stone-900 font-black">{ev.customerName || 'Cliente'}</strong>
+                                      </span>
                                     </>
                                   ) : (
                                     <>
                                       <Store className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                                      <span>Vendedor: <strong className="text-stone-900 font-black">{ev.sellerName || 'Caserío'}</strong></span>
+                                      <span>
+                                        Vendedor: <strong className="text-stone-900 font-black">{ev.sellerName || 'Caserío'}</strong>
+                                      </span>
+                                    </>
+                                  )}
+
+                                  {/* Si no se recoge en caserío: seguido de dirección de entrega */}
+                                  {ev.deliveryType !== 'caserio' && ev.deliveryLocation && (
+                                    <>
+                                      <span className="text-stone-400 font-black mx-0.5">•</span>
+                                      <span className="text-stone-700 font-semibold truncate max-w-[280px] sm:max-w-md">
+                                        {ev.deliveryType === 'sitio_fisico'
+                                          ? `Dirección: ${ev.deliveryLocation.replace(/^Punto:\s*/i, '')}`
+                                          : `Dirección: ${ev.deliveryLocation.replace(/^Envío:\s*/i, '')}`}
+                                      </span>
                                     </>
                                   )}
                                 </div>
 
                                 {/* Acciones: Ver día en calendario & Chat */}
-                                <div className="flex items-center gap-1.5">
+                                <div className="flex items-center gap-1.5 shrink-0">
                                   <button
                                     type="button"
                                     onClick={() => handleJumpToEvent(ev.date)}
@@ -346,43 +362,43 @@ export function CalendarView({ events, role }: CalendarViewProps) {
                     return (
                       <div
                         key={ev.id}
-                        className="flex items-center justify-between gap-3.5 p-3.5 sm:p-4 rounded-2xl border-2 border-amber-200 bg-amber-50/60 hover:bg-amber-50 hover:border-amber-400 transition-all shadow-2xs"
+                        className="flex items-center gap-3.5 sm:gap-5 p-3.5 sm:p-4 rounded-2xl border-2 border-amber-200 bg-amber-50/60 hover:bg-amber-50 hover:border-amber-400 transition-all shadow-2xs"
                       >
-                        {/* A la izquierda: El dibujo del producto */}
-                        <div className="shrink-0 self-stretch flex items-center">
+                        {/* A LA IZQUIERDA: DIBUJO DEL PRODUCTO Y NOMBRE JUSTO DEBAJO */}
+                        <div className="w-20 sm:w-24 shrink-0 flex flex-col items-center text-center">
                           {ev.productImageUrl ? (
                             <img
                               src={ev.productImageUrl}
                               alt={ev.title}
-                              className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-amber-300 shrink-0 shadow-2xs bg-white"
+                              className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-amber-300 shadow-2xs bg-white"
                             />
                           ) : (
                             <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-amber-100 text-amber-800 font-black text-base flex items-center justify-center border-2 border-amber-300 shrink-0 shadow-2xs">
                               🌾
                             </div>
                           )}
+                          <span className="font-black text-stone-900 text-xs sm:text-sm mt-1.5 line-clamp-2 leading-tight">
+                            {ev.title.replace(/^Cosecha lista:\s*/i, '')}
+                          </span>
                         </div>
 
-                        {/* A su derecha: Las 3 líneas requeridas */}
-                        <div className="flex-1 min-w-0 space-y-1">
-                          {/* Línea 1 (Arriba): Nombre, Cantidad y Precio */}
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="font-black text-stone-900 text-sm sm:text-base leading-tight truncate">
-                              {ev.title}
-                            </span>
+                        {/* A SU DERECHA: LAS 3 LÍNEAS */}
+                        <div className="flex-1 min-w-0 space-y-1.5">
+                          {/* 1. PRIMERA LÍNEA: Cantidad y Precio */}
+                          <div className="text-xs sm:text-sm font-black text-stone-900">
                             {ev.subtitle && (
-                              <span className="font-extrabold text-amber-900 text-xs sm:text-sm bg-white px-2 py-0.5 rounded-lg border border-amber-200">
+                              <span className="font-extrabold text-amber-950 mr-2">
                                 {ev.subtitle}
                               </span>
                             )}
                             {ev.amount !== undefined && (
-                              <span className="font-black text-emerald-950 text-xs sm:text-sm">
+                              <span className="text-emerald-950 font-black">
                                 {ev.amount.toFixed(2)} €
                               </span>
                             )}
                           </div>
 
-                          {/* Línea 2 (Debajo): Modalidad de envío / cosecha y seguido Estado "Cosecha" */}
+                          {/* 2. SEGUNDA LÍNEA: Modalidad y Estado Cosecha */}
                           <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-stone-700">
                             <div className="flex items-center gap-1.5">
                               <Store className="w-3.5 h-3.5 text-amber-700 shrink-0" />
@@ -391,17 +407,18 @@ export function CalendarView({ events, role }: CalendarViewProps) {
 
                             <span className="text-stone-400 font-black">•</span>
 
-                            {/* Seguido: Cosecha */}
                             <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-amber-600 text-white border border-amber-700">
                               Cosecha
                             </span>
                           </div>
 
-                          {/* Línea 3 (Abajo del todo): Nombre del Caserío */}
+                          {/* 3. TERCERA LÍNEA (Abajo del todo): Nombre del Caserío */}
                           <div className="flex items-center justify-between gap-2 pt-0.5 text-xs">
                             <div className="flex items-center gap-1.5 text-stone-800 font-bold">
                               <Store className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-                              <span>Caserío: <strong className="text-stone-900 font-black">{ev.sellerName || 'Tu caserío'}</strong></span>
+                              <span>
+                                Caserío: <strong className="text-stone-900 font-black">{ev.sellerName || 'Tu caserío'}</strong>
+                              </span>
                             </div>
 
                             <button
