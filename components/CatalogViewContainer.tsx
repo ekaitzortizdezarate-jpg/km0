@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useSyncExternalStore } from 'react';
+import { useState, useMemo, useEffect, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import {
   Search,
@@ -132,6 +132,40 @@ export function CatalogViewContainer({
     () => getFavList('km0_fav_sellers'),
     () => EMPTY_FAV_SET
   );
+
+  // Recuento real de productos favoritos existentes en la base de datos
+  const validFavCount = useMemo(() => {
+    return products.filter((p) => favProducts.has(p.id)).length;
+  }, [products, favProducts]);
+
+  // Limpiar favoritos huérfanos de productos o vendedores que ya no existan en la base de datos
+  useEffect(() => {
+    try {
+      const activeProdIds = new Set(products.map((p) => p.id));
+      const rawProdFavs = localStorage.getItem('km0_fav_products');
+      if (rawProdFavs) {
+        const parsed: string[] = JSON.parse(rawProdFavs);
+        const filtered = parsed.filter((id) => activeProdIds.has(id));
+        if (filtered.length !== parsed.length) {
+          localStorage.setItem('km0_fav_products', JSON.stringify(filtered));
+          window.dispatchEvent(new Event('km0_favorites_updated'));
+        }
+      }
+
+      const activeSellerIds = new Set(sellers.map((s) => s.id));
+      const rawSellerFavs = localStorage.getItem('km0_fav_sellers');
+      if (rawSellerFavs) {
+        const parsed: string[] = JSON.parse(rawSellerFavs);
+        const filtered = parsed.filter((id) => activeSellerIds.has(id));
+        if (filtered.length !== parsed.length) {
+          localStorage.setItem('km0_fav_sellers', JSON.stringify(filtered));
+          window.dispatchEvent(new Event('km0_favorites_updated'));
+        }
+      }
+    } catch {
+      // Ignorar errores de parsing
+    }
+  }, [products, sellers]);
 
   // Agrupar productos por vendedor (memoizado)
   const sellersMap = useMemo(() => {
@@ -444,7 +478,7 @@ export function CatalogViewContainer({
                     : 'text-stone-700 hover:text-stone-900 font-bold'
                 }`}
               >
-                <Heart className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 ${favProducts.size > 0 ? 'fill-rose-400 text-rose-400' : ''}`} />
+                <Heart className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 ${validFavCount > 0 ? 'fill-rose-400 text-rose-400' : ''}`} />
                 <div className="flex flex-col items-center sm:items-start leading-tight">
                   <span className="text-[8px] sm:text-[11px] font-semibold opacity-90">Tus</span>
                   <span className="text-[9px] sm:text-xs font-black uppercase sm:normal-case">Favoritos</span>
@@ -452,7 +486,7 @@ export function CatalogViewContainer({
                 <span className={`text-[8px] sm:text-[10px] font-black px-1 sm:px-1.5 py-0.5 rounded-md ${
                   activeTab === 'favoritos' ? 'bg-emerald-950 text-white' : 'bg-stone-300 text-stone-700'
                 }`}>
-                  {favProducts.size}
+                  {validFavCount}
                 </span>
               </button>
             </>
