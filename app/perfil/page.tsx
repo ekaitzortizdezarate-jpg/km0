@@ -3,7 +3,6 @@ import { redirect } from 'next/navigation';
 import { updateProfile } from '@/app/actions/profile';
 import { User, MapPin, Phone, FileText } from 'lucide-react';
 import { ImageSelector } from '@/components/ImageSelector';
-import { ProfileRoleSelector } from '@/components/ProfileRoleSelector';
 import type { Profile } from '@/types/database';
 
 export default async function ProfilePage() {
@@ -41,14 +40,11 @@ export default async function ProfilePage() {
           </div>
           <div>
             <h1 className="text-2xl font-black text-stone-900">Configuración de Cuenta</h1>
-            <p className="text-xs font-bold text-stone-600 capitalize">
-              Modo actual: {userProfile.role === 'vendedor' ? 'Caserío / Vendedor' : 'Comprador'}
+            <p className="text-xs font-bold text-stone-500">
+              Gestiona tus datos personales y de contacto
             </p>
           </div>
         </div>
-
-        {/* Selector Rápido de Rol (Vendedor vs Comprador) */}
-        <ProfileRoleSelector currentRole={userProfile.role} />
 
         <form
           action={async (formData: FormData) => {
