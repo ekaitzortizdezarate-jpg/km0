@@ -230,16 +230,16 @@ export function CalendarView({ events, role }: CalendarViewProps) {
                             className="flex items-center gap-3.5 sm:gap-5 p-3.5 sm:p-4 rounded-2xl border-2 border-stone-200 bg-stone-50/70 hover:bg-stone-50 hover:border-emerald-400 transition-all shadow-2xs"
                           >
                             {/* A LA IZQUIERDA: ESTADO DEL PEDIDO ARRIBA, DIBUJO DEL PRODUCTO Y NOMBRE DEBAJO */}
-                            <div className="w-24 sm:w-28 shrink-0 flex flex-col items-center text-center space-y-1.5">
+                            <div className="w-20 sm:w-24 shrink-0 flex flex-col items-center text-center space-y-1">
                               {/* Estado del pedido encima de la imagen */}
                               {stStyle ? (
                                 <span
-                                  className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md border tracking-wide w-full truncate ${stStyle.bg} ${stStyle.text} ${stStyle.border}`}
+                                  className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md border tracking-wide w-full truncate ${stStyle.bg} ${stStyle.text} ${stStyle.border}`}
                                 >
                                   {stStyle.label}
                                 </span>
                               ) : (
-                                <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-stone-100 text-stone-800 border border-stone-300 tracking-wide w-full truncate">
+                                <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md bg-stone-100 text-stone-800 border border-stone-300 tracking-wide w-full truncate">
                                   Pedido
                                 </span>
                               )}
@@ -248,10 +248,10 @@ export function CalendarView({ events, role }: CalendarViewProps) {
                                 <img
                                   src={product.imageUrl}
                                   alt={product.name}
-                                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-stone-200 shadow-2xs bg-white"
+                                  className="w-14 h-14 sm:w-18 sm:h-18 rounded-2xl object-cover border-2 border-stone-200 shadow-2xs bg-white"
                                 />
                               ) : (
-                                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-emerald-100/80 text-emerald-800 font-black text-base flex items-center justify-center border-2 border-emerald-300 shadow-2xs">
+                                <div className="w-14 h-14 sm:w-18 sm:h-18 rounded-2xl bg-emerald-100/80 text-emerald-800 font-black text-base flex items-center justify-center border-2 border-emerald-300 shadow-2xs">
                                   🌿
                                 </div>
                               )}
@@ -263,15 +263,19 @@ export function CalendarView({ events, role }: CalendarViewProps) {
 
                             {/* A SU DERECHA: LAS 3 LÍNEAS */}
                             <div className="flex-1 min-w-0 space-y-1.5">
-                              {/* 1. PRIMERA LÍNEA: Cantidad x Precio unidad = Precio total */}
-                              <div className="text-xs sm:text-sm font-black text-stone-900">
-                                {product.quantity} {product.format === 'granel' ? 'kg' : 'uds'}
+                              {/* 1. PRIMERA LÍNEA: Cantidad x Precio unidad = Precio total (Siempre en una sola línea) */}
+                              <div className="text-xs sm:text-sm font-black text-stone-900 whitespace-nowrap overflow-x-auto no-scrollbar flex items-baseline gap-1">
+                                <span>
+                                  {product.quantity} {product.format === 'granel' ? 'kg' : 'uds'}
+                                </span>
                                 {product.unitPrice ? (
                                   <>
-                                    {' x '}
-                                    {product.unitPrice.toFixed(2)} €/{product.format === 'granel' ? 'kg' : 'ud'}
-                                    {' = '}
-                                    <span className="text-emerald-950 text-sm sm:text-base font-black">
+                                    <span className="text-stone-500 font-semibold text-[11px] sm:text-xs">x</span>
+                                    <span>
+                                      {product.unitPrice.toFixed(2)} €/{product.format === 'granel' ? 'kg' : 'ud'}
+                                    </span>
+                                    <span className="text-stone-500 font-semibold text-[11px] sm:text-xs">=</span>
+                                    <span className="text-emerald-950 font-black">
                                       {totalProductPrice ? totalProductPrice.toFixed(2) : '0.00'} €
                                     </span>
                                   </>
