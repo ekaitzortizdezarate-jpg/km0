@@ -266,13 +266,81 @@ export default function CartPage() {
     await saveBuyerAddresses(updated);
   };
 
+  const getSellerConfig = (sellerId: string): SellerDeliveryConfig => {
+    const group = groupedBySeller[sellerId];
+    if (!group || group.items.length === 0) {
+      return {
+        deliveryType: 'caserio',
+        deliveryPointId: null,
+        shippingAddress: savedAddresses[0]?.address || '',
+        groupMode: 'junto_tardio',
+      };
+    }
+
+    const firstItem = group.items[0];
+    const itemSelectedType = firstItem?.selectedDeliveryType;
+    const itemSelectedPointId = firstItem?.selectedPointId;
+
+    // Métodos permitidos según los productos de este vendedor
+    const allowedMethods = new Set<string>();
+    group.items.forEach((it) => {
+      (it.deliveryMethods || []).forEach((m: string) => {
+        if (m === 'caserio') allowedMethods.add('caserio');
+        if (m === 'punto_entrega' || m === 'sitio_fisico') allowedMethods.add('sitio_fisico');
+        if (m === 'domicilio' || m === 'envio') allowedMethods.add('envio');
+      });
+    });
+
+    if (allowedMethods.size === 0) {
+      allowedMethods.add('caserio');
+    }
+
+    // Modalidad por defecto respetando lo elegido al añadir a la cesta
+    let defaultType: 'caserio' | 'sitio_fisico' | 'envio' = 'caserio';
+    if (itemSelectedType === 'punto_entrega') {
+      defaultType = 'sitio_fisico';
+    } else if (itemSelectedType === 'domicilio') {
+      defaultType = 'envio';
+    } else {
+      defaultType = 'caserio';
+    }
+
+    // Si la opción elegida no está permitida por el vendedor, usar la primera permitida
+    if (!allowedMethods.has(defaultType)) {
+      if (allowedMethods.has('caserio')) defaultType = 'caserio';
+      else if (allowedMethods.has('sitio_fisico')) defaultType = 'sitio_fisico';
+      else if (allowedMethods.has('envio')) defaultType = 'envio';
+    }
+
+    const currentConfig = deliveryConfigs[sellerId];
+    const effectiveDeliveryType =
+      currentConfig?.deliveryType && allowedMethods.has(currentConfig.deliveryType)
+        ? currentConfig.deliveryType
+        : defaultType;
+
+    const points = sellerDeliveryPoints[sellerId] || [];
+
+    const effectiveDeliveryPointId =
+      currentConfig?.deliveryPointId ||
+      itemSelectedPointId ||
+      points.find((p) => p.type === 'sitio_fisico')?.id ||
+      null;
+
+    return {
+      deliveryType: effectiveDeliveryType,
+      deliveryPointId: effectiveDeliveryPointId,
+      shippingAddress: currentConfig?.shippingAddress || savedAddresses[0]?.address || '',
+      groupMode: currentConfig?.groupMode || 'junto_tardio',
+    };
+  };
+
   const handleOpenSummary = () => {
     setError(null);
     for (const sellerId of sellerIds) {
       const group = groupedBySeller[sellerId];
-      const config = deliveryConfigs[sellerId];
+      const config = getSellerConfig(sellerId);
 
-      if (config?.deliveryType === 'envio' && !config.shippingAddress.trim()) {
+      if (config.deliveryType === 'envio' && !config.shippingAddress.trim()) {
         setError(`Por favor, introduce la dirección de envío para el caserío ${group.sellerName}.`);
         return;
       }
@@ -288,7 +356,7 @@ export default function CartPage() {
 
     for (const sellerId of sellerIds) {
       const group = groupedBySeller[sellerId];
-      const config = deliveryConfigs[sellerId];
+      const config = getSellerConfig(sellerId);
 
       let finalEstimatedDate: string | null = null;
       if (group.items.length > 0) {
@@ -304,9 +372,9 @@ export default function CartPage() {
 
       payload.push({
         sellerId,
-        deliveryType: config?.deliveryType || 'caserio',
-        deliveryPointId: config?.deliveryType === 'sitio_fisico' ? config.deliveryPointId : null,
-        shippingAddress: config?.deliveryType === 'envio' ? config.shippingAddress : null,
+        deliveryType: config.deliveryType,
+        deliveryPointId: config.deliveryType === 'sitio_fisico' ? config.deliveryPointId : null,
+        shippingAddress: config.deliveryType === 'envio' ? config.shippingAddress : null,
         estimatedDeliveryDate: finalEstimatedDate,
         items: group.items.map((it) => ({
           productId: it.productId,
@@ -405,12 +473,7 @@ export default function CartPage() {
         <div className="lg:col-span-8 space-y-6">
           {sellerIds.map((sellerId) => {
             const group = groupedBySeller[sellerId];
-            const config = deliveryConfigs[sellerId] || {
-              deliveryType: 'caserio',
-              deliveryPointId: null,
-              shippingAddress: savedAddresses[0]?.address || '',
-              groupMode: 'junto_tardio',
-            };
+            const config = getSellerConfig(sellerId);
             const points = sellerDeliveryPoints[sellerId] || [];
 
             // Calcular fecha unificada más tardía para este caserío
@@ -1000,9 +1063,9 @@ export default function CartPage() {
             <div className="space-y-3 text-xs">
               {sellerIds.map((sId) => {
                 const group = groupedBySeller[sId];
-                const config = deliveryConfigs[sId];
+                const config = getSellerConfig(sId);
                 const points = sellerDeliveryPoints[sId] || [];
-                const pointObj = points.find((p) => p.id === config?.deliveryPointId);
+                const pointObj = points.find((p) => p.id === config.deliveryPointId);
 
                 // Calcular fecha unificada para el modal si groupMode === 'junto_tardio'
                 const datesMs = group.items
