@@ -74,6 +74,7 @@ export interface DeliveryPoint {
   town: string;
   postal_code?: string | null;
   address_details: string;
+  image_url?: string | null;
   days_of_week?: string[] | null;
   opening_time?: string | null;
   closing_time?: string | null;

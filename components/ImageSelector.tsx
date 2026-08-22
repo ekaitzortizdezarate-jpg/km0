@@ -7,8 +7,27 @@ interface ImageSelectorProps {
   name: string;
   defaultValue?: string | null;
   label?: string;
-  type?: 'product' | 'avatar';
+  type?: 'product' | 'avatar' | 'delivery_point';
 }
+
+const DELIVERY_POINT_PRESETS = [
+  {
+    name: 'Puesto de Mercado',
+    url: 'https://images.unsplash.com/photo-1488459716781-31db52582fe9?w=600&auto=format&fit=crop&q=80',
+  },
+  {
+    name: 'Caserío / Granja',
+    url: 'https://images.unsplash.com/photo-1500076656116-558758c991c1?w=600&auto=format&fit=crop&q=80',
+  },
+  {
+    name: 'Plaza / Frontón',
+    url: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=600&auto=format&fit=crop&q=80',
+  },
+  {
+    name: 'Tienda de Barrio / Local',
+    url: 'https://images.unsplash.com/photo-1528698827591-e19ccd7bc23d?w=600&auto=format&fit=crop&q=80',
+  },
+];
 
 const PRODUCT_PRESETS = [
   {
@@ -78,7 +97,12 @@ export function ImageSelector({
   const [imageError, setImageError] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const presets = type === 'avatar' ? AVATAR_PRESETS : PRODUCT_PRESETS;
+  const presets =
+    type === 'avatar'
+      ? AVATAR_PRESETS
+      : type === 'delivery_point'
+      ? DELIVERY_POINT_PRESETS
+      : PRODUCT_PRESETS;
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

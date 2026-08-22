@@ -15,6 +15,7 @@ export async function createDeliveryPoint(formData: FormData) {
   const town = formData.get('town') as string;
   const postal_code = (formData.get('postal_code') as string) || '';
   const address_details = formData.get('address_details') as string;
+  const image_url = (formData.get('image_url') as string) || null;
   const days_of_week = formData.getAll('days_of_week') as string[];
   const opening_time = (formData.get('opening_time') as string) || '';
   const closing_time = (formData.get('closing_time') as string) || '';
@@ -38,20 +39,32 @@ export async function createDeliveryPoint(formData: FormData) {
 
     if (existingCaserio) {
       // Actualizar la dirección de caserío existente
-      const { error: updateErr } = await supabase
+      const updatePayload: Record<string, any> = {
+        name: name || 'Caserío',
+        town,
+        postal_code,
+        address_details,
+        image_url,
+        days_of_week,
+        opening_time,
+        closing_time,
+        schedule_notes: schedule_notes || null,
+        is_active: true,
+      };
+
+      let { error: updateErr } = await supabase
         .from('delivery_points')
-        .update({
-          name: name || 'Caserío',
-          town,
-          postal_code,
-          address_details,
-          days_of_week,
-          opening_time,
-          closing_time,
-          schedule_notes: schedule_notes || null,
-          is_active: true,
-        })
+        .update(updatePayload)
         .eq('id', existingCaserio.id);
+
+      if (updateErr && updateErr.message?.includes('column')) {
+        delete updatePayload.image_url;
+        const res = await supabase
+          .from('delivery_points')
+          .update(updatePayload)
+          .eq('id', existingCaserio.id);
+        updateErr = res.error;
+      }
 
       if (updateErr) return { error: updateErr.message };
 
@@ -60,19 +73,27 @@ export async function createDeliveryPoint(formData: FormData) {
     }
   }
 
-  const { error } = await supabase.from('delivery_points').insert({
+  const insertPayload: Record<string, any> = {
     seller_id: user.id,
     name,
     type,
     town,
     postal_code,
     address_details,
+    image_url,
     days_of_week,
     opening_time,
     closing_time,
     schedule_notes: schedule_notes || null,
     is_active: true,
-  });
+  };
+
+  let { error } = await supabase.from('delivery_points').insert(insertPayload);
+  if (error && error.message?.includes('column')) {
+    delete insertPayload.image_url;
+    const res = await supabase.from('delivery_points').insert(insertPayload);
+    error = res.error;
+  }
 
   if (error) return { error: error.message };
 

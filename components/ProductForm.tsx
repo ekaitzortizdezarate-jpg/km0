@@ -748,397 +748,403 @@ export function ProductForm({
           )}
         </div>
 
-        {/* PASO 2: OPCIONES DE ENTREGA Y HORARIOS POR TIPO */}
+        {/* PASO 2: OPCIONES DE ENTREGA Y HORARIOS POR TIPO (CONFIGURACIÓN DESPLEGADA DEBAJO DE CADA OPCIÓN) */}
         <div className="space-y-4 pt-3 border-t border-stone-200">
           <div>
             <label className="block text-xs font-black text-stone-900 uppercase tracking-wider">
               2. Opciones de entrega disponibles para este producto: *
             </label>
             <p className="text-[11px] font-semibold text-stone-500 mt-0.5">
-              Marca las opciones habilitadas y define los días y horarios correspondientes.
+              Habilita las modalidades de entrega y define los días y horarios correspondientes a cada una.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-            {/* Modalidad 1: Recogida en Caserío */}
-            <div
-              onClick={() => {
-                if (hasCaserioPoints) {
-                  toggleDeliveryMethod('caserio');
-                }
-              }}
-              className={`p-3.5 rounded-xl border-2 text-left transition-all flex flex-col justify-between gap-1.5 ${
-                !hasCaserioPoints
-                  ? 'border-stone-200 bg-stone-50 opacity-75 cursor-not-allowed'
-                  : deliveryMethods.includes('caserio')
-                  ? 'border-emerald-700 bg-emerald-50 text-emerald-950 shadow-sm cursor-pointer'
-                  : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300 cursor-pointer'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black flex items-center gap-1.5">
-                  <Store className="w-4 h-4 text-emerald-700" />
-                  <span>Recogida en Caserío</span>
-                </span>
-                <input
-                  type="checkbox"
-                  checked={deliveryMethods.includes('caserio')}
-                  disabled={!hasCaserioPoints}
-                  readOnly
-                  className="w-4 h-4 text-emerald-700 rounded cursor-pointer"
-                />
-              </div>
-              {hasCaserioPoints ? (
-                <span className="text-[10px] font-semibold text-stone-500">
-                  El cliente recoge en tus instalaciones.
-                </span>
-              ) : (
-                <div className="text-[10px] font-bold text-amber-800 bg-amber-50 p-1.5 rounded-lg border border-amber-200">
-                  Añade primero tu caserío en{' '}
-                  <Link href="/vendedor/puntos-entrega" className="underline font-black text-amber-950">
-                    Puntos de Entrega
-                  </Link>
-                </div>
-              )}
-            </div>
-
-            {/* Modalidad 2: Punto de Entrega Físico */}
-            <div
-              onClick={() => {
-                if (hasPuntosEntrega) {
-                  toggleDeliveryMethod('punto_entrega');
-                }
-              }}
-              className={`p-3.5 rounded-xl border-2 text-left transition-all flex flex-col justify-between gap-1.5 ${
-                !hasPuntosEntrega
-                  ? 'border-stone-200 bg-stone-50 opacity-75 cursor-not-allowed'
-                  : deliveryMethods.includes('punto_entrega')
-                  ? 'border-emerald-700 bg-emerald-50 text-emerald-950 shadow-sm cursor-pointer'
-                  : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300 cursor-pointer'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black flex items-center gap-1.5">
-                  <MapPin className="w-4 h-4 text-emerald-700" />
-                  <span>Punto de Entrega</span>
-                </span>
-                <input
-                  type="checkbox"
-                  checked={deliveryMethods.includes('punto_entrega')}
-                  disabled={!hasPuntosEntrega}
-                  readOnly
-                  className="w-4 h-4 text-emerald-700 rounded cursor-pointer"
-                />
-              </div>
-              {hasPuntosEntrega ? (
-                <span className="text-[10px] font-semibold text-stone-500">
-                  Mercado, plaza o puesto registrado.
-                </span>
-              ) : (
-                <div className="text-[10px] font-bold text-amber-800 bg-amber-50 p-1.5 rounded-lg border border-amber-200">
-                  Añade puntos en{' '}
-                  <Link href="/vendedor/puntos-entrega" className="underline font-black text-amber-950">
-                    Puntos de Entrega
-                  </Link>
-                </div>
-              )}
-            </div>
-
-            {/* Modalidad 3: Envío a Domicilio */}
-            <div
-              onClick={() => {
-                if (hasEnvioDomicilio) {
-                  toggleDeliveryMethod('domicilio');
-                }
-              }}
-              className={`p-3.5 rounded-xl border-2 text-left transition-all flex flex-col justify-between gap-1.5 ${
-                !hasEnvioDomicilio
-                  ? 'border-stone-200 bg-stone-50 opacity-75 cursor-not-allowed'
-                  : deliveryMethods.includes('domicilio')
-                  ? 'border-emerald-700 bg-emerald-50 text-emerald-950 shadow-sm cursor-pointer'
-                  : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300 cursor-pointer'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black flex items-center gap-1.5">
-                  <Truck className="w-4 h-4 text-emerald-700" />
-                  <span>Envío a Domicilio</span>
-                </span>
-                <input
-                  type="checkbox"
-                  checked={deliveryMethods.includes('domicilio')}
-                  disabled={!hasEnvioDomicilio}
-                  readOnly
-                  className="w-4 h-4 text-emerald-700 rounded cursor-pointer"
-                />
-              </div>
-              {hasEnvioDomicilio ? (
-                <span className="text-[10px] font-semibold text-stone-500">
-                  Reparto directo en la casa del cliente.
-                </span>
-              ) : (
-                <div className="text-[10px] font-bold text-amber-800 bg-amber-50 p-1.5 rounded-lg border border-amber-200">
-                  Activa reparto en{' '}
-                  <Link href="/vendedor/puntos-entrega" className="underline font-black text-amber-950">
-                    Puntos de Entrega
-                  </Link>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* DETALLES Y HORARIOS PARA RECOGIDA EN CASERÍO */}
-          {deliveryMethods.includes('caserio') && (
-            <div className="p-4 bg-white rounded-2xl border-2 border-emerald-300 space-y-3">
-              <div className="flex items-center gap-2 text-emerald-950 font-black text-xs">
-                <Store className="w-4 h-4 text-emerald-700" />
-                <span>Configuración de Recogida en Caserío:</span>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-stone-700 mb-1.5">
-                  Días de la semana para recogida en Caserío:
-                </label>
-                <div className="flex flex-wrap gap-1.5">
-                  {WEEKDAYS_DISPLAY.map((day) => (
-                    <button
-                      type="button"
-                      key={day.id}
-                      onClick={() => toggleCaserioDay(day.id)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
-                        caserioDays.includes(day.id)
-                          ? 'bg-emerald-800 text-white border-emerald-900 shadow-sm'
-                          : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
-                      }`}
-                    >
-                      {day.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-stone-700 mb-1.5">
-                  Horario de recogida en Caserío:
-                </label>
-                <div className="grid grid-cols-2 gap-3 max-w-sm">
-                  <div>
-                    <span className="text-[10px] font-bold text-stone-500 block mb-0.5">Hora Inicio:</span>
-                    <input
-                      type="time"
-                      value={caserioOpeningTime}
-                      onChange={(e) => setCaserioOpeningTime(e.target.value)}
-                      className="w-full px-3 py-1.5 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold text-stone-500 block mb-0.5">Hora Fin:</span>
-                    <input
-                      type="time"
-                      value={caserioClosingTime}
-                      onChange={(e) => setCaserioClosingTime(e.target.value)}
-                      className="w-full px-3 py-1.5 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* DETALLES Y HORARIOS PARA PUNTOS DE ENTREGA FÍSICOS */}
-          {deliveryMethods.includes('punto_entrega') && (
-            <div className="p-4 bg-white rounded-2xl border-2 border-emerald-300 space-y-3">
-              <div className="flex items-center gap-2 text-emerald-950 font-black text-xs">
-                <MapPin className="w-4 h-4 text-emerald-700" />
-                <span>Configuración de Puntos Físicos / Mercados:</span>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-stone-700 mb-1.5">
-                  Días de la semana para entrega en Punto Físico:
-                </label>
-                <div className="flex flex-wrap gap-1.5">
-                  {WEEKDAYS_DISPLAY.map((day) => (
-                    <button
-                      type="button"
-                      key={day.id}
-                      onClick={() => togglePuntosDay(day.id)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
-                        puntosDays.includes(day.id)
-                          ? 'bg-emerald-800 text-white border-emerald-900 shadow-sm'
-                          : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
-                      }`}
-                    >
-                      {day.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-stone-700 mb-1.5">
-                  Horario de atención en Punto Físico:
-                </label>
-                <div className="grid grid-cols-2 gap-3 max-w-sm">
-                  <div>
-                    <span className="text-[10px] font-bold text-stone-500 block mb-0.5">Hora Inicio:</span>
-                    <input
-                      type="time"
-                      value={puntosOpeningTime}
-                      onChange={(e) => setPuntosOpeningTime(e.target.value)}
-                      className="w-full px-3 py-1.5 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold text-stone-500 block mb-0.5">Hora Fin:</span>
-                    <input
-                      type="time"
-                      value={puntosClosingTime}
-                      onChange={(e) => setPuntosClosingTime(e.target.value)}
-                      className="w-full px-3 py-1.5 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* DETALLES Y PLAZOS PARA ENVÍO A DOMICILIO */}
-          {deliveryMethods.includes('domicilio') && (
-            <div className="p-4 bg-white rounded-2xl border-2 border-emerald-300 space-y-3">
-              <div className="flex items-center gap-2 text-emerald-950 font-black text-xs">
-                <Truck className="w-4 h-4 text-emerald-700" />
-                <span>Modalidad de Reparto a Domicilio:</span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                <label
-                  onClick={() => setHomeDeliveryMode('dias')}
-                  className={`flex items-center gap-2.5 p-3 rounded-xl border-2 cursor-pointer transition-all ${
-                    homeDeliveryMode === 'dias'
-                      ? 'border-emerald-700 bg-emerald-50 text-emerald-950 font-bold shadow-sm'
-                      : 'border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100'
-                  }`}
-                >
+          <div className="space-y-4">
+            {/* 1. RECOGIDA EN CASERÍO */}
+            <div className="space-y-3">
+              <div
+                onClick={() => {
+                  if (hasCaserioPoints) {
+                    toggleDeliveryMethod('caserio');
+                  }
+                }}
+                className={`p-3.5 rounded-2xl border-2 text-left transition-all flex flex-col justify-between gap-1.5 ${
+                  !hasCaserioPoints
+                    ? 'border-stone-200 bg-stone-50 opacity-75 cursor-not-allowed'
+                    : deliveryMethods.includes('caserio')
+                    ? 'border-emerald-700 bg-emerald-50 text-emerald-950 shadow-sm cursor-pointer'
+                    : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300 cursor-pointer'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black flex items-center gap-1.5">
+                    <Store className="w-4 h-4 text-emerald-700" />
+                    <span>Recogida en Caserío</span>
+                  </span>
                   <input
-                    type="radio"
-                    name="home_delivery_mode_radio"
-                    checked={homeDeliveryMode === 'dias'}
-                    onChange={() => setHomeDeliveryMode('dias')}
-                    className="text-emerald-700 w-4 h-4 cursor-pointer"
+                    type="checkbox"
+                    checked={deliveryMethods.includes('caserio')}
+                    disabled={!hasCaserioPoints}
+                    readOnly
+                    className="w-4 h-4 text-emerald-700 rounded cursor-pointer"
                   />
-                  <div>
-                    <span className="font-black text-stone-900 block">
-                      Entrega al día siguiente (24h) / en plazo
-                    </span>
-                    <span className="text-[10px] text-stone-500 font-semibold block">
-                      Reparto según plazo tras disponibilidad.
-                    </span>
+                </div>
+                {hasCaserioPoints ? (
+                  <span className="text-[11px] font-semibold text-stone-500">
+                    El cliente recoge en tus instalaciones.
+                  </span>
+                ) : (
+                  <div className="text-[10px] font-bold text-amber-800 bg-amber-50 p-1.5 rounded-lg border border-amber-200">
+                    Añade primero tu caserío en{' '}
+                    <Link href="/vendedor/puntos-entrega" className="underline font-black text-amber-950">
+                      Puntos de Entrega
+                    </Link>
                   </div>
-                </label>
-
-                <label
-                  onClick={() => setHomeDeliveryMode('dias_semana')}
-                  className={`flex items-center gap-2.5 p-3 rounded-xl border-2 cursor-pointer transition-all ${
-                    homeDeliveryMode === 'dias_semana'
-                      ? 'border-emerald-700 bg-emerald-50 text-emerald-950 font-bold shadow-sm'
-                      : 'border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="home_delivery_mode_radio"
-                    checked={homeDeliveryMode === 'dias_semana'}
-                    onChange={() => setHomeDeliveryMode('dias_semana')}
-                    className="text-emerald-700 w-4 h-4 cursor-pointer"
-                  />
-                  <div>
-                    <span className="font-black text-stone-900 block">
-                      Selección de días fijos de reparto semanal
-                    </span>
-                    <span className="text-[10px] text-stone-500 font-semibold block">
-                      Solo repartes en días concretos de la semana.
-                    </span>
-                  </div>
-                </label>
+                )}
               </div>
 
-              {homeDeliveryMode === 'dias' && (
-                <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 space-y-2 mt-2">
-                  <label className="block text-xs font-bold text-stone-800">
-                    Días de plazo de preparación y entrega a domicilio:
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      min="0"
-                      max="14"
-                      value={homeDeliveryDays}
-                      onChange={(e) => setHomeDeliveryDays(parseInt(e.target.value, 10) || 0)}
-                      className="w-24 px-3 py-1.5 border-2 border-stone-300 rounded-xl text-base font-black text-stone-900 bg-white"
-                    />
-                    <span className="text-xs font-bold text-stone-700">
-                      {homeDeliveryDays === 0
-                        ? 'día (Mismo día del pedido)'
-                        : homeDeliveryDays === 1
-                        ? 'día (Al día siguiente / 24h)'
-                        : 'días de preparación'}
-                    </span>
+              {/* Configuración de Recogida en Caserío desplegada DEBAJO */}
+              {deliveryMethods.includes('caserio') && (
+                <div className="p-4 bg-white rounded-2xl border-2 border-emerald-300 space-y-3 animate-fadeIn ml-2 sm:ml-4">
+                  <div className="flex items-center gap-2 text-emerald-950 font-black text-xs">
+                    <Store className="w-4 h-4 text-emerald-700" />
+                    <span>Configuración de Recogida en Caserío:</span>
                   </div>
 
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {[
-                      { days: 0, label: 'Mismo día (0d)' },
-                      { days: 1, label: '24h (1d)' },
-                      { days: 2, label: '2 días' },
-                      { days: 3, label: '3 días' },
-                      { days: 5, label: '5 días' },
-                    ].map((opt) => (
-                      <button
-                        type="button"
-                        key={opt.days}
-                        onClick={() => setHomeDeliveryDays(opt.days)}
-                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all border ${
-                          homeDeliveryDays === opt.days
-                            ? 'bg-emerald-700 text-white border-emerald-800'
-                            : 'bg-white text-stone-700 border-stone-300 hover:bg-stone-100'
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {homeDeliveryMode === 'dias_semana' && (
-                <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 space-y-2 mt-2">
-                  <label className="block text-xs font-bold text-stone-800">
-                    Selecciona los días fijos de reparto a domicilio:
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {WEEKDAYS_IDS.map((day) => {
-                      const isSelected = homeDeliveryWeekdays.includes(day.id);
-                      return (
+                  <div>
+                    <label className="block text-xs font-bold text-stone-700 mb-1.5">
+                      Días de la semana para recogida en Caserío:
+                    </label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {WEEKDAYS_DISPLAY.map((day) => (
                         <button
                           type="button"
                           key={day.id}
-                          onClick={() => toggleHomeDeliveryWeekday(day.id)}
-                          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all border ${
-                            isSelected
-                              ? 'bg-emerald-700 text-white border-emerald-800 shadow-sm'
-                              : 'bg-white text-stone-700 border-stone-300 hover:bg-stone-100'
+                          onClick={() => toggleCaserioDay(day.id)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                            caserioDays.includes(day.id)
+                              ? 'bg-emerald-800 text-white border-emerald-900 shadow-sm'
+                              : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
                           }`}
                         >
                           {day.label}
                         </button>
-                      );
-                    })}
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-stone-700 mb-1.5">
+                      Horario de recogida en Caserío:
+                    </label>
+                    <div className="grid grid-cols-2 gap-3 max-w-sm">
+                      <div>
+                        <span className="text-[10px] font-bold text-stone-500 block mb-0.5">Hora Inicio:</span>
+                        <input
+                          type="time"
+                          value={caserioOpeningTime}
+                          onChange={(e) => setCaserioOpeningTime(e.target.value)}
+                          className="w-full px-3 py-1.5 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-stone-500 block mb-0.5">Hora Fin:</span>
+                        <input
+                          type="time"
+                          value={caserioClosingTime}
+                          onChange={(e) => setCaserioClosingTime(e.target.value)}
+                          className="w-full px-3 py-1.5 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
             </div>
-          )}
+
+            {/* 2. PUNTO DE ENTREGA */}
+            <div className="space-y-3">
+              <div
+                onClick={() => {
+                  if (hasPuntosEntrega) {
+                    toggleDeliveryMethod('punto_entrega');
+                  }
+                }}
+                className={`p-3.5 rounded-2xl border-2 text-left transition-all flex flex-col justify-between gap-1.5 ${
+                  !hasPuntosEntrega
+                    ? 'border-stone-200 bg-stone-50 opacity-75 cursor-not-allowed'
+                    : deliveryMethods.includes('punto_entrega')
+                    ? 'border-emerald-700 bg-emerald-50 text-emerald-950 shadow-sm cursor-pointer'
+                    : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300 cursor-pointer'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black flex items-center gap-1.5">
+                    <MapPin className="w-4 h-4 text-emerald-700" />
+                    <span>Punto de Entrega</span>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={deliveryMethods.includes('punto_entrega')}
+                    disabled={!hasPuntosEntrega}
+                    readOnly
+                    className="w-4 h-4 text-emerald-700 rounded cursor-pointer"
+                  />
+                </div>
+                {hasPuntosEntrega ? (
+                  <span className="text-[11px] font-semibold text-stone-500">
+                    Mercado, plaza o puesto registrado.
+                  </span>
+                ) : (
+                  <div className="text-[10px] font-bold text-amber-800 bg-amber-50 p-1.5 rounded-lg border border-amber-200">
+                    Añade puntos en{' '}
+                    <Link href="/vendedor/puntos-entrega" className="underline font-black text-amber-950">
+                      Puntos de Entrega
+                    </Link>
+                  </div>
+                )}
+              </div>
+
+              {/* Configuración de Puntos Físicos / Mercados desplegada DEBAJO */}
+              {deliveryMethods.includes('punto_entrega') && (
+                <div className="p-4 bg-white rounded-2xl border-2 border-emerald-300 space-y-3 animate-fadeIn ml-2 sm:ml-4">
+                  <div className="flex items-center gap-2 text-emerald-950 font-black text-xs">
+                    <MapPin className="w-4 h-4 text-emerald-700" />
+                    <span>Configuración de Puntos Físicos / Mercados:</span>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-stone-700 mb-1.5">
+                      Días de la semana para entrega en Punto Físico:
+                    </label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {WEEKDAYS_DISPLAY.map((day) => (
+                        <button
+                          type="button"
+                          key={day.id}
+                          onClick={() => togglePuntosDay(day.id)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                            puntosDays.includes(day.id)
+                              ? 'bg-emerald-800 text-white border-emerald-900 shadow-sm'
+                              : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
+                          }`}
+                        >
+                          {day.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-stone-700 mb-1.5">
+                      Horario de atención en Punto Físico:
+                    </label>
+                    <div className="grid grid-cols-2 gap-3 max-w-sm">
+                      <div>
+                        <span className="text-[10px] font-bold text-stone-500 block mb-0.5">Hora Inicio:</span>
+                        <input
+                          type="time"
+                          value={puntosOpeningTime}
+                          onChange={(e) => setPuntosOpeningTime(e.target.value)}
+                          className="w-full px-3 py-1.5 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-stone-500 block mb-0.5">Hora Fin:</span>
+                        <input
+                          type="time"
+                          value={puntosClosingTime}
+                          onChange={(e) => setPuntosClosingTime(e.target.value)}
+                          className="w-full px-3 py-1.5 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 3. ENVÍO A DOMICILIO */}
+            <div className="space-y-3">
+              <div
+                onClick={() => {
+                  if (hasEnvioDomicilio) {
+                    toggleDeliveryMethod('domicilio');
+                  }
+                }}
+                className={`p-3.5 rounded-2xl border-2 text-left transition-all flex flex-col justify-between gap-1.5 ${
+                  !hasEnvioDomicilio
+                    ? 'border-stone-200 bg-stone-50 opacity-75 cursor-not-allowed'
+                    : deliveryMethods.includes('domicilio')
+                    ? 'border-emerald-700 bg-emerald-50 text-emerald-950 shadow-sm cursor-pointer'
+                    : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300 cursor-pointer'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black flex items-center gap-1.5">
+                    <Truck className="w-4 h-4 text-emerald-700" />
+                    <span>Envío a Domicilio</span>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={deliveryMethods.includes('domicilio')}
+                    disabled={!hasEnvioDomicilio}
+                    readOnly
+                    className="w-4 h-4 text-emerald-700 rounded cursor-pointer"
+                  />
+                </div>
+                {hasEnvioDomicilio ? (
+                  <span className="text-[11px] font-semibold text-stone-500">
+                    Reparto directo en la casa del cliente.
+                  </span>
+                ) : (
+                  <div className="text-[10px] font-bold text-amber-800 bg-amber-50 p-1.5 rounded-lg border border-amber-200">
+                    Activa reparto en{' '}
+                    <Link href="/vendedor/puntos-entrega" className="underline font-black text-amber-950">
+                      Puntos de Entrega
+                    </Link>
+                  </div>
+                )}
+              </div>
+
+              {/* Modalidad de Reparto a Domicilio desplegada DEBAJO */}
+              {deliveryMethods.includes('domicilio') && (
+                <div className="p-4 bg-white rounded-2xl border-2 border-emerald-300 space-y-3 animate-fadeIn ml-2 sm:ml-4">
+                  <div className="flex items-center gap-2 text-emerald-950 font-black text-xs">
+                    <Truck className="w-4 h-4 text-emerald-700" />
+                    <span>Modalidad de Reparto a Domicilio:</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    <label
+                      onClick={() => setHomeDeliveryMode('dias')}
+                      className={`flex items-center gap-2.5 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                        homeDeliveryMode === 'dias'
+                          ? 'border-emerald-700 bg-emerald-50 text-emerald-950 font-bold shadow-sm'
+                          : 'border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="home_delivery_mode_radio"
+                        checked={homeDeliveryMode === 'dias'}
+                        onChange={() => setHomeDeliveryMode('dias')}
+                        className="text-emerald-700 w-4 h-4 cursor-pointer"
+                      />
+                      <div>
+                        <span className="font-black text-stone-900 block">
+                          Entrega al día siguiente (24h) / en plazo
+                        </span>
+                        <span className="text-[10px] text-stone-500 font-semibold block">
+                          Reparto según plazo tras disponibilidad.
+                        </span>
+                      </div>
+                    </label>
+
+                    <label
+                      onClick={() => setHomeDeliveryMode('dias_semana')}
+                      className={`flex items-center gap-2.5 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                        homeDeliveryMode === 'dias_semana'
+                          ? 'border-emerald-700 bg-emerald-50 text-emerald-950 font-bold shadow-sm'
+                          : 'border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="home_delivery_mode_radio"
+                        checked={homeDeliveryMode === 'dias_semana'}
+                        onChange={() => setHomeDeliveryMode('dias_semana')}
+                        className="text-emerald-700 w-4 h-4 cursor-pointer"
+                      />
+                      <div>
+                        <span className="font-black text-stone-900 block">
+                          Selección de días fijos de reparto semanal
+                        </span>
+                        <span className="text-[10px] text-stone-500 font-semibold block">
+                          Solo repartes en días concretos de la semana.
+                        </span>
+                      </div>
+                    </label>
+                  </div>
+
+                  {homeDeliveryMode === 'dias' && (
+                    <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 space-y-2 mt-2">
+                      <label className="block text-xs font-bold text-stone-800">
+                        Días de plazo de preparación y entrega a domicilio:
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          max="14"
+                          value={homeDeliveryDays}
+                          onChange={(e) => setHomeDeliveryDays(parseInt(e.target.value, 10) || 0)}
+                          className="w-24 px-3 py-1.5 border-2 border-stone-300 rounded-xl text-base font-black text-stone-900 bg-white"
+                        />
+                        <span className="text-xs font-bold text-stone-700">
+                          {homeDeliveryDays === 0
+                            ? 'día (Mismo día del pedido)'
+                            : homeDeliveryDays === 1
+                            ? 'día (Al día siguiente / 24h)'
+                            : 'días de preparación'}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {[
+                          { days: 0, label: 'Mismo día (0d)' },
+                          { days: 1, label: '24h (1d)' },
+                          { days: 2, label: '2 días' },
+                          { days: 3, label: '3 días' },
+                          { days: 5, label: '5 días' },
+                        ].map((opt) => (
+                          <button
+                            type="button"
+                            key={opt.days}
+                            onClick={() => setHomeDeliveryDays(opt.days)}
+                            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all border ${
+                              homeDeliveryDays === opt.days
+                                ? 'bg-emerald-700 text-white border-emerald-800'
+                                : 'bg-white text-stone-700 border-stone-300 hover:bg-stone-100'
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {homeDeliveryMode === 'dias_semana' && (
+                    <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 space-y-2 mt-2">
+                      <label className="block text-xs font-bold text-stone-800">
+                        Selecciona los días fijos de reparto a domicilio:
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {WEEKDAYS_IDS.map((day) => {
+                          const isSelected = homeDeliveryWeekdays.includes(day.id);
+                          return (
+                            <button
+                              type="button"
+                              key={day.id}
+                              onClick={() => toggleHomeDeliveryWeekday(day.id)}
+                              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all border ${
+                                isSelected
+                                  ? 'bg-emerald-700 text-white border-emerald-800 shadow-sm'
+                                  : 'bg-white text-stone-700 border-stone-300 hover:bg-stone-100'
+                              }`}
+                            >
+                              {day.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 

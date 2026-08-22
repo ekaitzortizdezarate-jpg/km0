@@ -763,82 +763,155 @@ export function CatalogViewContainer({
                       </div>
                     )}
 
-                    {/* Parte Superior: Imagen y Modal de Compra */}
+                    {/* Parte Superior: Imagen y Detalles (Si es vendedor -> sin modal de añadir; Si es comprador -> modal rápido) */}
                     <div className="relative">
-                      <QuickAddToCartModal
-                        item={itemPayload}
-                        isCardOverlay={true}
-                        className="w-full text-left"
-                      >
-                        <div className="aspect-square bg-stone-100 relative overflow-hidden group cursor-pointer">
-                          {product.image_url ? (
-                            <img
-                              src={product.image_url}
-                              alt={product.name}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex flex-col items-center justify-center text-stone-400 p-4">
-                              <Sprout className="w-12 h-12 text-emerald-800 mb-2" />
-                              <span className="text-xs font-bold text-stone-500">Caserío km0</span>
-                            </div>
-                          )}
-
-                          {/* Disponibilidad / Stock */}
-                          <div className="absolute top-2.5 left-2.5 z-10">
-                            {product.is_unlimited_stock ? (
-                              <span className="bg-emerald-900/90 backdrop-blur-sm text-emerald-100 text-[10px] font-black px-2 py-0.5 rounded-lg border border-emerald-700 shadow-sm">
-                                Disponibilidad Continua
-                              </span>
-                            ) : isOutOfStock ? (
-                              <span className="bg-red-700 text-white text-[10px] font-black px-2 py-0.5 rounded-lg shadow-sm">
-                                Agotado
-                              </span>
+                      {isSeller ? (
+                        <div className="w-full text-left">
+                          <div className="aspect-square bg-stone-100 relative overflow-hidden group cursor-default">
+                            {product.image_url ? (
+                              <img
+                                src={product.image_url}
+                                alt={product.name}
+                                className="w-full h-full object-cover"
+                              />
                             ) : (
-                              <span className="bg-stone-900/90 backdrop-blur-sm text-white text-[10px] font-black px-2 py-0.5 rounded-lg shadow-sm">
-                                {stockQty} {product.format === 'granel' ? 'kg' : 'uds'} disponibles
-                              </span>
+                              <div className="w-full h-full flex flex-col items-center justify-center text-stone-400 p-4">
+                                <Sprout className="w-12 h-12 text-emerald-800 mb-2" />
+                                <span className="text-xs font-bold text-stone-500">Caserío km0</span>
+                              </div>
                             )}
-                          </div>
-                        </div>
 
-                        {/* Título y Precio */}
-                        <div className="p-4 space-y-2">
-                          <div className="flex items-start justify-between gap-2">
-                            <h3 className="font-black text-sm text-stone-900 group-hover:text-emerald-800 transition-colors line-clamp-1">
-                              {product.name}
-                            </h3>
-                            <span className="font-black text-sm text-emerald-950 shrink-0">
-                              {product.format === 'granel'
-                                ? `${Number(product.price_per_kilo || product.price).toFixed(2)} €/kg`
-                                : `${Number(product.price).toFixed(2)} €`}
-                            </span>
-                          </div>
-
-                          {/* Disponibilidad de Stock */}
-                          <div className="flex items-center justify-between text-[11px] font-bold text-stone-600 bg-stone-50 px-2.5 py-1 rounded-lg border border-stone-200">
-                            <span>Disponibilidad:</span>
-                            <span className={isOutOfStock ? 'text-red-700 font-black' : 'text-emerald-950 font-black'}>
-                              {product.is_unlimited_stock
-                                ? 'Ilimitada'
-                                : isOutOfStock
-                                ? 'Agotado'
-                                : `${stockQty} ${product.format === 'granel' ? 'kg' : 'uds'} disponibles`}
-                            </span>
-                          </div>
-
-                          {/* Plazo de Entrega en 2 filas */}
-                          <div className="p-2 bg-emerald-50/90 rounded-xl border border-emerald-200 text-[11px] font-bold text-emerald-950 space-y-0.5">
-                            <div className="flex items-center gap-1 text-emerald-800 text-[10px] uppercase font-black">
-                              <Clock className="w-3 h-3 shrink-0" />
-                              <span>Entrega prevista:</span>
+                            {/* Disponibilidad / Stock */}
+                            <div className="absolute top-2.5 left-2.5 z-10">
+                              {product.is_unlimited_stock ? (
+                                <span className="bg-emerald-900/90 backdrop-blur-sm text-emerald-100 text-[10px] font-black px-2 py-0.5 rounded-lg border border-emerald-700 shadow-sm">
+                                  Disponibilidad Continua
+                                </span>
+                              ) : isOutOfStock ? (
+                                <span className="bg-red-700 text-white text-[10px] font-black px-2 py-0.5 rounded-lg shadow-sm">
+                                  Agotado
+                                </span>
+                              ) : (
+                                <span className="bg-stone-900/90 backdrop-blur-sm text-white text-[10px] font-black px-2 py-0.5 rounded-lg shadow-sm">
+                                  {stockQty} {product.format === 'granel' ? 'kg' : 'uds'} disponibles
+                                </span>
+                              )}
                             </div>
-                            <p className="text-stone-800 font-semibold leading-tight">
-                              {estimate.detailText}
-                            </p>
+                          </div>
+
+                          {/* Título y Precio */}
+                          <div className="p-4 space-y-2">
+                            <div className="flex items-start justify-between gap-2">
+                              <h3 className="font-black text-sm text-stone-900 line-clamp-1">
+                                {product.name}
+                              </h3>
+                              <span className="font-black text-sm text-emerald-950 shrink-0">
+                                {product.format === 'granel'
+                                  ? `${Number(product.price_per_kilo || product.price).toFixed(2)} €/kg`
+                                  : `${Number(product.price).toFixed(2)} €`}
+                              </span>
+                            </div>
+
+                            {/* Disponibilidad de Stock */}
+                            <div className="flex items-center justify-between text-[11px] font-bold text-stone-600 bg-stone-50 px-2.5 py-1 rounded-lg border border-stone-200">
+                              <span>Disponibilidad:</span>
+                              <span className={isOutOfStock ? 'text-red-700 font-black' : 'text-emerald-950 font-black'}>
+                                {product.is_unlimited_stock
+                                  ? 'Ilimitada'
+                                  : isOutOfStock
+                                  ? 'Agotado'
+                                  : `${stockQty} ${product.format === 'granel' ? 'kg' : 'uds'} disponibles`}
+                              </span>
+                            </div>
+
+                            {/* Plazo de Entrega en 2 filas */}
+                            <div className="p-2 bg-emerald-50/90 rounded-xl border border-emerald-200 text-[11px] font-bold text-emerald-950 space-y-0.5">
+                              <div className="flex items-center gap-1 text-emerald-800 text-[10px] uppercase font-black">
+                                <Clock className="w-3 h-3 shrink-0" />
+                                <span>Entrega prevista:</span>
+                              </div>
+                              <p className="text-stone-800 font-semibold leading-tight">
+                                {estimate.detailText}
+                              </p>
+                            </div>
                           </div>
                         </div>
-                      </QuickAddToCartModal>
+                      ) : (
+                        <QuickAddToCartModal
+                          item={itemPayload}
+                          isCardOverlay={true}
+                          className="w-full text-left"
+                        >
+                          <div className="aspect-square bg-stone-100 relative overflow-hidden group cursor-pointer">
+                            {product.image_url ? (
+                              <img
+                                src={product.image_url}
+                                alt={product.name}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex flex-col items-center justify-center text-stone-400 p-4">
+                                <Sprout className="w-12 h-12 text-emerald-800 mb-2" />
+                                <span className="text-xs font-bold text-stone-500">Caserío km0</span>
+                              </div>
+                            )}
+
+                            {/* Disponibilidad / Stock */}
+                            <div className="absolute top-2.5 left-2.5 z-10">
+                              {product.is_unlimited_stock ? (
+                                <span className="bg-emerald-900/90 backdrop-blur-sm text-emerald-100 text-[10px] font-black px-2 py-0.5 rounded-lg border border-emerald-700 shadow-sm">
+                                  Disponibilidad Continua
+                                </span>
+                              ) : isOutOfStock ? (
+                                <span className="bg-red-700 text-white text-[10px] font-black px-2 py-0.5 rounded-lg shadow-sm">
+                                  Agotado
+                                </span>
+                              ) : (
+                                <span className="bg-stone-900/90 backdrop-blur-sm text-white text-[10px] font-black px-2 py-0.5 rounded-lg shadow-sm">
+                                  {stockQty} {product.format === 'granel' ? 'kg' : 'uds'} disponibles
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Título y Precio */}
+                          <div className="p-4 space-y-2">
+                            <div className="flex items-start justify-between gap-2">
+                              <h3 className="font-black text-sm text-stone-900 group-hover:text-emerald-800 transition-colors line-clamp-1">
+                                {product.name}
+                              </h3>
+                              <span className="font-black text-sm text-emerald-950 shrink-0">
+                                {product.format === 'granel'
+                                  ? `${Number(product.price_per_kilo || product.price).toFixed(2)} €/kg`
+                                  : `${Number(product.price).toFixed(2)} €`}
+                              </span>
+                            </div>
+
+                            {/* Disponibilidad de Stock */}
+                            <div className="flex items-center justify-between text-[11px] font-bold text-stone-600 bg-stone-50 px-2.5 py-1 rounded-lg border border-stone-200">
+                              <span>Disponibilidad:</span>
+                              <span className={isOutOfStock ? 'text-red-700 font-black' : 'text-emerald-950 font-black'}>
+                                {product.is_unlimited_stock
+                                  ? 'Ilimitada'
+                                  : isOutOfStock
+                                  ? 'Agotado'
+                                  : `${stockQty} ${product.format === 'granel' ? 'kg' : 'uds'} disponibles`}
+                              </span>
+                            </div>
+
+                            {/* Plazo de Entrega en 2 filas */}
+                            <div className="p-2 bg-emerald-50/90 rounded-xl border border-emerald-200 text-[11px] font-bold text-emerald-950 space-y-0.5">
+                              <div className="flex items-center gap-1 text-emerald-800 text-[10px] uppercase font-black">
+                                <Clock className="w-3 h-3 shrink-0" />
+                                <span>Entrega prevista:</span>
+                              </div>
+                              <p className="text-stone-800 font-semibold leading-tight">
+                                {estimate.detailText}
+                              </p>
+                            </div>
+                          </div>
+                        </QuickAddToCartModal>
+                      )}
                     </div>
 
                     {/* Parte Inferior: Caserío, Acciones y Añadir / Editar */}
@@ -906,7 +979,7 @@ export function CatalogViewContainer({
                         </div>
                       </div>
 
-                      {/* Botón de acción: Si es mi producto -> Editar y Borrar; Si no -> Añadir a la Cesta */}
+                      {/* Botón de acción: Si es mi producto -> Editar y Borrar; Si es otro vendedor -> Contactar; Si es comprador -> Añadir */}
                       {isMyProduct ? (
                         <div className="flex items-center gap-2 w-full">
                           <Link
@@ -927,6 +1000,14 @@ export function CatalogViewContainer({
                             <span>{deletingId === product.id ? 'Borrando...' : 'Borrar'}</span>
                           </button>
                         </div>
+                      ) : isSeller ? (
+                        <Link
+                          href={`/chat/${product.seller_id}`}
+                          className="w-full py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-900 text-xs font-black rounded-xl transition-all border border-stone-300 flex items-center justify-center gap-1.5"
+                        >
+                          <MessageCircle className="w-4 h-4 text-emerald-800" />
+                          <span>Contactar con el Caserío</span>
+                        </Link>
                       ) : (
                         <QuickAddToCartModal
                           item={itemPayload}

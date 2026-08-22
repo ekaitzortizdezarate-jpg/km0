@@ -9,6 +9,7 @@ import {
   MapPin,
   AlertCircle,
   CheckCircle2,
+  Image as ImageIcon,
 } from 'lucide-react';
 import type { DeliveryPoint } from '@/types/database';
 import {
@@ -16,6 +17,7 @@ import {
   deleteDeliveryPoint,
   toggleHomeDeliveryService,
 } from '@/app/actions/delivery-points';
+import { ImageSelector } from '@/components/ImageSelector';
 
 interface DeliveryPointsManagerProps {
   initialPoints: DeliveryPoint[];
@@ -28,6 +30,7 @@ export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerPr
   const [town, setTown] = useState('');
   const [postalCode, setPostalCode] = useState('');
   const [addressDetails, setAddressDetails] = useState('');
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,21 +52,26 @@ export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerPr
       setTown(caserioPoint.town);
       setPostalCode(caserioPoint.postal_code || '');
       setAddressDetails(caserioPoint.address_details);
+      setImageUrl(caserioPoint.image_url || null);
+    } else if (type === 'sitio_fisico') {
+      setName('');
+      setAddressDetails('');
+      setImageUrl(null);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     setSuccessMsg(null);
     setLoading(true);
 
-    const formData = new FormData();
-    formData.append('name', name);
-    formData.append('type', selectedType);
-    formData.append('town', town);
-    formData.append('postal_code', postalCode);
-    formData.append('address_details', addressDetails);
+    const formData = new FormData(e.currentTarget);
+    formData.set('name', name);
+    formData.set('type', selectedType);
+    formData.set('town', town);
+    formData.set('postal_code', postalCode);
+    formData.set('address_details', addressDetails);
 
     const res = await createDeliveryPoint(formData);
     setLoading(false);
@@ -82,6 +90,7 @@ export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerPr
       if (selectedType === 'sitio_fisico') {
         setName('');
         setAddressDetails('');
+        setImageUrl(null);
       }
 
       window.location.reload();
@@ -111,7 +120,7 @@ export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerPr
       <div>
         <h1 className="text-2xl font-black text-stone-900">Puntos de Entrega y Ubicaciones</h1>
         <p className="text-xs font-semibold text-stone-500 mt-1">
-          Registra la ubicación de tu caserío, tus puntos físicos en mercados/plazas y activa el reparto a domicilio.
+          Registra la ubicación de tu caserío, tus puntos físicos en mercados/plazas con su foto y activa el reparto a domicilio.
           (Los días y horarios de entrega se configuran al publicar cada producto).
         </p>
       </div>
@@ -177,7 +186,7 @@ export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerPr
 
                 {selectedType === 'caserio' && caserioPoint && (
                   <p className="text-[11px] font-bold text-amber-800 bg-amber-50 p-2 rounded-xl border border-amber-200 mt-2">
-                    ℹ️ Ya tienes un caserío registrado. Guardar este formulario actualizará la dirección de tu caserío.
+                    ℹ️ Ya tienes un caserío registrado. Guardar este formulario actualizará la dirección y foto de tu caserío.
                   </p>
                 )}
               </div>
@@ -185,7 +194,7 @@ export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerPr
               {/* Nombre */}
               <div>
                 <label className="block text-xs font-bold text-stone-700 mb-1">
-                  Nombre del Punto / Caserío
+                  Nombre del Punto / Caserío *
                 </label>
                 <input
                   type="text"
@@ -247,6 +256,14 @@ export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerPr
                   className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
                 />
               </div>
+
+              {/* Selector de Foto para el Punto de Entrega */}
+              <ImageSelector
+                name="image_url"
+                defaultValue={imageUrl}
+                label="Foto del Punto / Caserío"
+                type="delivery_point"
+              />
 
               <button
                 type="submit"
@@ -310,36 +327,51 @@ export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerPr
               {physicalPoints.map((pt) => (
                 <div
                   key={pt.id}
-                  className="bg-white p-5 rounded-3xl border-2 border-stone-200 shadow-sm flex items-start justify-between gap-4 hover:border-emerald-700 transition-colors"
+                  className="bg-white p-5 rounded-3xl border-2 border-stone-200 shadow-sm flex flex-col sm:flex-row items-start justify-between gap-4 hover:border-emerald-700 transition-colors"
                 >
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="p-2 bg-emerald-50 text-emerald-800 rounded-xl">
-                        <Store className="w-4 h-4" />
-                      </span>
-                      <h3 className="font-black text-stone-900 text-sm">{pt.name}</h3>
+                  <div className="flex items-start gap-3.5 min-w-0">
+                    {pt.image_url ? (
+                      <img
+                        src={pt.image_url}
+                        alt={pt.name}
+                        className="w-16 h-16 rounded-2xl object-cover border border-stone-200 shrink-0 shadow-sm"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-800 flex items-center justify-center border border-emerald-200 shrink-0">
+                        {pt.type === 'caserio' ? (
+                          <Store className="w-7 h-7" />
+                        ) : (
+                          <MapPin className="w-7 h-7" />
+                        )}
+                      </div>
+                    )}
 
-                      <span
-                        className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-lg border ${
-                          pt.type === 'caserio'
-                            ? 'bg-amber-100 text-amber-950 border-amber-300'
-                            : 'bg-stone-100 text-stone-700 border-stone-300'
-                        }`}
-                      >
-                        {pt.type === 'caserio' ? '🏡 Caserío' : '📍 Punto Físico'}
-                      </span>
+                    <div className="space-y-1.5 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-black text-stone-900 text-sm truncate">{pt.name}</h3>
 
-                      <span className="text-[10px] font-bold bg-stone-100 text-stone-600 px-2 py-0.5 rounded-lg">
-                        {pt.town} {pt.postal_code ? `(${pt.postal_code})` : ''}
-                      </span>
+                        <span
+                          className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-lg border ${
+                            pt.type === 'caserio'
+                              ? 'bg-amber-100 text-amber-950 border-amber-300'
+                              : 'bg-stone-100 text-stone-700 border-stone-300'
+                          }`}
+                        >
+                          {pt.type === 'caserio' ? '🏡 Caserío' : '📍 Punto Físico'}
+                        </span>
+
+                        <span className="text-[10px] font-bold bg-stone-100 text-stone-600 px-2 py-0.5 rounded-lg">
+                          {pt.town} {pt.postal_code ? `(${pt.postal_code})` : ''}
+                        </span>
+                      </div>
+
+                      <p className="text-xs font-semibold text-stone-700">
+                        {pt.address_details}
+                      </p>
                     </div>
-
-                    <p className="text-xs font-semibold text-stone-700 pl-8">
-                      {pt.address_details}
-                    </p>
                   </div>
 
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex items-center gap-1 shrink-0 self-end sm:self-start">
                     <button
                       type="button"
                       onClick={() => handleDelete(pt.id)}
