@@ -39,16 +39,21 @@ export async function createCartOrders(sellerGroups: CartCheckoutSellerGroup[]) 
   }
 
   try {
-    // 0. Comprobar stock disponible de todos los productos antes de crear pedidos
+    // 0. Comprobar stock disponible en una única consulta por lotes
+    const allProductIds = Array.from(
+      new Set(sellerGroups.flatMap((g) => g.items.map((i) => i.productId)))
+    );
+    const { data: allProds } = await supabase
+      .from('products')
+      .select('id, name, stock, is_unlimited_stock')
+      .in('id', allProductIds);
+
+    const prodsMap = new Map((allProds || []).map((p) => [p.id, p]));
+
     for (const group of sellerGroups) {
       for (const item of group.items) {
         const qty = Number(item.quantity) || 1;
-        const { data: prod } = await supabase
-          .from('products')
-          .select('name, stock, is_unlimited_stock')
-          .eq('id', item.productId)
-          .single();
-
+        const prod = prodsMap.get(item.productId);
         if (prod && !prod.is_unlimited_stock) {
           const currentStock = Number(prod.stock) || 0;
           if (currentStock < qty) {
@@ -118,40 +123,40 @@ export async function createCartOrders(sellerGroups: CartCheckoutSellerGroup[]) 
         orderId = fullOrder.id;
       }
 
-      // Insertar líneas del pedido y descontar stock
-      for (const item of group.items) {
+      // Insertar todas las líneas del pedido en un único batch
+      const orderItemsPayload = group.items.map((item) => {
         const qty = Number(item.quantity) || 1;
-
-        await supabase.from('order_items').insert({
+        return {
           order_id: orderId,
           product_id: item.productId,
           quantity: qty,
           unit_price: item.unitPrice,
           subtotal: item.unitPrice * qty,
-        });
+        };
+      });
 
-        // Descontar stock con RPC seguro
-        const { error: rpcErr } = await supabase.rpc('decrement_product_stock', {
-          p_product_id: item.productId,
-          p_quantity: qty,
-        });
+      await supabase.from('order_items').insert(orderItemsPayload);
 
-        if (rpcErr) {
-          // Fallback manual si el RPC aún no fue ejecutado en Supabase
-          const { data: prod } = await supabase
-            .from('products')
-            .select('stock, is_unlimited_stock')
-            .eq('id', item.productId)
-            .single();
+      // Descontar stock de forma segura y concurrente
+      await Promise.all(
+        group.items.map(async (item) => {
+          const qty = Number(item.quantity) || 1;
+          const { error: rpcErr } = await supabase.rpc('decrement_product_stock', {
+            p_product_id: item.productId,
+            p_quantity: qty,
+          });
 
-          if (prod && !prod.is_unlimited_stock) {
-            await supabase
-              .from('products')
-              .update({ stock: Math.max(0, (Number(prod.stock) || 0) - qty) })
-              .eq('id', item.productId);
+          if (rpcErr) {
+            const prod = prodsMap.get(item.productId);
+            if (prod && !prod.is_unlimited_stock) {
+              await supabase
+                .from('products')
+                .update({ stock: Math.max(0, (Number(prod.stock) || 0) - qty) })
+                .eq('id', item.productId);
+            }
           }
-        }
-      }
+        })
+      );
     }
 
     revalidatePath('/');

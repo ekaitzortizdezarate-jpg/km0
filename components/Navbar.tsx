@@ -17,30 +17,31 @@ export default async function Navbar() {
   let unreadMessagesCount = 0;
 
   if (user) {
-    profile = await getOrCreateUserProfile(supabase, user);
-
-    // Contar mensajes no leídos
-    const { count: unreadCount } = await supabase
-      .from('chat_messages')
-      .select('*', { count: 'exact', head: true })
-      .eq('receiver_id', user.id)
-      .eq('is_read', false);
-    unreadMessagesCount = unreadCount || 0;
-
-    if (profile?.role === 'vendedor') {
-      const { count } = await supabase
+    const [userProfile, unreadRes, sellerOrdersRes, buyerOrdersRes] = await Promise.all([
+      getOrCreateUserProfile(supabase, user),
+      supabase
+        .from('chat_messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('receiver_id', user.id)
+        .eq('is_read', false),
+      supabase
         .from('orders')
         .select('*', { count: 'exact', head: true })
         .eq('seller_id', user.id)
-        .eq('status', 'pendiente');
-      sellerPendingCount = count || 0;
-    } else {
-      const { count } = await supabase
+        .eq('status', 'pendiente'),
+      supabase
         .from('orders')
         .select('*', { count: 'exact', head: true })
         .eq('buyer_id', user.id)
-        .eq('status', 'confirmado');
-      buyerConfirmedCount = count || 0;
+        .eq('status', 'confirmado'),
+    ]);
+
+    profile = userProfile;
+    unreadMessagesCount = unreadRes.count || 0;
+    if (profile?.role === 'vendedor') {
+      sellerPendingCount = sellerOrdersRes.count || 0;
+    } else {
+      buyerConfirmedCount = buyerOrdersRes.count || 0;
     }
   }
 

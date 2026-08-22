@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useSyncExternalStore } from 'react';
+import { useState, useMemo, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import {
   Search,
@@ -133,146 +133,165 @@ export function CatalogViewContainer({
     () => EMPTY_FAV_SET
   );
 
-  // Agrupar productos por vendedor
-  const sellersMap: Record<string, SellerWithProducts> = {};
-  sellers.forEach((s) => {
-    sellersMap[s.id] = {
-      profile: s,
-      products: [],
-      deliveryPointsCount: 0,
-    };
-  });
-
-  products.forEach((p) => {
-    if (sellersMap[p.seller_id]) {
-      sellersMap[p.seller_id].products.push(p);
-    } else if (p.profiles) {
-      sellersMap[p.seller_id] = {
-        profile: p.profiles as unknown as Profile,
-        products: [p],
+  // Agrupar productos por vendedor (memoizado)
+  const sellersMap = useMemo(() => {
+    const map: Record<string, SellerWithProducts> = {};
+    sellers.forEach((s) => {
+      map[s.id] = {
+        profile: s,
+        products: [],
         deliveryPointsCount: 0,
       };
-    }
-  });
+    });
 
-  const allSellersList = Object.values(sellersMap);
-  const mySellerProductsCount = userProfile
-    ? products.filter((p) => p.seller_id === userProfile.id).length
-    : 0;
+    products.forEach((p) => {
+      if (map[p.seller_id]) {
+        map[p.seller_id].products.push(p);
+      } else if (p.profiles) {
+        map[p.seller_id] = {
+          profile: p.profiles as unknown as Profile,
+          products: [p],
+          deliveryPointsCount: 0,
+        };
+      }
+    });
+    return map;
+  }, [sellers, products]);
 
-  // Filtrado de Vendedores para la pestaña "Vendedores / Caseríos"
-  const filteredSellers = allSellersList.filter(({ profile, products: sellerProds }) => {
-    if (searchTerm) {
-      const q = searchTerm.toLowerCase();
-      const matchName = profile.full_name?.toLowerCase().includes(q);
-      const matchTown = profile.town?.toLowerCase().includes(q);
-      const matchBio = profile.bio?.toLowerCase().includes(q);
-      const matchProd = sellerProds.some((p) => p.name.toLowerCase().includes(q));
-      if (!matchName && !matchTown && !matchBio && !matchProd) return false;
-    }
-    if (selectedTown) {
-      if (profile.town?.toLowerCase() !== selectedTown.toLowerCase()) return false;
-    }
-    return true;
-  });
+  const allSellersList = useMemo(() => Object.values(sellersMap), [sellersMap]);
 
-  // Filtrado de Productos para las pestañas de productos
-  const filteredProducts = products.filter((product) => {
-    // 1. Filtrado por Pestaña
-    if (activeTab === 'mis_productos') {
-      if (!userProfile || product.seller_id !== userProfile.id) return false;
-    } else if (activeTab === 'favoritos') {
-      if (!favProducts.has(product.id)) return false;
-    }
+  const mySellerProductsCount = useMemo(() => {
+    return userProfile ? products.filter((p) => p.seller_id === userProfile.id).length : 0;
+  }, [products, userProfile]);
 
-    // 2. Filtrado por Vendedor específico seleccionado
-    if (selectedSellerId && product.seller_id !== selectedSellerId) {
-      return false;
-    }
+  // Filtrado de Vendedores para la pestaña "Vendedores / Caseríos" (memoizado)
+  const filteredSellers = useMemo(() => {
+    return allSellersList.filter(({ profile, products: sellerProds }) => {
+      if (searchTerm) {
+        const q = searchTerm.toLowerCase();
+        const matchName = profile.full_name?.toLowerCase().includes(q);
+        const matchTown = profile.town?.toLowerCase().includes(q);
+        const matchBio = profile.bio?.toLowerCase().includes(q);
+        const matchProd = sellerProds.some((p) => p.name.toLowerCase().includes(q));
+        if (!matchName && !matchTown && !matchBio && !matchProd) return false;
+      }
+      if (selectedTown) {
+        if (profile.town?.toLowerCase() !== selectedTown.toLowerCase()) return false;
+      }
+      return true;
+    });
+  }, [allSellersList, searchTerm, selectedTown]);
 
-    // 3. Filtrado por Categoría
-    if (activeCategory && product.category !== activeCategory) {
-      return false;
-    }
+  // Filtrado y Ordenación de Productos (memoizado)
+  const sortedProducts = useMemo(() => {
+    const filtered = products.filter((product) => {
+      // 1. Filtrado por Pestaña
+      if (activeTab === 'mis_productos') {
+        if (!userProfile || product.seller_id !== userProfile.id) return false;
+      } else if (activeTab === 'favoritos') {
+        if (!favProducts.has(product.id)) return false;
+      }
 
-    // 4. Filtrado por Pueblo
-    if (selectedTown && product.profiles?.town?.toLowerCase() !== selectedTown.toLowerCase()) {
-      return false;
-    }
+      // 2. Filtrado por Vendedor específico seleccionado
+      if (selectedSellerId && product.seller_id !== selectedSellerId) {
+        return false;
+      }
 
-    // 5. Filtrado por Búsqueda de Texto (Nombre, Pueblo, Caserío)
-    if (searchTerm) {
-      const q = searchTerm.toLowerCase();
-      const matchName = product.name.toLowerCase().includes(q);
-      const matchDesc = product.description?.toLowerCase().includes(q);
-      const matchSeller = product.profiles?.full_name?.toLowerCase().includes(q);
-      const matchTown = product.profiles?.town?.toLowerCase().includes(q);
-      if (!matchName && !matchDesc && !matchSeller && !matchTown) return false;
-    }
+      // 3. Filtrado por Categoría
+      if (activeCategory && product.category !== activeCategory) {
+        return false;
+      }
 
-    return true;
-  });
+      // 4. Filtrado por Pueblo
+      if (selectedTown && product.profiles?.town?.toLowerCase() !== selectedTown.toLowerCase()) {
+        return false;
+      }
 
-  // Ordenación de Productos
-  const sortedProducts = [...filteredProducts].sort((a, b) => {
-    if (sortBy === 'nombre_asc') {
-      return a.name.localeCompare(b.name, 'es', { sensitivity: 'base' });
-    }
-    if (sortBy === 'nombre_desc') {
-      return b.name.localeCompare(a.name, 'es', { sensitivity: 'base' });
-    }
-    if (sortBy === 'precio_asc') {
-      const priceA = a.format === 'granel' ? (a.price_per_kilo || a.price) : a.price;
-      const priceB = b.format === 'granel' ? (b.price_per_kilo || b.price) : b.price;
-      return Number(priceA) - Number(priceB);
-    }
-    if (sortBy === 'precio_desc') {
-      const priceA = a.format === 'granel' ? (a.price_per_kilo || a.price) : a.price;
-      const priceB = b.format === 'granel' ? (b.price_per_kilo || b.price) : b.price;
-      return Number(priceB) - Number(priceA);
-    }
-    if (sortBy === 'fecha_asc') {
-      const estA = getDeliveryEstimate(
-        a.availability_type,
-        a.availability_days,
-        a.availability_weekdays,
-        a.available_from_date
-      );
-      const estB = getDeliveryEstimate(
-        b.availability_type,
-        b.availability_days,
-        b.availability_weekdays,
-        b.available_from_date
-      );
-      return estA.estimatedDate.getTime() - estB.estimatedDate.getTime();
-    }
-    if (sortBy === 'fecha_desc') {
-      const estA = getDeliveryEstimate(
-        a.availability_type,
-        a.availability_days,
-        a.availability_weekdays,
-        a.available_from_date
-      );
-      const estB = getDeliveryEstimate(
-        b.availability_type,
-        b.availability_days,
-        b.availability_weekdays,
-        b.available_from_date
-      );
-      return estB.estimatedDate.getTime() - estA.estimatedDate.getTime();
-    }
-    if (sortBy === 'stock_desc') {
-      const stockA = a.is_unlimited_stock ? 999999 : Number(a.stock) || 0;
-      const stockB = b.is_unlimited_stock ? 999999 : Number(b.stock) || 0;
-      return stockB - stockA;
-    }
-    if (sortBy === 'stock_asc') {
-      const stockA = a.is_unlimited_stock ? 999999 : Number(a.stock) || 0;
-      const stockB = b.is_unlimited_stock ? 999999 : Number(b.stock) || 0;
-      return stockA - stockB;
-    }
-    return 0;
-  });
+      // 5. Filtrado por Búsqueda de Texto (Nombre, Pueblo, Caserío)
+      if (searchTerm) {
+        const q = searchTerm.toLowerCase();
+        const matchName = product.name.toLowerCase().includes(q);
+        const matchDesc = product.description?.toLowerCase().includes(q);
+        const matchSeller = product.profiles?.full_name?.toLowerCase().includes(q);
+        const matchTown = product.profiles?.town?.toLowerCase().includes(q);
+        if (!matchName && !matchDesc && !matchSeller && !matchTown) return false;
+      }
+
+      return true;
+    });
+
+    return filtered.sort((a, b) => {
+      if (sortBy === 'nombre_asc') {
+        return a.name.localeCompare(b.name, 'es', { sensitivity: 'base' });
+      }
+      if (sortBy === 'nombre_desc') {
+        return b.name.localeCompare(a.name, 'es', { sensitivity: 'base' });
+      }
+      if (sortBy === 'precio_asc') {
+        const priceA = a.format === 'granel' ? (a.price_per_kilo || a.price) : a.price;
+        const priceB = b.format === 'granel' ? (b.price_per_kilo || b.price) : b.price;
+        return Number(priceA) - Number(priceB);
+      }
+      if (sortBy === 'precio_desc') {
+        const priceA = a.format === 'granel' ? (a.price_per_kilo || a.price) : a.price;
+        const priceB = b.format === 'granel' ? (b.price_per_kilo || b.price) : b.price;
+        return Number(priceB) - Number(priceA);
+      }
+      if (sortBy === 'fecha_asc') {
+        const estA = getDeliveryEstimate(
+          a.availability_type,
+          a.availability_days,
+          a.availability_weekdays,
+          a.available_from_date
+        );
+        const estB = getDeliveryEstimate(
+          b.availability_type,
+          b.availability_days,
+          b.availability_weekdays,
+          b.available_from_date
+        );
+        return estA.estimatedDate.getTime() - estB.estimatedDate.getTime();
+      }
+      if (sortBy === 'fecha_desc') {
+        const estA = getDeliveryEstimate(
+          a.availability_type,
+          a.availability_days,
+          a.availability_weekdays,
+          a.available_from_date
+        );
+        const estB = getDeliveryEstimate(
+          b.availability_type,
+          b.availability_days,
+          b.availability_weekdays,
+          b.available_from_date
+        );
+        return estB.estimatedDate.getTime() - estA.estimatedDate.getTime();
+      }
+      if (sortBy === 'stock_desc') {
+        const stockA = a.is_unlimited_stock ? 999999 : Number(a.stock) || 0;
+        const stockB = b.is_unlimited_stock ? 999999 : Number(b.stock) || 0;
+        return stockB - stockA;
+      }
+      if (sortBy === 'stock_asc') {
+        const stockA = a.is_unlimited_stock ? 999999 : Number(a.stock) || 0;
+        const stockB = b.is_unlimited_stock ? 999999 : Number(b.stock) || 0;
+        return stockA - stockB;
+      }
+      return 0;
+    });
+  }, [
+    products,
+    activeTab,
+    userProfile,
+    favProducts,
+    selectedSellerId,
+    activeCategory,
+    selectedTown,
+    searchTerm,
+    sortBy,
+  ]);
+
+  const filteredProducts = sortedProducts;
 
   const activeSellerObj = selectedSellerId ? sellersMap[selectedSellerId]?.profile : null;
 

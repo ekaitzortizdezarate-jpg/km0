@@ -119,8 +119,40 @@ export function ImageSelector({
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === 'string') {
-        setSelectedUrl(reader.result);
-        setInputUrl('');
+        const rawBase64 = reader.result;
+        const img = new window.Image();
+        img.onload = () => {
+          const maxDim = 1200;
+          let width = img.width;
+          let height = img.height;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressed = canvas.toDataURL('image/jpeg', 0.82);
+            setSelectedUrl(compressed);
+            setInputUrl('');
+          } else {
+            setSelectedUrl(rawBase64);
+            setInputUrl('');
+          }
+        };
+        img.onerror = () => {
+          setSelectedUrl(rawBase64);
+          setInputUrl('');
+        };
+        img.src = rawBase64;
       }
     };
     reader.readAsDataURL(file);
