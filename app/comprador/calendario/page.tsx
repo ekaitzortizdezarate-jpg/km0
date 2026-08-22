@@ -13,6 +13,9 @@ interface OrderWithSellerAndItems extends Order {
   delivery_points?: {
     name: string;
     address_details: string;
+    opening_time?: string | null;
+    closing_time?: string | null;
+    schedule_notes?: string | null;
   } | null;
   order_items?: {
     id: string;
@@ -38,7 +41,7 @@ export default async function BuyerCalendarPage() {
     .select(`
       *,
       profiles!orders_seller_id_fkey(id, full_name, town, avatar_url),
-      delivery_points(name, address_details),
+      delivery_points(name, address_details, opening_time, closing_time, schedule_notes),
       order_items(*, products(id, name, format, price, image_url, delivery_methods))
     `)
     .eq('buyer_id', user.id);
@@ -75,6 +78,10 @@ export default async function BuyerCalendarPage() {
         ? `Envío: ${ord.shipping_address?.replace(/^Para:\s*/i, '')}`
         : 'Recogida en caserío';
 
+      const scheduleStr = ord.delivery_points?.opening_time && ord.delivery_points?.closing_time
+        ? `${ord.delivery_points.opening_time} - ${ord.delivery_points.closing_time}`
+        : ord.delivery_points?.schedule_notes || null;
+
       events.push({
         id: `ord-${ord.id}`,
         type: 'order',
@@ -86,6 +93,7 @@ export default async function BuyerCalendarPage() {
         sellerAvatarUrl: ord.profiles?.avatar_url || null,
         deliveryType: dType,
         deliveryLocation: dLoc,
+        deliverySchedule: scheduleStr,
         items: itemNames,
         orderProducts,
         chatUserId: ord.profiles?.id,
