@@ -83,12 +83,12 @@ export function NavbarNavLinks({
       : localBuyerConfirmed;
 
   return (
-    <div className="flex items-center gap-1 sm:gap-2">
-      {/* 1. km0 y Catálogo unificados */}
+    <div className="flex items-center gap-1 sm:gap-1.5">
+      {/* 1. km0 y Mercado unificados */}
       <Link
         href="/"
-        title="Catálogo de Productos - km0"
-        className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-xl transition-all ${
+        title="Mercado y Catálogo - km0"
+        className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-xl transition-all ${
           isCatalogueActive
             ? 'bg-emerald-800 text-white font-black shadow-sm'
             : 'text-stone-700 hover:text-emerald-800 hover:bg-stone-100 font-bold'
@@ -97,8 +97,8 @@ export function NavbarNavLinks({
         <span className={`font-black text-xs sm:text-sm leading-none tracking-tight ${isCatalogueActive ? 'text-white' : 'text-emerald-700'}`}>
           km0
         </span>
-        <span className="text-[9px] sm:text-xs font-black uppercase leading-tight tracking-wider text-center sm:text-left max-w-[48px] sm:max-w-none truncate">
-          CATÁLOGO
+        <span className="text-[8px] sm:text-[10px] font-black uppercase leading-tight tracking-wider text-center sm:text-left max-w-[46px] sm:max-w-none truncate">
+          MERCADO
         </span>
       </Link>
 
@@ -107,11 +107,11 @@ export function NavbarNavLinks({
 
       {user && profile ? (
         <>
-          {/* 3. Mensajes / Chat (Pestaña Naranja si hay mensaje nuevo) */}
+          {/* 3. Chat (Pestaña Naranja si hay mensaje nuevo) */}
           <Link
             href="/chat"
-            title={localUnread > 0 ? `${localUnread} mensajes nuevos sin leer` : 'Mis mensajes y chats'}
-            className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-xl transition-all ${
+            title={localUnread > 0 ? `${localUnread} mensajes nuevos sin leer` : 'Mis conversaciones y chat'}
+            className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-xl transition-all ${
               isChatActive
                 ? 'bg-emerald-800 text-white font-black shadow-sm'
                 : localUnread > 0
@@ -128,16 +128,16 @@ export function NavbarNavLinks({
                   : 'text-emerald-700'
               }`}
             />
-            <span className="text-[9px] sm:text-xs font-black uppercase leading-tight tracking-wider text-center max-w-[48px] sm:max-w-none truncate">
-              MENSAJES
+            <span className="text-[8px] sm:text-[10px] font-black uppercase leading-tight tracking-wider text-center max-w-[44px] sm:max-w-none truncate">
+              CHAT
             </span>
           </Link>
 
-          {/* 4. Calendario */}
+          {/* 4. Fechas (Calendario) */}
           <Link
             href={calendarHref}
-            title="Calendario de entregas y compras"
-            className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-xl transition-all ${
+            title="Fechas y calendario de entregas"
+            className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-xl transition-all ${
               isCalendarActive
                 ? 'bg-emerald-800 text-white font-black shadow-sm'
                 : 'text-stone-700 hover:text-emerald-800 hover:bg-stone-100 font-bold'
@@ -146,8 +146,8 @@ export function NavbarNavLinks({
             <Calendar
               className={`w-4 h-4 shrink-0 ${isCalendarActive ? 'text-white' : 'text-emerald-700'}`}
             />
-            <span className="text-[9px] sm:text-xs font-black uppercase leading-tight tracking-wider text-center max-w-[54px] sm:max-w-none truncate">
-              CALENDARIO
+            <span className="text-[8px] sm:text-[10px] font-black uppercase leading-tight tracking-wider text-center max-w-[46px] sm:max-w-none truncate">
+              FECHAS
             </span>
           </Link>
 
@@ -159,7 +159,7 @@ export function NavbarNavLinks({
                 ? `${ordersBadgeCount} pedidos pendientes por validar`
                 : `${ordersBadgeCount} pedidos confirmados por el caserío`
             }
-            className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-xl transition-all ${
+            className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-xl transition-all ${
               isOrdersActive
                 ? 'bg-emerald-800 text-white font-black shadow-sm'
                 : ordersBadgeCount > 0
@@ -176,7 +176,7 @@ export function NavbarNavLinks({
                   : 'text-emerald-700'
               }`}
             />
-            <span className="text-[9px] sm:text-xs font-black uppercase leading-tight tracking-wider text-center max-w-[48px] sm:max-w-none truncate">
+            <span className="text-[8px] sm:text-[10px] font-black uppercase leading-tight tracking-wider text-center max-w-[46px] sm:max-w-none truncate">
               PEDIDOS
             </span>
           </Link>
@@ -186,14 +186,14 @@ export function NavbarNavLinks({
             <Link
               href="/admin"
               title="Panel de Administración"
-              className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-xl transition-all ${
+              className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-xl transition-all ${
                 isAdminActive
                   ? 'bg-emerald-800 text-white font-black shadow-sm'
                   : 'bg-stone-100 text-stone-900 hover:bg-stone-200 font-black border border-stone-300'
               }`}
             >
               <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-700" />
-              <span className="text-[9px] sm:text-xs font-black uppercase leading-tight tracking-wider text-center max-w-[48px] sm:max-w-none truncate">
+              <span className="text-[8px] sm:text-[10px] font-black uppercase leading-tight tracking-wider text-center max-w-[44px] sm:max-w-none truncate">
                 ADMIN
               </span>
             </Link>
@@ -203,30 +203,30 @@ export function NavbarNavLinks({
           <Link
             href="/perfil"
             title={profile.role === 'vendedor' ? 'Mi Caserío' : 'Mi Perfil'}
-            className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-xl transition-all ${
+            className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-xl transition-all ${
               isProfileActive
                 ? 'bg-emerald-800 text-white font-black shadow-sm'
                 : 'text-stone-700 hover:text-emerald-800 hover:bg-stone-100 font-bold'
             }`}
           >
             <User className={`w-4 h-4 shrink-0 ${isProfileActive ? 'text-white' : 'text-emerald-700'}`} />
-            <span className="text-[9px] sm:text-xs font-black uppercase leading-tight tracking-wider text-center max-w-[48px] sm:max-w-none truncate">
+            <span className="text-[8px] sm:text-[10px] font-black uppercase leading-tight tracking-wider text-center max-w-[46px] sm:max-w-none truncate">
               {profile.role === 'vendedor' ? 'CASERÍO' : 'PERFIL'}
             </span>
           </Link>
         </>
       ) : (
         /* Visitante / No Logueado */
-        <div className="flex items-center gap-1 sm:gap-2">
+        <div className="flex items-center gap-1 sm:gap-1.5">
           <Link
             href="/login"
-            className="text-stone-700 hover:text-emerald-800 font-black uppercase text-xs sm:text-sm px-2.5 sm:px-3 py-1.5 rounded-xl hover:bg-stone-100 transition-colors"
+            className="text-stone-700 hover:text-emerald-800 font-black uppercase text-[10px] sm:text-xs px-2 sm:px-2.5 py-1.5 rounded-xl hover:bg-stone-100 transition-colors"
           >
             ENTRAR
           </Link>
           <Link
             href="/register"
-            className="bg-emerald-800 hover:bg-emerald-900 text-white font-black uppercase text-xs sm:text-sm px-2.5 sm:px-3.5 py-1.5 rounded-xl shadow-sm transition-all"
+            className="bg-emerald-800 hover:bg-emerald-900 text-white font-black uppercase text-[10px] sm:text-xs px-2.5 sm:px-3 py-1.5 rounded-xl shadow-sm transition-all"
           >
             REGISTRO
           </Link>

@@ -72,7 +72,11 @@ export interface DeliveryPoint {
   name: string;
   type: DeliveryType;
   town: string;
+  postal_code?: string | null;
   address_details: string;
+  days_of_week?: string[] | null;
+  opening_time?: string | null;
+  closing_time?: string | null;
   schedule_notes: string | null;
   is_active: boolean;
   created_at: string;

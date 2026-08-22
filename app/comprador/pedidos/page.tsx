@@ -1,18 +1,9 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { RefreshCw, MapPin, Store, MessageCircle, Calendar, Clock, CheckCircle2 } from 'lucide-react';
+import { RefreshCw, MapPin, Store, MessageCircle, Calendar, Clock, CheckCircle2, Truck } from 'lucide-react';
 import Link from 'next/link';
 import ReviewForm from '@/components/ReviewForm';
 import { CancelOrderButton } from '@/components/CancelOrderButton';
-
-interface OrderItemWithProduct {
-  id: string;
-  quantity: number;
-  subtotal: number;
-  products?: {
-    name: string;
-  } | null;
-}
 
 export default async function BuyerOrdersPage() {
   const supabase = await createClient();
@@ -28,7 +19,7 @@ export default async function BuyerOrdersPage() {
       *,
       profiles!orders_seller_id_fkey(id, full_name, town, phone),
       delivery_points(name, town, address_details),
-      order_items(*, products(name))
+      order_items(*, products(id, name, format, image_url))
     `)
     .eq('buyer_id', user.id)
     .order('created_at', { ascending: false });
@@ -140,21 +131,47 @@ export default async function BuyerOrdersPage() {
                 </div>
               ) : null}
 
-              {/* Productos */}
-              <div className="space-y-1.5 bg-stone-50 p-3.5 rounded-2xl border border-stone-200">
-                {order.order_items?.map((item: OrderItemWithProduct) => (
+              {/* Productos con Imagen */}
+              <div className="space-y-2 bg-stone-50 p-3.5 rounded-2xl border border-stone-200">
+                {order.order_items?.map((item: any) => (
                   <div
                     key={item.id}
-                    className="flex justify-between text-xs font-bold text-stone-900"
+                    className="flex items-center justify-between gap-3 text-xs font-bold text-stone-900 bg-white p-2.5 rounded-xl border border-stone-200"
                   >
-                    <span>
-                      {item.products?.name} x {item.quantity}
-                    </span>
-                    <span className="font-black">
+                    <div className="flex items-center gap-2.5">
+                      {item.products?.image_url ? (
+                        <img
+                          src={item.products.image_url}
+                          alt={item.products?.name}
+                          className="w-11 h-11 rounded-lg object-cover border border-stone-200 shrink-0"
+                        />
+                      ) : (
+                        <div className="w-11 h-11 rounded-lg bg-emerald-50 text-emerald-800 font-black text-[10px] flex items-center justify-center border border-emerald-200 shrink-0">
+                          km0
+                        </div>
+                      )}
+                      <div>
+                        <span className="font-black text-stone-900 block">
+                          {item.products?.name}
+                        </span>
+                        <span className="text-[11px] font-semibold text-stone-500">
+                          {item.quantity} {item.products?.format === 'granel' ? 'kg' : 'uds'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <span className="font-black text-stone-900 text-xs shrink-0">
                       {Number(item.subtotal).toFixed(2)} €
                     </span>
                   </div>
                 ))}
+
+                <div className="pt-2 mt-2 border-t border-stone-300 flex justify-between text-xs font-black text-stone-900 px-1">
+                  <span>Total Pedido</span>
+                  <span className="text-sm font-black text-emerald-950">
+                    {Number(order.total_amount).toFixed(2)} €
+                  </span>
+                </div>
               </div>
 
               {/* Modalidad de entrega */}
@@ -170,35 +187,30 @@ export default async function BuyerOrdersPage() {
                   </>
                 ) : (
                   <>
-                    <MapPin className="w-4 h-4 text-emerald-800 shrink-0" />
+                    <Truck className="w-4 h-4 text-emerald-800 shrink-0" />
                     <span>
-                      Envío a domicilio:{' '}
+                      Envío:{' '}
                       <strong className="text-stone-900">{order.shipping_address}</strong>
                     </span>
                   </>
                 )}
               </div>
 
-              {/* Total y Valoración */}
-              <div className="flex flex-wrap items-center justify-between gap-4 pt-3 border-t border-stone-100">
-                <div className="text-base font-black text-stone-900">
-                  Total: {Number(order.total_amount).toFixed(2)} €
-                </div>
-
-                {order.status === 'entregado' && (
+              {order.status === 'entregado' && (
+                <div className="pt-2 border-t border-stone-100 flex justify-end">
                   <ReviewForm orderId={order.id} targetId={order.seller_id} />
-                )}
-              </div>
+                </div>
+              )}
             </div>
           ))
         ) : (
-          <div className="text-center py-16 bg-white rounded-3xl border-2 border-stone-200 text-sm font-bold text-stone-700 p-8 space-y-3">
-            <p>No tienes compras registradas aún.</p>
+          <div className="text-center py-12 bg-white rounded-3xl border-2 border-stone-200 text-sm font-bold text-stone-700 p-6 space-y-3">
+            <p>Aún no has realizado ningún pedido.</p>
             <Link
               href="/"
-              className="inline-block bg-emerald-800 text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-sm"
+              className="inline-block bg-emerald-800 hover:bg-emerald-900 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-all shadow-sm"
             >
-              Explorar Catálogo km0
+              Explorar Mercado y Catálogo
             </Link>
           </div>
         )}

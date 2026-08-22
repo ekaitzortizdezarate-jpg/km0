@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useSyncExternalStore } from 'react';
 
 export interface CartItem {
+  cartItemId?: string; // Identificador único compuesto (producto + modalidad + punto)
   productId: string;
   sellerId: string;
   sellerName: string;
@@ -34,8 +35,8 @@ export interface CartItem {
 interface CartContextType {
   items: CartItem[];
   addToCart: (item: CartItem) => void;
-  removeFromCart: (productId: string) => void;
-  updateQuantity: (productId: string, quantity: number) => void;
+  removeFromCart: (cartItemId: string) => void;
+  updateQuantity: (cartItemId: string, quantity: number) => void;
   clearCart: () => void;
   totalItems: number;
   totalPrice: number;
@@ -58,12 +59,23 @@ function subscribe(callback: () => void) {
   };
 }
 
+function getItemKey(item: CartItem): string {
+  return (
+    item.cartItemId ||
+    `${item.productId}_${item.selectedDeliveryType || 'caserio'}_${item.selectedPointId || 'none'}`
+  );
+}
+
 function getSnapshot(): CartItem[] {
   try {
     const raw = localStorage.getItem(CART_STORAGE_KEY) || '[]';
     if (raw !== cachedString) {
       cachedString = raw;
-      cachedItems = JSON.parse(raw);
+      const parsed: CartItem[] = JSON.parse(raw);
+      cachedItems = parsed.map((item) => ({
+        ...item,
+        cartItemId: getItemKey(item),
+      }));
     }
     return cachedItems;
   } catch {
@@ -89,27 +101,32 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addToCart = (newItem: CartItem) => {
-    const existingIndex = items.findIndex((i) => i.productId === newItem.productId);
+    const itemKey = getItemKey(newItem);
+    const fullItem: CartItem = { ...newItem, cartItemId: itemKey };
+
+    const existingIndex = items.findIndex((i) => getItemKey(i) === itemKey);
     if (existingIndex > -1) {
       const updated = [...items];
       updated[existingIndex].quantity += newItem.quantity;
       saveItems(updated);
     } else {
-      saveItems([...items, newItem]);
+      saveItems([...items, fullItem]);
     }
   };
 
-  const removeFromCart = (productId: string) => {
-    saveItems(items.filter((i) => i.productId !== productId));
+  const removeFromCart = (cartItemId: string) => {
+    saveItems(items.filter((i) => getItemKey(i) !== cartItemId && i.productId !== cartItemId));
   };
 
-  const updateQuantity = (productId: string, quantity: number) => {
+  const updateQuantity = (cartItemId: string, quantity: number) => {
     if (quantity <= 0) {
-      removeFromCart(productId);
+      removeFromCart(cartItemId);
       return;
     }
     const updated = items.map((item) =>
-      item.productId === productId ? { ...item, quantity } : item
+      getItemKey(item) === cartItemId || item.productId === cartItemId
+        ? { ...item, quantity }
+        : item
     );
     saveItems(updated);
   };

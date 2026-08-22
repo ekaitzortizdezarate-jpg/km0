@@ -14,7 +14,7 @@ export function CartNavButton() {
     <Link
       href="/cesta"
       title="Ver mi cesta de la compra"
-      className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-xl transition-all ${
+      className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-xl transition-all ${
         isCestaActive
           ? 'bg-emerald-800 text-white font-black shadow-sm'
           : 'text-stone-700 hover:text-emerald-800 hover:bg-stone-100 font-bold'
@@ -32,7 +32,7 @@ export function CartNavButton() {
           </span>
         )}
       </div>
-      <span className="text-[9px] sm:text-xs font-black uppercase leading-tight tracking-wider text-center max-w-[48px] sm:max-w-none truncate">
+      <span className="text-[8px] sm:text-[10px] font-black uppercase leading-tight tracking-wider text-center max-w-[44px] sm:max-w-none truncate">
         CESTA{cartCount > 0 && isCestaActive ? ` (${cartCount})` : ''}
       </span>
     </Link>

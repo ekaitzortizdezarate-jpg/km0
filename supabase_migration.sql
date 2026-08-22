@@ -108,7 +108,11 @@ CREATE TABLE IF NOT EXISTS public.delivery_points (
   name TEXT NOT NULL,
   type TEXT DEFAULT 'sitio_fisico',
   town TEXT NOT NULL,
+  postal_code TEXT,
   address_details TEXT NOT NULL,
+  days_of_week TEXT[],
+  opening_time TEXT,
+  closing_time TEXT,
   schedule_notes TEXT,
   is_active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW()
@@ -117,6 +121,10 @@ CREATE TABLE IF NOT EXISTS public.delivery_points (
 ALTER TABLE public.delivery_points ALTER COLUMN type TYPE TEXT;
 ALTER TABLE public.delivery_points 
   ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'sitio_fisico',
+  ADD COLUMN IF NOT EXISTS postal_code TEXT,
+  ADD COLUMN IF NOT EXISTS days_of_week TEXT[],
+  ADD COLUMN IF NOT EXISTS opening_time TEXT,
+  ADD COLUMN IF NOT EXISTS closing_time TEXT,
   ADD COLUMN IF NOT EXISTS schedule_notes TEXT,
   ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
 

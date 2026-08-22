@@ -1,21 +1,9 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { updateOrderStatus } from '@/app/actions/order-status';
-import { OrderStatus } from '@/types/database';
-import { RefreshCw, MessageCircle, Phone, Calendar, Clock, MapPin, Store } from 'lucide-react';
+import { Store, MapPin, MessageCircle, Calendar, Phone, Truck } from 'lucide-react';
 import Link from 'next/link';
-import ReviewForm from '@/components/ReviewForm';
 import { ConfirmOrderForm } from '@/components/ConfirmOrderForm';
 import { SellerActiveOrderCard } from '@/components/SellerActiveOrderCard';
-
-interface OrderItemWithProduct {
-  id: string;
-  quantity: number;
-  subtotal: number;
-  products?: {
-    name: string;
-  } | null;
-}
 
 export default async function SellerOrdersPage() {
   const supabase = await createClient();
@@ -31,7 +19,7 @@ export default async function SellerOrdersPage() {
       *,
       profiles!orders_buyer_id_fkey(id, full_name, town, phone),
       delivery_points(name, address_details),
-      order_items(*, products(name))
+      order_items(*, products(id, name, format, image_url))
     `)
     .eq('seller_id', user.id)
     .order('created_at', { ascending: false });
@@ -114,22 +102,41 @@ export default async function SellerOrdersPage() {
                     </div>
                   </div>
 
-                  {/* Productos */}
-                  <div className="space-y-1 bg-white p-3.5 rounded-2xl border border-amber-200 shadow-inner">
-                    {order.order_items?.map((item: OrderItemWithProduct) => (
+                  {/* Productos con Imagen */}
+                  <div className="space-y-2 bg-white p-3.5 rounded-2xl border border-amber-200 shadow-inner">
+                    {order.order_items?.map((item: any) => (
                       <div
                         key={item.id}
-                        className="flex justify-between text-xs font-bold text-stone-900"
+                        className="flex items-center justify-between gap-3 text-xs font-bold text-stone-900 bg-stone-50 p-2.5 rounded-xl border border-stone-200"
                       >
-                        <span>
-                          {item.products?.name} x {item.quantity}
-                        </span>
-                        <span className="font-black">
+                        <div className="flex items-center gap-2.5">
+                          {item.products?.image_url ? (
+                            <img
+                              src={item.products.image_url}
+                              alt={item.products?.name}
+                              className="w-10 h-10 rounded-lg object-cover border border-stone-200 shrink-0"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-800 font-black text-[10px] flex items-center justify-center border border-emerald-200 shrink-0">
+                              km0
+                            </div>
+                          )}
+                          <div>
+                            <span className="font-black text-stone-900 block">
+                              {item.products?.name}
+                            </span>
+                            <span className="text-[11px] font-semibold text-stone-500">
+                              {item.quantity} {item.products?.format === 'granel' ? 'kg' : 'uds'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <span className="font-black text-stone-900 text-xs shrink-0">
                           {Number(item.subtotal).toFixed(2)} €
                         </span>
                       </div>
                     ))}
-                    <div className="pt-2 mt-2 border-t border-stone-200 flex justify-between text-xs font-black text-stone-900">
+                    <div className="pt-2 mt-2 border-t border-stone-200 flex justify-between text-xs font-black text-stone-900 px-1">
                       <span>Total Cobro</span>
                       <span className="text-base font-black text-emerald-900">
                         {Number(order.total_amount).toFixed(2)} €
@@ -148,9 +155,9 @@ export default async function SellerOrdersPage() {
                       </>
                     ) : (
                       <>
-                        <MapPin className="w-4 h-4 text-emerald-800 shrink-0" />
+                        <Truck className="w-4 h-4 text-emerald-800 shrink-0" />
                         <span>
-                          Envío a domicilio: <strong>{order.shipping_address}</strong>
+                          Envío: <strong>{order.shipping_address}</strong>
                         </span>
                       </>
                     )}
@@ -169,11 +176,12 @@ export default async function SellerOrdersPage() {
         </div>
       )}
 
-      {/* SECCIÓN 2: HISTORIAL Y PEDIDOS EN CURSO */}
+      {/* SECCIÓN 2: HISTORIAL Y PEDIDOS CONFIRMADOS / EN CURSO */}
       <div className="space-y-4">
         <h2 className="text-lg font-black text-stone-900">
-          Pedidos Confirmados y en Curso ({activeOrders.length})
+          Pedidos Activos e Histórico ({activeOrders.length})
         </h2>
+
         {activeOrders.length > 0 ? (
           <div className="space-y-4">
             {activeOrders.map((order) => (
@@ -181,8 +189,8 @@ export default async function SellerOrdersPage() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-12 bg-white rounded-3xl border-2 border-stone-200 text-sm font-bold text-stone-700 p-6">
-            <p>No tienes pedidos activos en curso.</p>
+          <div className="text-center py-12 bg-white rounded-3xl border-2 border-stone-200 text-xs font-bold text-stone-500 p-6">
+            No tienes pedidos activos o validados actualmente.
           </div>
         )}
       </div>

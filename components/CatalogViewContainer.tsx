@@ -404,21 +404,34 @@ export function CatalogViewContainer({
 
                       {sellerProds.length > 0 ? (
                         <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-                          {sellerProds.map((prod) => (
-                            <div
-                              key={prod.id}
-                              className="flex items-center justify-between text-xs bg-stone-50 p-2 rounded-xl border border-stone-200 font-semibold"
-                            >
-                              <span className="font-bold text-stone-900 truncate max-w-[150px]">
-                                {prod.name}
-                              </span>
-                              <span className="font-black text-emerald-900 shrink-0">
-                                {prod.format === 'granel'
-                                  ? `${Number(prod.price_per_kilo || prod.price).toFixed(2)} €/kg`
-                                  : `${Number(prod.price).toFixed(2)} €`}
-                              </span>
-                            </div>
-                          ))}
+                          {sellerProds.map((prod) => {
+                            const prodStock = Number(prod.stock) || 0;
+                            const prodOutOfStock = !prod.is_unlimited_stock && prodStock <= 0;
+                            return (
+                              <div
+                                key={prod.id}
+                                className="flex items-center justify-between text-xs bg-stone-50 p-2 rounded-xl border border-stone-200 font-semibold"
+                              >
+                                <div className="flex flex-col truncate max-w-[160px]">
+                                  <span className="font-bold text-stone-900 truncate">
+                                    {prod.name}
+                                  </span>
+                                  <span className={`text-[10px] font-semibold ${prodOutOfStock ? 'text-red-700 font-bold' : 'text-stone-500'}`}>
+                                    {prod.is_unlimited_stock
+                                      ? 'Stock ilimitado'
+                                      : prodOutOfStock
+                                      ? 'Agotado'
+                                      : `${prodStock} ${prod.format === 'granel' ? 'kg' : 'uds'} disponibles`}
+                                  </span>
+                                </div>
+                                <span className="font-black text-emerald-900 shrink-0">
+                                  {prod.format === 'granel'
+                                    ? `${Number(prod.price_per_kilo || prod.price).toFixed(2)} €/kg`
+                                    : `${Number(prod.price).toFixed(2)} €`}
+                                </span>
+                              </div>
+                            );
+                          })}
                         </div>
                       ) : (
                         <p className="text-xs text-stone-400 font-semibold italic bg-stone-50 p-2.5 rounded-xl text-center">
@@ -566,6 +579,18 @@ export function CatalogViewContainer({
                               {product.format === 'granel'
                                 ? `${Number(product.price_per_kilo || product.price).toFixed(2)} €/kg`
                                 : `${Number(product.price).toFixed(2)} €`}
+                            </span>
+                          </div>
+
+                          {/* Disponibilidad de Stock */}
+                          <div className="flex items-center justify-between text-[11px] font-bold text-stone-600 bg-stone-50 px-2.5 py-1 rounded-lg border border-stone-200">
+                            <span>Disponibilidad:</span>
+                            <span className={isOutOfStock ? 'text-red-700 font-black' : 'text-emerald-950 font-black'}>
+                              {product.is_unlimited_stock
+                                ? 'Ilimitada'
+                                : isOutOfStock
+                                ? 'Agotado'
+                                : `${stockQty} ${product.format === 'granel' ? 'kg' : 'uds'} disponibles`}
                             </span>
                           </div>
 

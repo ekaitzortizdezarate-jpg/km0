@@ -27,3 +27,20 @@ export async function updateProfile(formData: FormData) {
   revalidatePath('/');
   return { success: true };
 }
+
+export async function saveBuyerAddresses(addresses: { id: string; label: string; address: string; town?: string }[]) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) return { error: 'No autorizado.' };
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({ saved_addresses: addresses })
+    .eq('id', user.id);
+
+  if (error) return { error: error.message };
+
+  revalidatePath('/cesta');
+  return { success: true };
+}
