@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ShoppingCart, X, Store, Truck, Clock, Check, MapPin } from 'lucide-react';
+import { ShoppingCart, X, Store, Truck, Clock, Check, MapPin, User } from 'lucide-react';
 import { useCart, CartItem } from '@/context/CartContext';
 import { createClient } from '@/lib/supabase/client';
 import type { DeliveryPoint } from '@/types/database';
+import { validateProfileCompleteness } from '@/lib/profile-validation';
+import Link from 'next/link';
 import {
   getCaserioEstimate,
   getPuntoEntregaEstimate,
@@ -56,12 +58,36 @@ export function QuickAddToCartModal({
   const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
   const [selectedPointId, setSelectedPointId] = useState<string>('');
   const [added, setAdded] = useState(false);
+  const [profileMissing, setProfileMissing] = useState<string[] | null>(null);
 
   const supabase = createClient();
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    async function checkProfile() {
+      if (!isOpen) return;
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        const res = validateProfileCompleteness(profile);
+        if (!res.isComplete) {
+          setProfileMissing(res.missingFields);
+        } else {
+          setProfileMissing(null);
+        }
+      }
+    }
+    checkProfile();
+  }, [isOpen, supabase]);
 
   useEffect(() => {
     if (availableMethods.length > 0 && !availableMethods.includes(deliveryMethod)) {
@@ -246,12 +272,49 @@ export function QuickAddToCartModal({
                 </div>
               </div>
 
-              {/* Selector de Cantidad solo entrada numérica */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-black text-stone-900 uppercase tracking-wider">
-                    Cantidad ({unitLabel}):
-                  </label>
+              {/* Validación de Perfil Completo para poder añadir productos */}
+              {profileMissing && profileMissing.length > 0 ? (
+                <div className="p-5 bg-amber-50 border-2 border-amber-300 rounded-3xl space-y-4 text-center">
+                  <div className="w-12 h-12 bg-amber-100 text-amber-800 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
+                    <User className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <span className="inline-block px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-900 bg-amber-200/80 rounded-full mb-1">
+                      Paso previo requerido
+                    </span>
+                    <h4 className="text-sm sm:text-base font-black text-stone-900">
+                      Completa los datos de tu cuenta
+                    </h4>
+                    <p className="text-xs font-semibold text-stone-600 mt-1 max-w-sm mx-auto leading-relaxed">
+                      Para poder añadir productos a la cesta es necesario rellenar los datos de tu cuenta (nombre, apellido 1, fecha de nacimiento, DNI, teléfono y dirección completa).
+                    </p>
+
+                    <div className="mt-3 p-2.5 bg-white rounded-xl border border-amber-200 text-left text-xs text-amber-950 font-bold">
+                      <span className="block mb-1 font-black text-amber-900 text-[11px]">Campos pendientes:</span>
+                      <ul className="list-disc list-inside space-y-0.5 text-amber-900 text-[11px]">
+                        {profileMissing.map((f) => (
+                          <li key={f}>{f}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+
+                  <Link
+                    href="/perfil"
+                    className="inline-flex items-center justify-center gap-2 w-full py-3 px-4 bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold rounded-xl text-xs sm:text-sm transition-all shadow-md"
+                  >
+                    <User className="w-4 h-4" />
+                    <span>Configurar mi cuenta ahora</span>
+                  </Link>
+                </div>
+              ) : (
+                <>
+                  {/* Selector de Cantidad solo entrada numérica */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-black text-stone-900 uppercase tracking-wider">
+                        Cantidad ({unitLabel}):
+                      </label>
                   {!item.isUnlimitedStock && (
                     <span className="text-[11px] font-bold text-stone-500">
                       Disponible: <strong>{maxStock} {unitLabel}</strong>
@@ -480,7 +543,9 @@ export function QuickAddToCartModal({
                     {subtotal} €
                   </span>
                 </button>
-              </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>,
           document.body

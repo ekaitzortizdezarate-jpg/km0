@@ -31,9 +31,13 @@ export interface Profile {
   address: string | null;
   town: string;
   postal_code?: string | null;
+  birth_date?: string | null;
+  dni?: string | null;
+  address_notes?: string | null;
   avatar_url: string | null;
   bio: string | null;
   seller_status: SellerStatus;
+  saved_addresses?: any[];
   created_at: string;
   updated_at: string;
 }

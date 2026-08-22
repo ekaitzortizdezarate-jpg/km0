@@ -1,7 +1,20 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { User, MapPin, Phone, FileText, Pencil, CheckCircle2, Heart, KeyRound, ChevronDown } from 'lucide-react';
+import {
+  User,
+  MapPin,
+  Phone,
+  FileText,
+  Pencil,
+  CheckCircle2,
+  Heart,
+  KeyRound,
+  ChevronDown,
+  Calendar,
+  CreditCard,
+  FileSpreadsheet,
+} from 'lucide-react';
 import { ImageSelector } from '@/components/ImageSelector';
 import { LocationSelector } from '@/components/LocationSelector';
 import { updateProfile } from '@/app/actions/profile';
@@ -22,7 +35,8 @@ function parseFullName(fullName?: string | null) {
 }
 
 function parseAddress(rawAddress?: string | null) {
-  if (!rawAddress) return { calle: '', portal: '', escalera: '', piso: '', puerta: '' };
+  if (!rawAddress)
+    return { calle: '', portal: '', escalera: '', piso: '', puerta: '', notes: '' };
   try {
     if (rawAddress.startsWith('{') && rawAddress.endsWith('}')) {
       const parsed = JSON.parse(rawAddress);
@@ -32,6 +46,7 @@ function parseAddress(rawAddress?: string | null) {
         escalera: parsed.escalera || '',
         piso: parsed.piso || '',
         puerta: parsed.puerta || '',
+        notes: parsed.notes || '',
       };
     }
   } catch {}
@@ -41,6 +56,13 @@ function parseAddress(rawAddress?: string | null) {
   let escalera = '';
   let piso = '';
   let puerta = '';
+  let notes = '';
+
+  const notesMatch = rawAddress.match(/\[Notas:\s*(.*?)\]/i);
+  if (notesMatch) {
+    notes = notesMatch[1];
+    calle = calle.replace(/\[Notas:\s*.*?\]/i, '').trim();
+  }
 
   const portalMatch = rawAddress.match(/(?:Nº|N|Portal|Número)\s*(\S+)/i);
   if (portalMatch) portal = portalMatch[1].replace(/,$/, '');
@@ -54,14 +76,21 @@ function parseAddress(rawAddress?: string | null) {
   const ptaMatch = rawAddress.match(/(?:Pta|Puerta)\s*(\S+)/i);
   if (ptaMatch) puerta = ptaMatch[1].replace(/,$/, '');
 
-  if (rawAddress.includes(',')) {
-    calle = rawAddress.split(',')[0].trim();
+  if (calle.includes(',')) {
+    calle = calle.split(',')[0].trim();
   }
 
-  return { calle, portal, escalera, piso, puerta };
+  return { calle, portal, escalera, piso, puerta, notes };
 }
 
-function formatAddressString(addr: { calle: string; portal: string; escalera: string; piso: string; puerta: string }) {
+function formatAddressString(addr: {
+  calle: string;
+  portal: string;
+  escalera: string;
+  piso: string;
+  puerta: string;
+  notes?: string;
+}) {
   const parts = [
     addr.calle.trim(),
     addr.portal.trim() ? `Nº ${addr.portal.trim()}` : '',
@@ -69,6 +98,9 @@ function formatAddressString(addr: { calle: string; portal: string; escalera: st
     addr.piso.trim() ? `Piso ${addr.piso.trim()}` : '',
     addr.puerta.trim() ? `Pta ${addr.puerta.trim()}` : '',
   ].filter(Boolean);
+  if (addr.notes?.trim()) {
+    parts.push(`[Notas: ${addr.notes.trim()}]`);
+  }
   return parts.join(', ');
 }
 
@@ -87,6 +119,8 @@ export function ProfileEditor({ initialProfile }: ProfileEditorProps) {
   const [nombre, setNombre] = useState(parsedNames.nombre);
   const [apellido1, setApellido1] = useState(parsedNames.apellido1);
   const [apellido2, setApellido2] = useState(parsedNames.apellido2);
+  const [fechaNacimiento, setFechaNacimiento] = useState(profile.birth_date || '');
+  const [dni, setDni] = useState(profile.dni || '');
   const [telefono, setTelefono] = useState(profile.phone || '');
   const [provincia, setProvincia] = useState('Bizkaia');
   const [pueblo, setPueblo] = useState(profile.town || '');
@@ -96,10 +130,14 @@ export function ProfileEditor({ initialProfile }: ProfileEditorProps) {
   const [escalera, setEscalera] = useState(parsedAddr.escalera);
   const [piso, setPiso] = useState(parsedAddr.piso);
   const [puerta, setPuerta] = useState(parsedAddr.puerta);
+  const [datosAdicionalesDireccion, setDatosAdicionalesDireccion] = useState(
+    profile.address_notes || parsedAddr.notes || ''
+  );
   const [bio, setBio] = useState(profile.bio || '');
 
-  // Estado para cambiar contraseña
+  // Estado para cambiar contraseña introduciendo la actual
   const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordLoading, setPasswordLoading] = useState(false);
@@ -122,6 +160,7 @@ export function ProfileEditor({ initialProfile }: ProfileEditorProps) {
       setPasswordError(res.error);
     } else {
       setPasswordSuccess('Contraseña cambiada correctamente.');
+      setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
       setTimeout(() => {
@@ -138,14 +177,26 @@ export function ProfileEditor({ initialProfile }: ProfileEditorProps) {
     setSuccessMsg(null);
 
     const formData = new FormData(e.currentTarget);
-    const fullNameCombined = [nombre.trim(), apellido1.trim(), apellido2.trim()].filter(Boolean).join(' ');
-    const addressCombined = formatAddressString({ calle, portal, escalera, piso, puerta });
+    const fullNameCombined = [nombre.trim(), apellido1.trim(), apellido2.trim()]
+      .filter(Boolean)
+      .join(' ');
+    const addressCombined = formatAddressString({
+      calle,
+      portal,
+      escalera,
+      piso,
+      puerta,
+      notes: datosAdicionalesDireccion,
+    });
 
     formData.set('full_name', fullNameCombined);
+    formData.set('birth_date', fechaNacimiento);
+    formData.set('dni', dni);
     formData.set('town', pueblo);
     formData.set('postal_code', codigoPostal);
     formData.set('phone', telefono);
     formData.set('address', addressCombined);
+    formData.set('address_notes', datosAdicionalesDireccion);
     formData.set('bio', bio);
 
     const res = await updateProfile(formData);
@@ -158,11 +209,14 @@ export function ProfileEditor({ initialProfile }: ProfileEditorProps) {
       setProfile((prev) => ({
         ...prev,
         full_name: fullNameCombined,
+        birth_date: fechaNacimiento,
+        dni,
         town: pueblo,
         postal_code: codigoPostal,
         phone: telefono,
         address: addressCombined,
-        bio: bio,
+        address_notes: datosAdicionalesDireccion,
+        bio,
         avatar_url: (formData.get('avatar_url') as string) || prev.avatar_url,
       }));
       setIsEditing(false);
@@ -208,25 +262,51 @@ export function ProfileEditor({ initialProfile }: ProfileEditorProps) {
       {!isEditing ? (
         /* MODO VISTA: Solo visible con los campos formateados limpiamente */
         <div className="space-y-4">
-          {/* Nombre y Apellidos */}
+          {/* Nombre, apellido 1, apellido 2 */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="p-3.5 bg-stone-50 rounded-2xl border border-stone-200 space-y-1">
               <span className="text-[10px] font-black text-stone-500 uppercase tracking-wider block">
                 nombre
               </span>
-              <p className="text-sm font-bold text-stone-900">{nombre || <span className="text-stone-400 font-normal">—</span>}</p>
+              <p className="text-sm font-bold text-stone-900">
+                {nombre || <span className="text-stone-400 font-normal">—</span>}
+              </p>
             </div>
             <div className="p-3.5 bg-stone-50 rounded-2xl border border-stone-200 space-y-1">
               <span className="text-[10px] font-black text-stone-500 uppercase tracking-wider block">
                 apellido 1
               </span>
-              <p className="text-sm font-bold text-stone-900">{apellido1 || <span className="text-stone-400 font-normal">—</span>}</p>
+              <p className="text-sm font-bold text-stone-900">
+                {apellido1 || <span className="text-stone-400 font-normal">—</span>}
+              </p>
             </div>
             <div className="p-3.5 bg-stone-50 rounded-2xl border border-stone-200 space-y-1">
               <span className="text-[10px] font-black text-stone-500 uppercase tracking-wider block">
                 apellido 2
               </span>
-              <p className="text-sm font-bold text-stone-900">{apellido2 || <span className="text-stone-400 font-normal">—</span>}</p>
+              <p className="text-sm font-bold text-stone-900">
+                {apellido2 || <span className="text-stone-400 font-normal">—</span>}
+              </p>
+            </div>
+          </div>
+
+          {/* Fecha de nacimiento y DNI (entre apellido 2 y teléfono) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="p-3.5 bg-stone-50 rounded-2xl border border-stone-200 space-y-1">
+              <span className="text-[10px] font-black text-stone-500 uppercase tracking-wider block">
+                fecha de nacimiento
+              </span>
+              <p className="text-sm font-bold text-stone-900">
+                {fechaNacimiento || <span className="text-stone-400 font-normal">—</span>}
+              </p>
+            </div>
+            <div className="p-3.5 bg-stone-50 rounded-2xl border border-stone-200 space-y-1">
+              <span className="text-[10px] font-black text-stone-500 uppercase tracking-wider block">
+                dni
+              </span>
+              <p className="text-sm font-bold text-stone-900">
+                {dni || <span className="text-stone-400 font-normal">—</span>}
+              </p>
             </div>
           </div>
 
@@ -235,7 +315,9 @@ export function ProfileEditor({ initialProfile }: ProfileEditorProps) {
             <span className="text-[10px] font-black text-stone-500 uppercase tracking-wider block">
               telefono
             </span>
-            <p className="text-sm font-bold text-stone-900">{telefono || <span className="text-stone-400 font-normal">—</span>}</p>
+            <p className="text-sm font-bold text-stone-900">
+              {telefono || <span className="text-stone-400 font-normal">—</span>}
+            </p>
           </div>
 
           {/* Provincia */}
@@ -243,7 +325,9 @@ export function ProfileEditor({ initialProfile }: ProfileEditorProps) {
             <span className="text-[10px] font-black text-stone-500 uppercase tracking-wider block">
               provincia
             </span>
-            <p className="text-sm font-bold text-stone-900">{provincia || <span className="text-stone-400 font-normal">—</span>}</p>
+            <p className="text-sm font-bold text-stone-900">
+              {provincia || <span className="text-stone-400 font-normal">—</span>}
+            </p>
           </div>
 
           {/* Pueblo y Código Postal */}
@@ -252,13 +336,17 @@ export function ProfileEditor({ initialProfile }: ProfileEditorProps) {
               <span className="text-[10px] font-black text-stone-500 uppercase tracking-wider block">
                 pueblo
               </span>
-              <p className="text-sm font-bold text-stone-900">{pueblo || <span className="text-stone-400 font-normal">—</span>}</p>
+              <p className="text-sm font-bold text-stone-900">
+                {pueblo || <span className="text-stone-400 font-normal">—</span>}
+              </p>
             </div>
             <div className="p-3.5 bg-stone-50 rounded-2xl border border-stone-200 space-y-1">
               <span className="text-[10px] font-black text-stone-500 uppercase tracking-wider block">
                 codigo postal
               </span>
-              <p className="text-sm font-bold text-stone-900">{codigoPostal || <span className="text-stone-400 font-normal">—</span>}</p>
+              <p className="text-sm font-bold text-stone-900">
+                {codigoPostal || <span className="text-stone-400 font-normal">—</span>}
+              </p>
             </div>
           </div>
 
@@ -268,32 +356,54 @@ export function ProfileEditor({ initialProfile }: ProfileEditorProps) {
               <span className="text-[10px] font-black text-stone-500 uppercase tracking-wider block">
                 calle
               </span>
-              <p className="text-sm font-bold text-stone-900">{calle || <span className="text-stone-400 font-normal">—</span>}</p>
+              <p className="text-sm font-bold text-stone-900">
+                {calle || <span className="text-stone-400 font-normal">—</span>}
+              </p>
             </div>
             <div className="col-span-1 sm:col-span-2 p-3.5 bg-stone-50 rounded-2xl border border-stone-200 space-y-1">
               <span className="text-[10px] font-black text-stone-500 uppercase tracking-wider block">
                 portal
               </span>
-              <p className="text-sm font-bold text-stone-900">{portal || <span className="text-stone-400 font-normal">—</span>}</p>
+              <p className="text-sm font-bold text-stone-900">
+                {portal || <span className="text-stone-400 font-normal">—</span>}
+              </p>
             </div>
             <div className="col-span-1 sm:col-span-2 p-3.5 bg-stone-50 rounded-2xl border border-stone-200 space-y-1">
               <span className="text-[10px] font-black text-stone-500 uppercase tracking-wider block">
                 escalera
               </span>
-              <p className="text-sm font-bold text-stone-900">{escalera || <span className="text-stone-400 font-normal">—</span>}</p>
+              <p className="text-sm font-bold text-stone-900">
+                {escalera || <span className="text-stone-400 font-normal">—</span>}
+              </p>
             </div>
             <div className="col-span-1 sm:col-span-2 p-3.5 bg-stone-50 rounded-2xl border border-stone-200 space-y-1">
               <span className="text-[10px] font-black text-stone-500 uppercase tracking-wider block">
                 piso
               </span>
-              <p className="text-sm font-bold text-stone-900">{piso || <span className="text-stone-400 font-normal">—</span>}</p>
+              <p className="text-sm font-bold text-stone-900">
+                {piso || <span className="text-stone-400 font-normal">—</span>}
+              </p>
             </div>
             <div className="col-span-1 sm:col-span-2 p-3.5 bg-stone-50 rounded-2xl border border-stone-200 space-y-1">
               <span className="text-[10px] font-black text-stone-500 uppercase tracking-wider block">
                 puerta
               </span>
-              <p className="text-sm font-bold text-stone-900">{puerta || <span className="text-stone-400 font-normal">—</span>}</p>
+              <p className="text-sm font-bold text-stone-900">
+                {puerta || <span className="text-stone-400 font-normal">—</span>}
+              </p>
             </div>
+          </div>
+
+          {/* Datos adicionales dirección (encima de gustos y preferencias) */}
+          <div className="p-3.5 bg-stone-50 rounded-2xl border border-stone-200 space-y-1">
+            <span className="text-[10px] font-black text-stone-500 uppercase tracking-wider block">
+              datos adicionales direccion
+            </span>
+            <p className="text-xs font-semibold text-stone-800 whitespace-pre-wrap">
+              {datosAdicionalesDireccion || (
+                <span className="text-stone-400 font-normal">Sin datos adicionales</span>
+              )}
+            </p>
           </div>
 
           {/* Gustos y preferencias / Biografía */}
@@ -316,17 +426,17 @@ export function ProfileEditor({ initialProfile }: ProfileEditorProps) {
           </button>
         </div>
       ) : (
-        /* MODO EDICIÓN: Con selector de imagen y todos los inputs editables */
+        /* MODO EDICIÓN: Con campos obligatorios y opcionales señalados */
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Foto del Vendedor / Avatar: se muestra en modo edición */}
+          {/* Foto del Vendedor / Avatar: Opcional */}
           <ImageSelector
             name="avatar_url"
             defaultValue={profile.avatar_url}
-            label={profile.role === 'vendedor' ? 'Foto de tu Caserío o Perfil' : 'Foto de Perfil'}
+            label={profile.role === 'vendedor' ? 'Foto de tu Caserío o Perfil (opcional)' : 'Foto de Perfil (opcional)'}
             type="avatar"
           />
 
-          {/* Nombre, apellido 1, apellido 2 */}
+          {/* Nombre, apellido 1 (obligatorios), apellido 2 (opcional) */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="text-[10px] font-black text-stone-900 mb-1 block uppercase tracking-wider">
@@ -343,18 +453,19 @@ export function ProfileEditor({ initialProfile }: ProfileEditorProps) {
             </div>
             <div>
               <label className="text-[10px] font-black text-stone-900 mb-1 block uppercase tracking-wider">
-                apellido 1
+                apellido 1 *
               </label>
               <input
                 type="text"
                 value={apellido1}
                 onChange={(e) => setApellido1(e.target.value)}
+                required
                 placeholder="Ej. Goikoetxea"
                 className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
               />
             </div>
             <div>
-              <label className="text-[10px] font-black text-stone-900 mb-1 block uppercase tracking-wider">
+              <label className="text-[10px] font-black text-stone-700 mb-1 block uppercase tracking-wider">
                 apellido 2
               </label>
               <input
@@ -367,21 +478,51 @@ export function ProfileEditor({ initialProfile }: ProfileEditorProps) {
             </div>
           </div>
 
-          {/* Teléfono */}
+          {/* Fecha de nacimiento (obligatoria) y DNI (obligatorio) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] font-black text-stone-900 mb-1 block uppercase tracking-wider">
+                fecha de nacimiento *
+              </label>
+              <input
+                type="date"
+                value={fechaNacimiento}
+                onChange={(e) => setFechaNacimiento(e.target.value)}
+                required
+                className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-black text-stone-900 mb-1 block uppercase tracking-wider">
+                dni *
+              </label>
+              <input
+                type="text"
+                value={dni}
+                onChange={(e) => setDni(e.target.value)}
+                required
+                placeholder="Ej. 12345678Z"
+                className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          {/* Teléfono (obligatorio) */}
           <div>
             <label className="text-[10px] font-black text-stone-900 mb-1 block uppercase tracking-wider">
-              telefono
+              telefono *
             </label>
             <input
               type="tel"
               value={telefono}
               onChange={(e) => setTelefono(e.target.value)}
+              required
               placeholder="600 000 000"
               className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
             />
           </div>
 
-          {/* Provincia, Pueblo y Código Postal con autocompletado y menús desplegables */}
+          {/* Provincia, Pueblo y Código Postal (obligatorios) */}
           <LocationSelector
             defaultProvince={provincia}
             defaultTown={pueblo}
@@ -399,34 +540,36 @@ export function ProfileEditor({ initialProfile }: ProfileEditorProps) {
             }}
           />
 
-          {/* Dirección: calle, portal, escalera, piso, puerta */}
+          {/* Dirección: calle *, portal *, escalera, piso *, puerta * */}
           <div className="grid grid-cols-2 sm:grid-cols-12 gap-3">
             <div className="col-span-2 sm:col-span-4">
               <label className="text-[10px] font-black text-stone-900 mb-1 block uppercase tracking-wider">
-                calle
+                calle *
               </label>
               <input
                 type="text"
                 value={calle}
                 onChange={(e) => setCalle(e.target.value)}
+                required
                 placeholder="Ej. Gran Vía"
                 className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
               />
             </div>
             <div className="col-span-1 sm:col-span-2">
               <label className="text-[10px] font-black text-stone-900 mb-1 block uppercase tracking-wider">
-                portal
+                portal *
               </label>
               <input
                 type="text"
                 value={portal}
                 onChange={(e) => setPortal(e.target.value)}
+                required
                 placeholder="14"
                 className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
               />
             </div>
             <div className="col-span-1 sm:col-span-2">
-              <label className="text-[10px] font-black text-stone-900 mb-1 block uppercase tracking-wider">
+              <label className="text-[10px] font-black text-stone-700 mb-1 block uppercase tracking-wider">
                 escalera
               </label>
               <input
@@ -439,33 +582,49 @@ export function ProfileEditor({ initialProfile }: ProfileEditorProps) {
             </div>
             <div className="col-span-1 sm:col-span-2">
               <label className="text-[10px] font-black text-stone-900 mb-1 block uppercase tracking-wider">
-                piso
+                piso *
               </label>
               <input
                 type="text"
                 value={piso}
                 onChange={(e) => setPiso(e.target.value)}
+                required
                 placeholder="3º"
                 className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
               />
             </div>
             <div className="col-span-1 sm:col-span-2">
               <label className="text-[10px] font-black text-stone-900 mb-1 block uppercase tracking-wider">
-                puerta
+                puerta *
               </label>
               <input
                 type="text"
                 value={puerta}
                 onChange={(e) => setPuerta(e.target.value)}
+                required
                 placeholder="B"
                 className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
               />
             </div>
           </div>
 
-          {/* Gustos y preferencias / Biografía */}
+          {/* Datos adicionales dirección (opcional, encima de gustos/biografía) */}
           <div>
-            <label className="text-[10px] font-black text-stone-900 mb-1 block uppercase tracking-wider">
+            <label className="text-[10px] font-black text-stone-700 mb-1 block uppercase tracking-wider">
+              datos adicionales direccion
+            </label>
+            <input
+              type="text"
+              value={datosAdicionalesDireccion}
+              onChange={(e) => setDatosAdicionalesDireccion(e.target.value)}
+              placeholder="Ej. Timbre no funciona, portal exterior, indicaciones para repartidor..."
+              className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-xs font-semibold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+            />
+          </div>
+
+          {/* Gustos y preferencias / Biografía (opcional) */}
+          <div>
+            <label className="text-[10px] font-black text-stone-700 mb-1 block uppercase tracking-wider">
               {isBuyer ? 'Gustos y preferencias:' : 'Biografía / Presentación de tu huerta:'}
             </label>
             <textarea
@@ -500,7 +659,7 @@ export function ProfileEditor({ initialProfile }: ProfileEditorProps) {
         </form>
       )}
 
-      {/* SECCIÓN INFERIOR: Cambiar contraseña de usuario */}
+      {/* SECCIÓN INFERIOR: Cambiar contraseña de usuario introduciendo la actual */}
       <div className="pt-6 border-t-2 border-stone-100">
         <button
           type="button"
@@ -542,6 +701,21 @@ export function ProfileEditor({ initialProfile }: ProfileEditorProps) {
 
             <div>
               <label className="text-[10px] font-black text-stone-900 mb-1 block uppercase tracking-wider">
+                Contraseña actual *
+              </label>
+              <input
+                type="password"
+                name="current_password"
+                required
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="Introduce tu contraseña actual"
+                className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="text-[10px] font-black text-stone-900 mb-1 block uppercase tracking-wider">
                 Nueva contraseña *
               </label>
               <input
@@ -578,7 +752,9 @@ export function ProfileEditor({ initialProfile }: ProfileEditorProps) {
               className="w-full bg-stone-900 hover:bg-stone-800 active:bg-black text-white font-extrabold py-2.5 rounded-xl text-xs shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
             >
               <KeyRound className="w-3.5 h-3.5" />
-              <span>{passwordLoading ? 'Actualizando contraseña...' : 'Actualizar contraseña'}</span>
+              <span>
+                {passwordLoading ? 'Actualizando contraseña...' : 'Actualizar contraseña'}
+              </span>
             </button>
           </form>
         )}

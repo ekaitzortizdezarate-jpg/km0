@@ -377,6 +377,33 @@ export default function CartPage() {
     }));
   };
 
+  const handleDeleteSavedAddress = async (e: React.MouseEvent, addressId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const updated = savedAddresses.filter((a) => a.id !== addressId);
+    setSavedAddresses(updated);
+    await saveBuyerAddresses(updated);
+  };
+
+  const handleClearShippingForm = (sellerId: string) => {
+    setShippingForms((prev) => ({
+      ...prev,
+      [sellerId]: {
+        nombre: '',
+        apellidos: '',
+        calle: '',
+        numero: '',
+        piso: '',
+        puerta: '',
+        codigoPostal: '',
+        poblacion: '',
+        provincia: '',
+        telefono: '',
+        instrucciones: '',
+      },
+    }));
+  };
+
   const handleSaveFavoriteAddress = async (sellerId: string) => {
     const current = shippingForms[sellerId] || defaultShippingDetails;
     if (!current.calle.trim()) {
@@ -1164,44 +1191,60 @@ export default function CartPage() {
                             </span>
                           </div>
 
-                          {/* Direcciones Guardadas */}
+                          {/* Direcciones Guardadas con opción de borrar */}
                           {savedAddresses.length > 0 && (
                             <div className="p-3 bg-white rounded-xl border border-stone-200 space-y-2">
-                              <span className="text-[10px] font-black text-stone-700 uppercase block">
-                                Usar una de tus direcciones guardadas:
-                              </span>
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-black text-stone-700 uppercase">
+                                  Usar una de tus direcciones guardadas:
+                                </span>
+                              </div>
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                 {savedAddresses.map((sa) => {
                                   const isSelected =
                                     currentDetails.calle === (sa.calle || sa.address) &&
                                     currentDetails.numero === sa.numero;
                                   return (
-                                    <button
+                                    <div
                                       key={sa.id}
-                                      type="button"
                                       onClick={() => handleApplySavedAddress(sellerId, sa)}
-                                      className={`p-2 rounded-xl border text-left text-xs transition-all flex flex-col justify-between ${
+                                      className={`p-2 rounded-xl border text-left text-xs transition-all flex items-start justify-between gap-2 cursor-pointer ${
                                         isSelected
                                           ? 'bg-emerald-800 text-white border-emerald-900 shadow-sm'
                                           : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
                                       }`}
                                     >
-                                      <span className="font-black flex items-center gap-1">
-                                        <span>🏠 {sa.label}</span>
-                                        {isSelected && (
-                                          <span className="text-[10px] ml-auto bg-white/20 px-1.5 py-0.5 rounded font-bold">
-                                            Activa
-                                          </span>
-                                        )}
-                                      </span>
-                                      <span
-                                        className={`text-[11px] truncate ${
-                                          isSelected ? 'text-emerald-100' : 'text-stone-600'
+                                      <div className="min-w-0 flex-1">
+                                        <div className="font-black flex items-center gap-1">
+                                          <span>🏠 {sa.label}</span>
+                                          {isSelected && (
+                                            <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded font-bold">
+                                              Activa
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div
+                                          className={`text-[11px] truncate mt-0.5 ${
+                                            isSelected ? 'text-emerald-100' : 'text-stone-600'
+                                          }`}
+                                        >
+                                          {sa.calle || sa.address} {sa.poblacion ? `(${sa.poblacion})` : ''}
+                                        </div>
+                                      </div>
+
+                                      <button
+                                        type="button"
+                                        onClick={(e) => handleDeleteSavedAddress(e, sa.id)}
+                                        title="Eliminar esta dirección guardada"
+                                        className={`p-1 rounded-lg transition-colors shrink-0 ${
+                                          isSelected
+                                            ? 'hover:bg-red-600/80 text-white/80 hover:text-white'
+                                            : 'hover:bg-red-100 text-stone-400 hover:text-red-600'
                                         }`}
                                       >
-                                        {sa.calle || sa.address} {sa.poblacion ? `(${sa.poblacion})` : ''}
-                                      </span>
-                                    </button>
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
                                   );
                                 })}
                               </div>
@@ -1210,6 +1253,20 @@ export default function CartPage() {
 
                           {/* Formulario de campos */}
                           <div className="p-3.5 bg-white rounded-xl border border-stone-200 space-y-3 shadow-2xs">
+                            <div className="flex items-center justify-between pb-1 border-b border-stone-100">
+                              <span className="text-[10px] font-black text-stone-700 uppercase">
+                                Formulario de dirección:
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleClearShippingForm(sellerId)}
+                                className="text-[10px] font-bold text-stone-400 hover:text-red-600 transition-colors flex items-center gap-1"
+                                title="Borrar y limpiar todos los datos del formulario"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                <span>Limpiar campos</span>
+                              </button>
+                            </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                               <div>
                                 <label className="block text-[10px] font-black text-stone-700 uppercase mb-1">

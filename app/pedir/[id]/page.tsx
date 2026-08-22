@@ -11,9 +11,11 @@ import {
   MessageCircle,
   Package,
   Check,
+  User,
 } from 'lucide-react';
 import Link from 'next/link';
 import type { ProductWithSeller } from '@/types/database';
+import { validateProfileCompleteness } from '@/lib/profile-validation';
 import { getDeliveryEstimate } from '@/lib/delivery';
 import { TouchNumberStepper } from '@/components/TouchNumberStepper';
 import { FavoriteButton } from '@/components/FavoriteButton';
@@ -81,7 +83,25 @@ export default function ProductDetailPage() {
 
   const total = (finalUnitPrice * quantity).toFixed(2);
 
-  const handleAddToCart = (goToCart = false) => {
+  const [profileMissing, setProfileMissing] = useState<string[] | null>(null);
+
+  const handleAddToCart = async (goToCart = false) => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      const val = validateProfileCompleteness(profile);
+      if (!val.isComplete) {
+        setProfileMissing(val.missingFields);
+        return;
+      }
+    }
+
     addToCart({
       productId: product.id,
       sellerId: product.seller_id,
@@ -279,6 +299,33 @@ export default function ProductDetailPage() {
             }
           />
         </div>
+
+        {/* Aviso de Perfil Incompleto */}
+        {profileMissing && profileMissing.length > 0 && (
+          <div className="p-4 bg-amber-50 border-2 border-amber-300 rounded-2xl space-y-3">
+            <div className="flex items-start gap-2.5">
+              <User className="w-5 h-5 text-amber-800 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <h4 className="text-xs sm:text-sm font-black text-amber-950">
+                  Completa los datos de tu cuenta para poder añadir a la cesta
+                </h4>
+                <p className="text-[11px] font-semibold text-amber-900 mt-0.5">
+                  Es obligatorio rellenar tu nombre, apellido 1, fecha de nacimiento, DNI, teléfono y dirección.
+                </p>
+                <div className="mt-2 text-[10px] text-amber-900 font-bold">
+                  <span>Pendiente: {profileMissing.join(', ')}</span>
+                </div>
+              </div>
+            </div>
+            <Link
+              href="/perfil"
+              className="inline-flex items-center justify-center gap-1.5 w-full py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white font-black rounded-xl text-xs shadow-sm transition-all"
+            >
+              <User className="w-3.5 h-3.5" />
+              <span>Configurar mi cuenta ahora</span>
+            </Link>
+          </div>
+        )}
 
         {/* Botones de Añadir a la Cesta e Ir a Pagar */}
         <div className="pt-4 border-t-2 border-stone-200 flex flex-col sm:flex-row items-center justify-between gap-4">

@@ -81,12 +81,17 @@ export async function changePassword(formData: FormData) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
+  if (!user || !user.email) {
     return { error: 'No autorizado.' };
   }
 
+  const currentPassword = formData.get('current_password') as string;
   const newPassword = formData.get('new_password') as string;
   const confirmPassword = formData.get('confirm_password') as string;
+
+  if (!currentPassword) {
+    return { error: 'Debes introducir tu contraseña actual.' };
+  }
 
   if (!newPassword || newPassword.length < 6) {
     return { error: 'La nueva contraseña debe tener al menos 6 caracteres.' };
@@ -96,12 +101,23 @@ export async function changePassword(formData: FormData) {
     return { error: 'Las contraseñas no coinciden.' };
   }
 
-  const { error } = await supabase.auth.updateUser({
+  // 1. Verificar la contraseña actual iniciando sesión
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password: currentPassword,
+  });
+
+  if (signInError) {
+    return { error: 'La contraseña actual no es correcta.' };
+  }
+
+  // 2. Actualizar a la nueva contraseña
+  const { error: updateError } = await supabase.auth.updateUser({
     password: newPassword,
   });
 
-  if (error) {
-    return { error: error.message };
+  if (updateError) {
+    return { error: updateError.message };
   }
 
   return { success: true };
