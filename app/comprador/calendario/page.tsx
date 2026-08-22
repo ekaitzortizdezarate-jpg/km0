@@ -41,7 +41,7 @@ export default async function BuyerCalendarPage() {
       *,
       profiles!orders_seller_id_fkey(id, full_name, town, avatar_url),
       delivery_points(name, address_details),
-      order_items(*, products(name, image_url))
+      order_items(*, products(id, name, format, price, image_url, delivery_methods))
     `)
     .eq('buyer_id', user.id);
 
@@ -62,8 +62,20 @@ export default async function BuyerCalendarPage() {
       const orderProducts = ord.order_items?.map((it) => ({
         name: it.products?.name || 'Producto',
         quantity: it.quantity,
+        format: (it.products as any)?.format || 'ud',
+        unitPrice: Number((it.products as any)?.price) || null,
         imageUrl: it.products?.image_url || null,
+        deliveryMethods: (it.products as any)?.delivery_methods || null,
       }));
+
+      const isPunto = !!ord.delivery_points;
+      const isEnvio = !isPunto && ord.shipping_address && ord.shipping_address !== 'Recogida directa en Caserío';
+      const dType = isPunto ? 'sitio_fisico' : isEnvio ? 'envio' : 'caserio';
+      const dLoc = isPunto
+        ? `Punto: ${ord.delivery_points?.name} (${ord.delivery_points?.address_details})`
+        : isEnvio
+        ? `Envío: ${ord.shipping_address?.replace(/^Para:\s*/i, '')}`
+        : 'Recogida en caserío';
 
       events.push({
         id: `ord-${ord.id}`,
@@ -74,10 +86,8 @@ export default async function BuyerCalendarPage() {
         amount: Number(ord.total_amount),
         sellerName: ord.profiles?.full_name,
         sellerAvatarUrl: ord.profiles?.avatar_url || null,
-        deliveryType: ord.delivery_point_id ? 'sitio_fisico' : 'envio',
-        deliveryLocation: ord.delivery_points
-          ? `Recogida en: ${ord.delivery_points.name} (${ord.delivery_points.address_details})`
-          : `Envío: ${(ord.shipping_address || 'Dirección acordada').replace(/^Para:\s*/i, '')}`,
+        deliveryType: dType,
+        deliveryLocation: dLoc,
         items: itemNames,
         orderProducts,
         chatUserId: ord.profiles?.id,
