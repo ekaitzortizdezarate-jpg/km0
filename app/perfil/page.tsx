@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation';
 import { updateProfile } from '@/app/actions/profile';
 import { User, MapPin, Phone, FileText } from 'lucide-react';
 import { ImageSelector } from '@/components/ImageSelector';
+import { ProfileRoleSelector } from '@/components/ProfileRoleSelector';
+import type { Profile } from '@/types/database';
 
 export default async function ProfilePage() {
   const supabase = await createClient();
@@ -18,8 +20,20 @@ export default async function ProfilePage() {
     .eq('id', user.id)
     .single();
 
+  const userProfile = (profile || {
+    id: user.id,
+    role: 'comprador',
+    full_name: '',
+    town: '',
+    phone: '',
+    address: '',
+    bio: '',
+    avatar_url: '',
+    seller_status: 'approved',
+  }) as Profile;
+
   return (
-    <div className="max-w-xl mx-auto py-6">
+    <div className="max-w-xl mx-auto py-6 space-y-6">
       <div className="bg-white rounded-3xl border-2 border-stone-200 shadow-sm p-6 sm:p-8 space-y-6">
         <div className="flex items-center gap-3 pb-4 border-b border-stone-100">
           <div className="p-3 bg-emerald-100 rounded-2xl text-emerald-800">
@@ -28,10 +42,13 @@ export default async function ProfilePage() {
           <div>
             <h1 className="text-2xl font-black text-stone-900">Configuración de Cuenta</h1>
             <p className="text-xs font-bold text-stone-600 capitalize">
-              Rol: {profile?.role} ({profile?.seller_status})
+              Modo actual: {userProfile.role === 'vendedor' ? 'Caserío / Vendedor' : 'Comprador'}
             </p>
           </div>
         </div>
+
+        {/* Selector Rápido de Rol (Vendedor vs Comprador) */}
+        <ProfileRoleSelector currentRole={userProfile.role} />
 
         <form
           action={async (formData: FormData) => {
@@ -43,8 +60,8 @@ export default async function ProfilePage() {
           {/* Foto del Vendedor / Avatar */}
           <ImageSelector
             name="avatar_url"
-            defaultValue={profile?.avatar_url}
-            label={profile?.role === 'vendedor' ? 'Foto de tu Caserío o Perfil' : 'Foto de Perfil'}
+            defaultValue={userProfile.avatar_url}
+            label={userProfile.role === 'vendedor' ? 'Foto de tu Caserío o Perfil' : 'Foto de Perfil'}
             type="avatar"
           />
 
@@ -55,7 +72,7 @@ export default async function ProfilePage() {
             <input
               name="full_name"
               type="text"
-              defaultValue={profile?.full_name}
+              defaultValue={userProfile.full_name || ''}
               required
               className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
             />
@@ -68,7 +85,7 @@ export default async function ProfilePage() {
             <input
               name="town"
               type="text"
-              defaultValue={profile?.town}
+              defaultValue={userProfile.town || ''}
               required
               className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
             />
@@ -81,7 +98,7 @@ export default async function ProfilePage() {
             <input
               name="phone"
               type="tel"
-              defaultValue={profile?.phone || ''}
+              defaultValue={userProfile.phone || ''}
               className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
             />
           </div>
@@ -93,7 +110,7 @@ export default async function ProfilePage() {
             <input
               name="address"
               type="text"
-              defaultValue={profile?.address || ''}
+              defaultValue={userProfile.address || ''}
               className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
             />
           </div>
@@ -105,7 +122,7 @@ export default async function ProfilePage() {
             <textarea
               name="bio"
               rows={3}
-              defaultValue={profile?.bio || ''}
+              defaultValue={userProfile.bio || ''}
               placeholder="Cuéntanos un poco sobre tu huerta o actividad agrícola..."
               className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-xs font-semibold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
             />
@@ -113,7 +130,7 @@ export default async function ProfilePage() {
 
           <button
             type="submit"
-            className="w-full bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white font-extrabold py-3 rounded-xl text-sm shadow-md transition-all"
+            className="w-full bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-extrabold py-3 rounded-xl text-sm shadow-md transition-all"
           >
             Guardar Cambios del Perfil
           </button>

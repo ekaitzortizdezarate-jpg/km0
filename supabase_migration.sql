@@ -292,5 +292,33 @@ CREATE POLICY "chat_messages_update_policy" ON public.chat_messages FOR UPDATE U
 CREATE POLICY "reviews_select_policy" ON public.reviews FOR SELECT USING (true);
 CREATE POLICY "reviews_insert_policy" ON public.reviews FOR INSERT WITH CHECK (auth.uid() = reviewer_id);
 
--- 8. RECARGAR EL SCHEMA CACHE DE POSTGREST
+-- 8. TRIGGER AUTOMÁTICO PARA CREAR/SINCRONIZAR PERFILES AL REGISTRARSE
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, full_name, role, town, phone, address, seller_status)
+  VALUES (
+    NEW.id,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1)),
+    COALESCE(NEW.raw_user_meta_data->>'role', 'comprador'),
+    COALESCE(NEW.raw_user_meta_data->>'town', 'Local'),
+    NEW.raw_user_meta_data->>'phone',
+    NEW.raw_user_meta_data->>'address',
+    'approved'
+  )
+  ON CONFLICT (id) DO UPDATE SET
+    role = EXCLUDED.role,
+    full_name = EXCLUDED.full_name,
+    town = EXCLUDED.town,
+    seller_status = 'approved';
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- 9. RECARGAR EL SCHEMA CACHE DE POSTGREST
 NOTIFY pgrst, 'reload schema';
