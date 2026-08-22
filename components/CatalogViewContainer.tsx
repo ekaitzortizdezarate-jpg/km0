@@ -188,7 +188,7 @@ export function CatalogViewContainer({
     <div className="space-y-6">
       {/* 1. Barra Superior de Pestañas Unificadas */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-stone-200 pb-4">
-        <div className="flex flex-wrap items-center gap-2 bg-stone-200/80 p-1.5 rounded-2xl w-full sm:w-auto">
+        <div className="grid grid-cols-3 gap-1 sm:gap-2 bg-stone-200/80 p-1 sm:p-1.5 rounded-2xl w-full sm:w-auto">
           {/* Pestañas para VENDEDOR */}
           {isSeller ? (
             <>
@@ -199,15 +199,18 @@ export function CatalogViewContainer({
                   setActiveTab('mis_productos');
                   setSelectedSellerId(null);
                 }}
-                className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 ${
+                className={`px-1.5 sm:px-4 py-1.5 sm:py-2.5 rounded-xl transition-all flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 ${
                   activeTab === 'mis_productos'
                     ? 'bg-emerald-800 text-white shadow-md'
                     : 'text-stone-700 hover:text-stone-900 font-bold'
                 }`}
               >
-                <Package className="w-4 h-4" />
-                <span>Mis Productos</span>
-                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${
+                <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                <div className="flex flex-col items-center sm:items-start leading-tight">
+                  <span className="text-[8px] sm:text-[11px] font-semibold opacity-90">Mis</span>
+                  <span className="text-[9px] sm:text-xs font-black uppercase sm:normal-case">Productos</span>
+                </div>
+                <span className={`text-[8px] sm:text-[10px] font-black px-1 sm:px-1.5 py-0.5 rounded-md ${
                   activeTab === 'mis_productos' ? 'bg-emerald-950 text-white' : 'bg-stone-300 text-stone-700'
                 }`}>
                   {mySellerProductsCount}
@@ -221,15 +224,18 @@ export function CatalogViewContainer({
                   setActiveTab('todos_productos');
                   setSelectedSellerId(null);
                 }}
-                className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 ${
+                className={`px-1.5 sm:px-4 py-1.5 sm:py-2.5 rounded-xl transition-all flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 ${
                   activeTab === 'todos_productos'
                     ? 'bg-emerald-800 text-white shadow-md'
                     : 'text-stone-700 hover:text-stone-900 font-bold'
                 }`}
               >
-                <Sprout className="w-4 h-4" />
-                <span>Todos los Productos</span>
-                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${
+                <Sprout className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                <div className="flex flex-col items-center sm:items-start leading-tight">
+                  <span className="text-[8px] sm:text-[11px] font-semibold opacity-90">Todos los</span>
+                  <span className="text-[9px] sm:text-xs font-black uppercase sm:normal-case">Productos</span>
+                </div>
+                <span className={`text-[8px] sm:text-[10px] font-black px-1 sm:px-1.5 py-0.5 rounded-md ${
                   activeTab === 'todos_productos' ? 'bg-emerald-950 text-white' : 'bg-stone-300 text-stone-700'
                 }`}>
                   {products.length}
@@ -243,15 +249,18 @@ export function CatalogViewContainer({
                   setActiveTab('vendedores');
                   setSelectedSellerId(null);
                 }}
-                className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 ${
+                className={`px-1.5 sm:px-4 py-1.5 sm:py-2.5 rounded-xl transition-all flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 ${
                   activeTab === 'vendedores'
                     ? 'bg-emerald-800 text-white shadow-md'
                     : 'text-stone-700 hover:text-stone-900 font-bold'
                 }`}
               >
-                <Store className="w-4 h-4" />
-                <span>Caseríos y Vendedores</span>
-                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${
+                <Store className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                <div className="flex flex-col items-center sm:items-start leading-tight">
+                  <span className="text-[8px] sm:text-[11px] font-semibold opacity-90">Caseríos y</span>
+                  <span className="text-[9px] sm:text-xs font-black uppercase sm:normal-case">Vendedores</span>
+                </div>
+                <span className={`text-[8px] sm:text-[10px] font-black px-1 sm:px-1.5 py-0.5 rounded-md ${
                   activeTab === 'vendedores' ? 'bg-emerald-950 text-white' : 'bg-stone-300 text-stone-700'
                 }`}>
                   {allSellersList.length}
@@ -268,15 +277,18 @@ export function CatalogViewContainer({
                   setActiveTab('todos_productos');
                   setSelectedSellerId(null);
                 }}
-                className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 ${
+                className={`px-1.5 sm:px-4 py-1.5 sm:py-2.5 rounded-xl transition-all flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 ${
                   activeTab === 'todos_productos'
                     ? 'bg-emerald-800 text-white shadow-md'
                     : 'text-stone-700 hover:text-stone-900 font-bold'
                 }`}
               >
-                <Sprout className="w-4 h-4" />
-                <span>Todos los Productos</span>
-                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${
+                <Sprout className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                <div className="flex flex-col items-center sm:items-start leading-tight">
+                  <span className="text-[8px] sm:text-[11px] font-semibold opacity-90">Todos los</span>
+                  <span className="text-[9px] sm:text-xs font-black uppercase sm:normal-case">Productos</span>
+                </div>
+                <span className={`text-[8px] sm:text-[10px] font-black px-1 sm:px-1.5 py-0.5 rounded-md ${
                   activeTab === 'todos_productos' ? 'bg-emerald-950 text-white' : 'bg-stone-300 text-stone-700'
                 }`}>
                   {products.length}
@@ -290,16 +302,19 @@ export function CatalogViewContainer({
                   setActiveTab('favoritos');
                   setSelectedSellerId(null);
                 }}
-                className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 ${
+                className={`px-1.5 sm:px-4 py-1.5 sm:py-2.5 rounded-xl transition-all flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 ${
                   activeTab === 'favoritos'
                     ? 'bg-rose-600 text-white shadow-md'
                     : 'text-stone-700 hover:text-stone-900 font-bold'
                 }`}
               >
-                <Heart className={`w-4 h-4 ${activeTab === 'favoritos' ? 'fill-white' : 'text-rose-500'}`} />
-                <span>Mis Favoritos</span>
+                <Heart className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 ${activeTab === 'favoritos' ? 'fill-white' : 'text-rose-500'}`} />
+                <div className="flex flex-col items-center sm:items-start leading-tight">
+                  <span className="text-[8px] sm:text-[11px] font-semibold opacity-90">Mis</span>
+                  <span className="text-[9px] sm:text-xs font-black uppercase sm:normal-case">Favoritos</span>
+                </div>
                 {(favProducts.size > 0 || favSellers.size > 0) && (
-                  <span className="bg-white text-rose-600 text-[10px] font-black px-1.5 py-0.5 rounded-full ml-0.5">
+                  <span className="bg-white text-rose-600 text-[8px] sm:text-[10px] font-black px-1 sm:px-1.5 py-0.5 rounded-full">
                     {favProducts.size + favSellers.size}
                   </span>
                 )}
@@ -312,15 +327,18 @@ export function CatalogViewContainer({
                   setActiveTab('vendedores');
                   setSelectedSellerId(null);
                 }}
-                className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 ${
+                className={`px-1.5 sm:px-4 py-1.5 sm:py-2.5 rounded-xl transition-all flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 ${
                   activeTab === 'vendedores'
                     ? 'bg-emerald-800 text-white shadow-md'
                     : 'text-stone-700 hover:text-stone-900 font-bold'
                 }`}
               >
-                <Store className="w-4 h-4" />
-                <span>Caseríos y Vendedores</span>
-                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${
+                <Store className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                <div className="flex flex-col items-center sm:items-start leading-tight">
+                  <span className="text-[8px] sm:text-[11px] font-semibold opacity-90">Caseríos y</span>
+                  <span className="text-[9px] sm:text-xs font-black uppercase sm:normal-case">Vendedores</span>
+                </div>
+                <span className={`text-[8px] sm:text-[10px] font-black px-1 sm:px-1.5 py-0.5 rounded-md ${
                   activeTab === 'vendedores' ? 'bg-emerald-950 text-white' : 'bg-stone-300 text-stone-700'
                 }`}>
                   {allSellersList.length}
