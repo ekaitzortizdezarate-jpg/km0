@@ -262,12 +262,7 @@ export default async function BuyerOrdersPage() {
                       ) : (
                         <>
                           <Store className="w-4 h-4 text-emerald-800 shrink-0 mt-0.5" />
-                          <div className="space-y-0.5">
-                            <strong className="text-stone-900 block">Recogida caserío:</strong>
-                            <p className="text-stone-800 font-semibold">
-                              {order.profiles?.address ? `${order.profiles.address}, ` : ''}{order.profiles?.town || 'Caserío del productor'}
-                            </p>
-                          </div>
+                          <strong className="text-stone-900 block">Recogida en caserío</strong>
                         </>
                       )}
                     </div>
