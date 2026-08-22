@@ -10,6 +10,7 @@ export async function createDeliveryPoint(formData: FormData) {
 
   if (!user) return { error: 'No autorizado.' };
 
+  const point_id = (formData.get('point_id') as string) || null;
   const name = formData.get('name') as string;
   const type = (formData.get('type') as DeliveryType) || 'sitio_fisico';
   const town = formData.get('town') as string;
@@ -28,49 +29,55 @@ export async function createDeliveryPoint(formData: FormData) {
     schedule_notes = [daysStr, hoursStr].filter(Boolean).join(' ');
   }
 
-  // Regla: En modalidad 'caserio', solo puede existir 1 dirección guardada.
-  if (type === 'caserio') {
+  // Comprobar si hay un point_id a actualizar o si es un caserío existente
+  let targetId = point_id;
+  if (!targetId && type === 'caserio') {
     const { data: existingCaserio } = await supabase
       .from('delivery_points')
       .select('id')
       .eq('seller_id', user.id)
       .eq('type', 'caserio')
       .maybeSingle();
-
     if (existingCaserio) {
-      // Actualizar la dirección de caserío existente
-      const updatePayload: Record<string, any> = {
-        name: name || 'Caserío',
-        town,
-        postal_code,
-        address_details,
-        image_url,
-        days_of_week,
-        opening_time,
-        closing_time,
-        schedule_notes: schedule_notes || null,
-        is_active: true,
-      };
+      targetId = existingCaserio.id;
+    }
+  }
 
-      let { error: updateErr } = await supabase
+  if (targetId) {
+    const updatePayload: Record<string, any> = {
+      name: name || (type === 'caserio' ? 'Caserío' : 'Punto de entrega'),
+      type,
+      town,
+      postal_code,
+      address_details,
+      image_url,
+      days_of_week,
+      opening_time,
+      closing_time,
+      schedule_notes: schedule_notes || null,
+      is_active: true,
+    };
+
+    let { error: updateErr } = await supabase
+      .from('delivery_points')
+      .update(updatePayload)
+      .eq('id', targetId)
+      .eq('seller_id', user.id);
+
+    if (updateErr && updateErr.message?.includes('column')) {
+      delete updatePayload.image_url;
+      const res = await supabase
         .from('delivery_points')
         .update(updatePayload)
-        .eq('id', existingCaserio.id);
-
-      if (updateErr && updateErr.message?.includes('column')) {
-        delete updatePayload.image_url;
-        const res = await supabase
-          .from('delivery_points')
-          .update(updatePayload)
-          .eq('id', existingCaserio.id);
-        updateErr = res.error;
-      }
-
-      if (updateErr) return { error: updateErr.message };
-
-      revalidatePath('/vendedor/puntos-entrega');
-      return { success: true, updated: true };
+        .eq('id', targetId)
+        .eq('seller_id', user.id);
+      updateErr = res.error;
     }
+
+    if (updateErr) return { error: updateErr.message };
+
+    revalidatePath('/vendedor/puntos-entrega');
+    return { success: true, updated: true };
   }
 
   const insertPayload: Record<string, any> = {

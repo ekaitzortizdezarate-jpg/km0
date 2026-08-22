@@ -705,33 +705,76 @@ export default function CartPage() {
                       </div>
 
                       {config.deliveryType === 'caserio' && (
-                        <div className="p-3 bg-white rounded-xl border border-stone-200 text-xs font-semibold text-stone-800 flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-emerald-700 shrink-0" />
-                          <span>Recogida directa en las instalaciones del caserío ({group.sellerTown}).</span>
+                        <div className="p-3 bg-white rounded-xl border border-stone-200 text-xs font-semibold text-stone-800 flex items-center gap-3">
+                          {(() => {
+                            const caserioPt = (sellerDeliveryPoints[sellerId] || []).find((p) => p.type === 'caserio');
+                            return caserioPt?.image_url ? (
+                              <img
+                                src={caserioPt.image_url}
+                                alt={caserioPt.name}
+                                className="w-12 h-12 rounded-xl object-cover border border-stone-200 shrink-0 shadow-sm"
+                              />
+                            ) : (
+                              <Store className="w-6 h-6 text-emerald-700 shrink-0" />
+                            );
+                          })()}
+                          <div className="min-w-0">
+                            <span className="font-bold text-stone-900 block">Recogida directa en el caserío</span>
+                            <span className="text-stone-600 text-[11px] block">{group.sellerTown}</span>
+                          </div>
                         </div>
                       )}
 
-                  {config.deliveryType === 'sitio_fisico' && (
-                    <div>
-                      {points.length > 0 ? (
-                        <select
-                          value={config.deliveryPointId || points[0]?.id}
-                          onChange={(e) => handleDeliveryPointChange(sellerId, e.target.value)}
-                          className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-                        >
-                          {points.map((pt) => (
-                            <option key={pt.id} value={pt.id}>
-                              {pt.name} - {pt.town} ({pt.address_details})
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <p className="text-xs font-semibold text-stone-800 bg-white p-2.5 rounded-xl border border-stone-200">
-                          Recogida directa en el caserío ({group.sellerTown}).
-                        </p>
+                      {config.deliveryType === 'sitio_fisico' && (
+                        <div className="space-y-2">
+                          {points.length > 0 ? (
+                            <>
+                              <select
+                                value={config.deliveryPointId || points[0]?.id}
+                                onChange={(e) => handleDeliveryPointChange(sellerId, e.target.value)}
+                                className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                              >
+                                {points.map((pt) => (
+                                  <option key={pt.id} value={pt.id}>
+                                    {pt.name} - {pt.town} ({pt.address_details})
+                                  </option>
+                                ))}
+                              </select>
+
+                              {(() => {
+                                const selectedPt = points.find((p) => p.id === (config.deliveryPointId || points[0]?.id));
+                                if (!selectedPt) return null;
+                                return (
+                                  <div className="flex items-center gap-3 p-2.5 bg-white rounded-xl border border-stone-200 text-xs shadow-sm">
+                                    {selectedPt.image_url ? (
+                                      <img
+                                        src={selectedPt.image_url}
+                                        alt={selectedPt.name}
+                                        className="w-12 h-12 rounded-xl object-cover border border-stone-200 shrink-0"
+                                      />
+                                    ) : (
+                                      <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center border border-emerald-200 shrink-0">
+                                        <MapPin className="w-5 h-5" />
+                                      </div>
+                                    )}
+                                    <div className="min-w-0 space-y-0.5">
+                                      <span className="font-black text-stone-900 block truncate">{selectedPt.name}</span>
+                                      <span className="text-[11px] text-stone-600 block truncate">{selectedPt.address_details} ({selectedPt.town})</span>
+                                      {selectedPt.schedule_notes && (
+                                        <span className="text-[10px] font-bold text-emerald-800 block">🕒 {selectedPt.schedule_notes}</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })()}
+                            </>
+                          ) : (
+                            <p className="text-xs font-semibold text-stone-800 bg-white p-2.5 rounded-xl border border-stone-200">
+                              Recogida directa en el caserío ({group.sellerTown}).
+                            </p>
+                          )}
+                        </div>
                       )}
-                    </div>
-                  )}
 
                   {config.deliveryType === 'envio' && (
                     <div className="space-y-2">

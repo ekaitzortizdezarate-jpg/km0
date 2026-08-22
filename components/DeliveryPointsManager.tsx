@@ -9,7 +9,8 @@ import {
   MapPin,
   AlertCircle,
   CheckCircle2,
-  Image as ImageIcon,
+  Pencil,
+  X,
 } from 'lucide-react';
 import type { DeliveryPoint } from '@/types/database';
 import {
@@ -25,6 +26,7 @@ interface DeliveryPointsManagerProps {
 
 export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerProps) {
   const [points, setPoints] = useState<DeliveryPoint[]>(initialPoints);
+  const [editingPointId, setEditingPointId] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<'caserio' | 'sitio_fisico'>('sitio_fisico');
   const [name, setName] = useState('');
   const [town, setTown] = useState('');
@@ -48,16 +50,41 @@ export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerPr
   const handleSelectType = (type: 'caserio' | 'sitio_fisico') => {
     setSelectedType(type);
     if (type === 'caserio' && caserioPoint) {
+      setEditingPointId(caserioPoint.id);
       setName(caserioPoint.name);
       setTown(caserioPoint.town);
       setPostalCode(caserioPoint.postal_code || '');
       setAddressDetails(caserioPoint.address_details);
       setImageUrl(caserioPoint.image_url || null);
-    } else if (type === 'sitio_fisico') {
+    } else if (type === 'sitio_fisico' && !editingPointId) {
       setName('');
       setAddressDetails('');
       setImageUrl(null);
     }
+  };
+
+  const handleStartEdit = (pt: DeliveryPoint) => {
+    setEditingPointId(pt.id);
+    setSelectedType(pt.type as 'caserio' | 'sitio_fisico');
+    setName(pt.name);
+    setTown(pt.town);
+    setPostalCode(pt.postal_code || '');
+    setAddressDetails(pt.address_details);
+    setImageUrl(pt.image_url || null);
+    setError(null);
+    setSuccessMsg(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingPointId(null);
+    setSelectedType('sitio_fisico');
+    setName('');
+    setTown('');
+    setPostalCode('');
+    setAddressDetails('');
+    setImageUrl(null);
+    setError(null);
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -67,6 +94,9 @@ export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerPr
     setLoading(true);
 
     const formData = new FormData(e.currentTarget);
+    if (editingPointId) {
+      formData.set('point_id', editingPointId);
+    }
     formData.set('name', name);
     formData.set('type', selectedType);
     formData.set('town', town);
@@ -80,13 +110,14 @@ export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerPr
       setError(res.error);
     } else {
       setSuccessMsg(
-        selectedType === 'caserio' && res.updated
-          ? 'Datos del caserío actualizados con éxito'
+        editingPointId || (selectedType === 'caserio' && res.updated)
+          ? 'Ubicación actualizada con éxito'
           : 'Punto de entrega guardado correctamente'
       );
       setTimeout(() => setSuccessMsg(null), 3000);
 
-      // Limpiar formulario si fue sitio fisico
+      // Limpiar estado de edición
+      setEditingPointId(null);
       if (selectedType === 'sitio_fisico') {
         setName('');
         setAddressDetails('');
@@ -102,6 +133,9 @@ export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerPr
     const res = await deleteDeliveryPoint(id);
     if (res.success) {
       setPoints((prev) => prev.filter((p) => p.id !== id));
+      if (editingPointId === id) {
+        handleCancelEdit();
+      }
     }
   };
 
@@ -130,9 +164,31 @@ export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerPr
         <div className="lg:col-span-5 space-y-6">
           {/* Formulario de Creación / Actualización */}
           <div className="bg-white p-5 sm:p-6 rounded-3xl border-2 border-stone-200 shadow-sm space-y-4">
-            <h2 className="text-sm font-black text-stone-900 flex items-center gap-2">
-              <Plus className="w-4 h-4 text-emerald-700" /> Añadir o Editar Punto
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-black text-stone-900 flex items-center gap-2">
+                {editingPointId ? (
+                  <>
+                    <Pencil className="w-4 h-4 text-emerald-700" />
+                    <span>Editando Ubicación</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4 text-emerald-700" />
+                    <span>Añadir Nuevo Punto</span>
+                  </>
+                )}
+              </h2>
+
+              {editingPointId && (
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="text-xs font-bold text-stone-500 hover:text-stone-800 flex items-center gap-1 bg-stone-100 px-2 py-1 rounded-lg transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" /> Cancelar
+                </button>
+              )}
+            </div>
 
             {error && (
               <div className="p-3 bg-red-50 border border-red-200 text-red-800 rounded-xl text-xs font-bold flex items-center gap-2">
@@ -149,6 +205,10 @@ export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerPr
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              {editingPointId && (
+                <input type="hidden" name="point_id" value={editingPointId} />
+              )}
+
               {/* Tipo de Modalidad */}
               <div>
                 <label className="block text-xs font-black text-stone-800 uppercase tracking-wider mb-1.5">
@@ -184,7 +244,7 @@ export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerPr
                   </button>
                 </div>
 
-                {selectedType === 'caserio' && caserioPoint && (
+                {selectedType === 'caserio' && caserioPoint && !editingPointId && (
                   <p className="text-[11px] font-bold text-amber-800 bg-amber-50 p-2 rounded-xl border border-amber-200 mt-2">
                     ℹ️ Ya tienes un caserío registrado. Guardar este formulario actualizará la dirección y foto de tu caserío.
                   </p>
@@ -270,7 +330,13 @@ export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerPr
                 disabled={loading}
                 className="w-full bg-emerald-800 hover:bg-emerald-900 disabled:opacity-50 text-white font-black py-3 rounded-2xl text-xs transition-all shadow-md flex items-center justify-center gap-2"
               >
-                {loading ? 'Guardando...' : selectedType === 'caserio' && caserioPoint ? 'Actualizar Caserío' : 'Guardar Punto'}
+                {loading
+                  ? 'Guardando...'
+                  : editingPointId
+                  ? 'Guardar Cambios de la Ubicación'
+                  : selectedType === 'caserio' && caserioPoint
+                  ? 'Actualizar Caserío'
+                  : 'Guardar Punto'}
               </button>
             </form>
           </div>
@@ -324,65 +390,80 @@ export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerPr
 
           {physicalPoints.length > 0 ? (
             <div className="space-y-3">
-              {physicalPoints.map((pt) => (
-                <div
-                  key={pt.id}
-                  className="bg-white p-5 rounded-3xl border-2 border-stone-200 shadow-sm flex flex-col sm:flex-row items-start justify-between gap-4 hover:border-emerald-700 transition-colors"
-                >
-                  <div className="flex items-start gap-3.5 min-w-0">
-                    {pt.image_url ? (
-                      <img
-                        src={pt.image_url}
-                        alt={pt.name}
-                        className="w-16 h-16 rounded-2xl object-cover border border-stone-200 shrink-0 shadow-sm"
-                      />
-                    ) : (
-                      <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-800 flex items-center justify-center border border-emerald-200 shrink-0">
-                        {pt.type === 'caserio' ? (
-                          <Store className="w-7 h-7" />
-                        ) : (
-                          <MapPin className="w-7 h-7" />
-                        )}
+              {physicalPoints.map((pt) => {
+                const isBeingEdited = editingPointId === pt.id;
+                return (
+                  <div
+                    key={pt.id}
+                    className={`bg-white p-5 rounded-3xl border-2 shadow-sm flex flex-col sm:flex-row items-start justify-between gap-4 transition-all ${
+                      isBeingEdited
+                        ? 'border-emerald-600 ring-2 ring-emerald-500 bg-emerald-50/20'
+                        : 'border-stone-200 hover:border-emerald-700'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3.5 min-w-0">
+                      {pt.image_url ? (
+                        <img
+                          src={pt.image_url}
+                          alt={pt.name}
+                          className="w-20 h-20 rounded-2xl object-cover border border-stone-200 shrink-0 shadow-sm"
+                        />
+                      ) : (
+                        <div className="w-20 h-20 rounded-2xl bg-emerald-50 text-emerald-800 flex items-center justify-center border border-emerald-200 shrink-0">
+                          {pt.type === 'caserio' ? (
+                            <Store className="w-8 h-8" />
+                          ) : (
+                            <MapPin className="w-8 h-8" />
+                          )}
+                        </div>
+                      )}
+
+                      <div className="space-y-1.5 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="font-black text-stone-900 text-sm truncate">{pt.name}</h3>
+
+                          <span
+                            className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-lg border ${
+                              pt.type === 'caserio'
+                                ? 'bg-amber-100 text-amber-950 border-amber-300'
+                                : 'bg-stone-100 text-stone-700 border-stone-300'
+                            }`}
+                          >
+                            {pt.type === 'caserio' ? '🏡 Caserío' : '📍 Punto Físico'}
+                          </span>
+
+                          <span className="text-[10px] font-bold bg-stone-100 text-stone-600 px-2 py-0.5 rounded-lg">
+                            {pt.town} {pt.postal_code ? `(${pt.postal_code})` : ''}
+                          </span>
+                        </div>
+
+                        <p className="text-xs font-semibold text-stone-700">
+                          {pt.address_details}
+                        </p>
                       </div>
-                    )}
+                    </div>
 
-                    <div className="space-y-1.5 min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="font-black text-stone-900 text-sm truncate">{pt.name}</h3>
-
-                        <span
-                          className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-lg border ${
-                            pt.type === 'caserio'
-                              ? 'bg-amber-100 text-amber-950 border-amber-300'
-                              : 'bg-stone-100 text-stone-700 border-stone-300'
-                          }`}
-                        >
-                          {pt.type === 'caserio' ? '🏡 Caserío' : '📍 Punto Físico'}
-                        </span>
-
-                        <span className="text-[10px] font-bold bg-stone-100 text-stone-600 px-2 py-0.5 rounded-lg">
-                          {pt.town} {pt.postal_code ? `(${pt.postal_code})` : ''}
-                        </span>
-                      </div>
-
-                      <p className="text-xs font-semibold text-stone-700">
-                        {pt.address_details}
-                      </p>
+                    <div className="flex items-center gap-1 shrink-0 self-end sm:self-start">
+                      <button
+                        type="button"
+                        onClick={() => handleStartEdit(pt)}
+                        className="p-2 text-stone-500 hover:text-emerald-800 hover:bg-emerald-50 rounded-xl transition-colors"
+                        title="Editar punto"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(pt.id)}
+                        className="p-2 text-stone-400 hover:text-red-700 hover:bg-red-50 rounded-xl transition-colors"
+                        title="Eliminar punto"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-1 shrink-0 self-end sm:self-start">
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(pt.id)}
-                      className="p-2 text-stone-400 hover:text-red-700 hover:bg-red-50 rounded-xl transition-colors"
-                      title="Eliminar punto"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="text-center py-12 bg-white rounded-3xl border-2 border-stone-200 text-xs font-bold text-stone-500 p-6 space-y-2">

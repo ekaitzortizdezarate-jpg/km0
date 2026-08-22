@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Image as ImageIcon, Check, Upload, Sparkles, X, Link as LinkIcon, AlertCircle } from 'lucide-react';
 
 interface ImageSelectorProps {
@@ -96,6 +96,13 @@ export function ImageSelector({
   const [showPresets, setShowPresets] = useState(false);
   const [imageError, setImageError] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Sincronizar cuando defaultValue cambie externamente
+  useEffect(() => {
+    setSelectedUrl(defaultValue || '');
+    setInputUrl(defaultValue && !defaultValue.startsWith('data:') ? defaultValue : '');
+    setImageError(false);
+  }, [defaultValue]);
 
   const presets =
     type === 'avatar'
