@@ -77,7 +77,7 @@ export default async function BuyerCalendarPage() {
         deliveryType: ord.delivery_point_id ? 'sitio_fisico' : 'envio',
         deliveryLocation: ord.delivery_points
           ? `Recogida en: ${ord.delivery_points.name} (${ord.delivery_points.address_details})`
-          : `Envío a domicilio: ${ord.shipping_address || 'Dirección acordada'}`,
+          : `Envío: ${ord.shipping_address || 'Dirección acordada'}`,
         items: itemNames,
         orderProducts,
         chatUserId: ord.profiles?.id,
