@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ShoppingCart, X, Store, Truck, Clock, Check, Plus, Minus, MapPin } from 'lucide-react';
+import { ShoppingCart, X, Store, Truck, Clock, Check, MapPin } from 'lucide-react';
 import { useCart, CartItem } from '@/context/CartContext';
 import { createClient } from '@/lib/supabase/client';
 import type { DeliveryPoint } from '@/types/database';
@@ -123,13 +123,6 @@ export function QuickAddToCartModal({
       const clamped = Math.min(maxStock, num);
       setQuantity(clamped);
     }
-  };
-
-  const updateQuantityStep = (delta: number) => {
-    const step = item.format === 'granel' ? 0.5 : 1;
-    const nextVal = Math.max(step, Math.min(maxStock, Math.round((quantity + delta * step) * 10) / 10));
-    setQuantity(nextVal);
-    setQuantityInput(String(nextVal).replace('.', ','));
   };
 
   const selectedPoint = deliveryPoints.find((p) => p.id === selectedPointId) || deliveryPoints[0];
@@ -253,8 +246,8 @@ export function QuickAddToCartModal({
                 </div>
               </div>
 
-              {/* Selector de Cantidad con soporte de decimales (kg) */}
-              <div className="space-y-2">
+              {/* Selector de Cantidad solo entrada numérica */}
+              <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-black text-stone-900 uppercase tracking-wider">
                     Cantidad ({unitLabel}):
@@ -271,57 +264,25 @@ export function QuickAddToCartModal({
                     Este producto no tiene stock disponible en este momento.
                   </div>
                 ) : (
-                  <div className="flex items-center justify-between gap-3 bg-stone-50 p-2.5 rounded-2xl border border-stone-200">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => updateQuantityStep(-1)}
-                        className="w-9 h-9 rounded-xl bg-white border border-stone-300 hover:bg-stone-100 text-stone-900 flex items-center justify-center font-black"
-                      >
-                        <Minus className="w-4 h-4" />
-                      </button>
-
-                      <div className="flex items-center bg-white px-2 py-1 rounded-xl border border-stone-300">
-                        <input
-                          type="text"
-                          value={quantityInput}
-                          onChange={(e) => handleQuantityInputChange(e.target.value)}
-                          className="w-14 text-center font-black text-base text-stone-900 focus:outline-none bg-transparent"
-                        />
-                        <span className="text-xs font-bold text-stone-600 pr-1">{unitLabel}</span>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => updateQuantityStep(1)}
-                        disabled={!item.isUnlimitedStock && quantity >= maxStock}
-                        className="w-9 h-9 rounded-xl bg-emerald-800 hover:bg-emerald-900 disabled:opacity-40 text-white flex items-center justify-center font-black"
-                      >
-                        <Plus className="w-4 h-4" />
-                      </button>
-                    </div>
-
-                    {/* Pastillas de cantidad rápida */}
-                    <div className="flex flex-wrap gap-1">
-                      {[1, 2, 3, 5]
-                        .filter((num) => item.isUnlimitedStock || num <= maxStock)
-                        .map((num) => (
-                          <button
-                            type="button"
-                            key={num}
-                            onClick={() => {
-                              setQuantity(num);
-                              setQuantityInput(String(num));
-                            }}
-                            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all border ${
-                              quantity === num
-                                ? 'bg-emerald-800 text-white border-emerald-900'
-                                : 'bg-white text-stone-700 border-stone-300 hover:bg-stone-100'
-                            }`}
-                          >
-                            {num} {unitLabel}
-                          </button>
-                        ))}
+                  <div className="bg-stone-50 p-2.5 rounded-2xl border border-stone-200">
+                    <div className="flex items-center bg-white px-3.5 py-2.5 rounded-xl border-2 border-stone-300 focus-within:border-emerald-600 focus-within:ring-2 focus-within:ring-emerald-500/20 transition-all">
+                      <input
+                        type="number"
+                        min="0.1"
+                        step={item.format === 'granel' ? '0.1' : '1'}
+                        max={item.isUnlimitedStock ? undefined : maxStock}
+                        value={quantityInput}
+                        onChange={(e) => handleQuantityInputChange(e.target.value)}
+                        onBlur={() => {
+                          if (!quantity || quantity <= 0) {
+                            setQuantity(1);
+                            setQuantityInput('1');
+                          }
+                        }}
+                        placeholder="1"
+                        className="w-full text-left font-black text-base text-stone-900 focus:outline-none bg-transparent"
+                      />
+                      <span className="text-sm font-bold text-stone-600 pl-2 shrink-0">{unitLabel}</span>
                     </div>
                   </div>
                 )}
