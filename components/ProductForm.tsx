@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { createProduct, updateProduct } from '@/app/actions/products';
+import { createProduct, updateProduct, deleteProduct } from '@/app/actions/products';
 import { Product, ProductFormat, AvailabilityType, ProductCategory, DeliveryPoint } from '@/types/database';
 import {
   Sprout,
@@ -18,6 +19,7 @@ import {
   History,
   Store,
   Truck,
+  Trash2,
 } from 'lucide-react';
 import { ImageSelector } from '@/components/ImageSelector';
 
@@ -44,6 +46,26 @@ export function ProductForm({
 }: ProductFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const router = useRouter();
+
+  async function handleDelete() {
+    if (!product?.id) return;
+    const confirmDelete = window.confirm(`¿Estás seguro de que deseas eliminar permanentemente el producto "${product.name}"?`);
+    if (!confirmDelete) return;
+
+    setDeleting(true);
+    setError(null);
+    const res = await deleteProduct(product.id);
+    setDeleting(false);
+
+    if (res?.error) {
+      setError(res.error);
+    } else {
+      router.push('/');
+      router.refresh();
+    }
+  }
 
   // Form Fields
   const [name, setName] = useState<string>(product?.name || '');
@@ -1211,19 +1233,33 @@ export function ProductForm({
         />
       </div>
 
-      {/* BOTÓN SUBMIT */}
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white font-extrabold py-3.5 rounded-xl text-base shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-      >
-        <Sprout className="w-5 h-5" />
-        {loading
-          ? 'Guardando...'
-          : isEdit
-          ? 'Guardar Cambios del Producto'
-          : 'Publicar Producto en km0'}
-      </button>
+      {/* BOTONES DE ACCIÓN */}
+      <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+        <button
+          type="submit"
+          disabled={loading || deleting}
+          className="w-full flex-1 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-extrabold py-3.5 rounded-xl text-base shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+        >
+          <Sprout className="w-5 h-5" />
+          {loading
+            ? 'Guardando...'
+            : isEdit
+            ? 'Guardar Cambios del Producto'
+            : 'Publicar Producto en km0'}
+        </button>
+
+        {isEdit && product?.id && (
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={loading || deleting}
+            className="w-full sm:w-auto px-6 py-3.5 bg-red-50 hover:bg-red-100 text-red-700 font-extrabold rounded-xl text-sm border-2 border-red-200 transition-all flex items-center justify-center gap-2 disabled:opacity-50 shrink-0"
+          >
+            <Trash2 className="w-4 h-4 text-red-600" />
+            <span>{deleting ? 'Borrando...' : 'Borrar Producto'}</span>
+          </button>
+        )}
+      </div>
     </form>
   );
 }

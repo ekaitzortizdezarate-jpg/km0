@@ -13,12 +13,14 @@ import {
   MessageCircle,
   X,
   Edit2,
+  Trash2,
   Package,
 } from 'lucide-react';
 import { ProductCategory, ProductWithSeller, Profile } from '@/types/database';
 import { QuickAddToCartModal } from '@/components/QuickAddToCartModal';
 import { FavoriteButton } from '@/components/FavoriteButton';
 import { getDeliveryEstimate } from '@/lib/delivery';
+import { deleteProduct } from '@/app/actions/products';
 
 const CATEGORIES: { id: ProductCategory; name: string; icon: string }[] = [
   { id: 'verduras_hortalizas', name: 'Verduras', icon: '🥬' },
@@ -90,6 +92,22 @@ export function CatalogViewContainer({
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState<string | null>(selectedCategory || null);
   const [selectedSellerId, setSelectedSellerId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleDeleteProduct = async (productId: string, productName: string) => {
+    const confirmDelete = window.confirm(`¿Estás seguro de que deseas eliminar permanentemente "${productName}"?`);
+    if (!confirmDelete) return;
+
+    setDeletingId(productId);
+    const res = await deleteProduct(productId);
+    setDeletingId(null);
+
+    if (res?.error) {
+      alert('Error al borrar producto: ' + res.error);
+    } else {
+      window.location.reload();
+    }
+  };
 
   const favProducts = useSyncExternalStore(
     subscribeFavorites,
@@ -721,13 +739,24 @@ export function CatalogViewContainer({
 
                         <div className="flex items-center gap-1 shrink-0">
                           {isMyProduct ? (
-                            <Link
-                              href={`/vendedor/productos/${product.id}/editar`}
-                              className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg transition-colors border border-emerald-200"
-                              title="Editar este producto"
-                            >
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </Link>
+                            <>
+                              <Link
+                                href={`/vendedor/productos/${product.id}/editar`}
+                                className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg transition-colors border border-emerald-200"
+                                title="Editar este producto"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </Link>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteProduct(product.id, product.name)}
+                                disabled={deletingId === product.id}
+                                className="p-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg transition-colors border border-red-200"
+                                title="Borrar este producto"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </>
                           ) : (
                             <>
                               <Link
@@ -743,15 +772,27 @@ export function CatalogViewContainer({
                         </div>
                       </div>
 
-                      {/* Botón de acción: Si es mi producto -> Editar; Si no -> Añadir a la Cesta */}
+                      {/* Botón de acción: Si es mi producto -> Editar y Borrar; Si no -> Añadir a la Cesta */}
                       {isMyProduct ? (
-                        <Link
-                          href={`/vendedor/productos/${product.id}/editar`}
-                          className="w-full py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-900 text-xs font-black rounded-xl transition-all border border-stone-300 flex items-center justify-center gap-1.5"
-                        >
-                          <Edit2 className="w-3.5 h-3.5 text-stone-700" />
-                          <span>Editar mi Producto</span>
-                        </Link>
+                        <div className="flex items-center gap-2 w-full">
+                          <Link
+                            href={`/vendedor/productos/${product.id}/editar`}
+                            className="flex-1 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-900 text-xs font-black rounded-xl transition-all border border-stone-300 flex items-center justify-center gap-1.5"
+                          >
+                            <Edit2 className="w-3.5 h-3.5 text-stone-700" />
+                            <span>Editar</span>
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteProduct(product.id, product.name)}
+                            disabled={deletingId === product.id}
+                            className="py-2.5 px-3 bg-red-50 hover:bg-red-100 text-red-700 hover:text-red-800 text-xs font-black rounded-xl transition-all border border-red-200 flex items-center justify-center gap-1.5"
+                            title="Borrar este producto"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                            <span>{deletingId === product.id ? 'Borrando...' : 'Borrar'}</span>
+                          </button>
+                        </div>
                       ) : (
                         <QuickAddToCartModal
                           item={itemPayload}
