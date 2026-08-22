@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { User, MapPin, Phone, FileText, Pencil, CheckCircle2, X } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { User, MapPin, Phone, FileText, Pencil, CheckCircle2, Heart } from 'lucide-react';
 import { ImageSelector } from '@/components/ImageSelector';
 import { LocationSelector } from '@/components/LocationSelector';
 import { updateProfile } from '@/app/actions/profile';
@@ -12,6 +12,65 @@ interface ProfileEditorProps {
   initialProfile: Profile;
 }
 
+function parseFullName(fullName?: string | null) {
+  if (!fullName) return { nombre: '', apellido1: '', apellido2: '' };
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length === 1) return { nombre: parts[0], apellido1: '', apellido2: '' };
+  if (parts.length === 2) return { nombre: parts[0], apellido1: parts[1], apellido2: '' };
+  return { nombre: parts[0], apellido1: parts[1], apellido2: parts.slice(2).join(' ') };
+}
+
+function parseAddress(rawAddress?: string | null) {
+  if (!rawAddress) return { calle: '', portal: '', escalera: '', piso: '', puerta: '' };
+  try {
+    if (rawAddress.startsWith('{') && rawAddress.endsWith('}')) {
+      const parsed = JSON.parse(rawAddress);
+      return {
+        calle: parsed.calle || '',
+        portal: parsed.portal || '',
+        escalera: parsed.escalera || '',
+        piso: parsed.piso || '',
+        puerta: parsed.puerta || '',
+      };
+    }
+  } catch {}
+
+  let calle = rawAddress;
+  let portal = '';
+  let escalera = '';
+  let piso = '';
+  let puerta = '';
+
+  const portalMatch = rawAddress.match(/(?:Nº|N|Portal|Número)\s*(\S+)/i);
+  if (portalMatch) portal = portalMatch[1].replace(/,$/, '');
+
+  const escMatch = rawAddress.match(/(?:Esc\.|Escalera)\s*(\S+)/i);
+  if (escMatch) escalera = escMatch[1].replace(/,$/, '');
+
+  const pisoMatch = rawAddress.match(/(?:Piso)\s*(\S+)/i);
+  if (pisoMatch) piso = pisoMatch[1].replace(/,$/, '');
+
+  const ptaMatch = rawAddress.match(/(?:Pta|Puerta)\s*(\S+)/i);
+  if (ptaMatch) puerta = ptaMatch[1].replace(/,$/, '');
+
+  if (rawAddress.includes(',')) {
+    calle = rawAddress.split(',')[0].trim();
+  }
+
+  return { calle, portal, escalera, piso, puerta };
+}
+
+function formatAddressString(addr: { calle: string; portal: string; escalera: string; piso: string; puerta: string }) {
+  const parts = [
+    addr.calle.trim(),
+    addr.portal.trim() ? `Nº ${addr.portal.trim()}` : '',
+    addr.escalera.trim() ? `Esc. ${addr.escalera.trim()}` : '',
+    addr.piso.trim() ? `Piso ${addr.piso.trim()}` : '',
+    addr.puerta.trim() ? `Pta ${addr.puerta.trim()}` : '',
+  ].filter(Boolean);
+  return parts.join(', ');
+}
+
 export function ProfileEditor({ initialProfile }: ProfileEditorProps) {
   const router = useRouter();
   const [profile, setProfile] = useState<Profile>(initialProfile);
@@ -20,6 +79,25 @@ export function ProfileEditor({ initialProfile }: ProfileEditorProps) {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  // Parsear campos individuales para nombre y dirección
+  const parsedNames = useMemo(() => parseFullName(profile.full_name), [profile.full_name]);
+  const parsedAddr = useMemo(() => parseAddress(profile.address), [profile.address]);
+
+  const [nombre, setNombre] = useState(parsedNames.nombre);
+  const [apellido1, setApellido1] = useState(parsedNames.apellido1);
+  const [apellido2, setApellido2] = useState(parsedNames.apellido2);
+  const [telefono, setTelefono] = useState(profile.phone || '');
+  const [pueblo, setPueblo] = useState(profile.town || '');
+  const [codigoPostal, setCodigoPostal] = useState(profile.postal_code || '');
+  const [calle, setCalle] = useState(parsedAddr.calle);
+  const [portal, setPortal] = useState(parsedAddr.portal);
+  const [escalera, setEscalera] = useState(parsedAddr.escalera);
+  const [piso, setPiso] = useState(parsedAddr.piso);
+  const [puerta, setPuerta] = useState(parsedAddr.puerta);
+  const [bio, setBio] = useState(profile.bio || '');
+
+  const isBuyer = profile.role === 'comprador';
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
@@ -27,6 +105,16 @@ export function ProfileEditor({ initialProfile }: ProfileEditorProps) {
     setSuccessMsg(null);
 
     const formData = new FormData(e.currentTarget);
+    const fullNameCombined = [nombre.trim(), apellido1.trim(), apellido2.trim()].filter(Boolean).join(' ');
+    const addressCombined = formatAddressString({ calle, portal, escalera, piso, puerta });
+
+    formData.set('full_name', fullNameCombined);
+    formData.set('town', pueblo);
+    formData.set('postal_code', codigoPostal);
+    formData.set('phone', telefono);
+    formData.set('address', addressCombined);
+    formData.set('bio', bio);
+
     const res = await updateProfile(formData);
 
     setLoading(false);
@@ -34,15 +122,14 @@ export function ProfileEditor({ initialProfile }: ProfileEditorProps) {
       setErrorMsg(res.error);
     } else {
       setSuccessMsg('Perfil actualizado correctamente.');
-      // Actualizar el estado local
       setProfile((prev) => ({
         ...prev,
-        full_name: (formData.get('full_name') as string) || prev.full_name,
-        town: (formData.get('town') as string) || prev.town,
-        postal_code: (formData.get('postal_code') as string) || prev.postal_code,
-        phone: (formData.get('phone') as string) || null,
-        address: (formData.get('address') as string) || null,
-        bio: (formData.get('bio') as string) || null,
+        full_name: fullNameCombined,
+        town: pueblo,
+        postal_code: codigoPostal,
+        phone: telefono,
+        address: addressCombined,
+        bio: bio,
         avatar_url: (formData.get('avatar_url') as string) || prev.avatar_url,
       }));
       setIsEditing(false);
@@ -86,56 +173,95 @@ export function ProfileEditor({ initialProfile }: ProfileEditorProps) {
 
       {/* MODO VISTA O MODO EDICIÓN */}
       {!isEditing ? (
-        /* MODO VISTA: Solo visible, sin selector de imagen, con botón Editar abajo */
+        /* MODO VISTA: Solo visible con los campos formateados limpiamente */
         <div className="space-y-4">
-          <div className="p-3.5 bg-stone-50 rounded-2xl border border-stone-200 space-y-1">
-            <span className="text-[11px] font-black text-stone-500 uppercase tracking-wider flex items-center gap-1.5">
-              <User className="w-3.5 h-3.5 text-stone-600" /> Nombre Completo / Caserío
-            </span>
-            <p className="text-sm font-bold text-stone-900">
-              {profile.full_name || <span className="text-stone-400 font-normal">Sin especificar</span>}
-            </p>
+          {/* Nombre y Apellidos */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="p-3.5 bg-stone-50 rounded-2xl border border-stone-200 space-y-1">
+              <span className="text-[10px] font-black text-stone-500 uppercase tracking-wider block">
+                nombre
+              </span>
+              <p className="text-sm font-bold text-stone-900">{nombre || <span className="text-stone-400 font-normal">—</span>}</p>
+            </div>
+            <div className="p-3.5 bg-stone-50 rounded-2xl border border-stone-200 space-y-1">
+              <span className="text-[10px] font-black text-stone-500 uppercase tracking-wider block">
+                apellido 1
+              </span>
+              <p className="text-sm font-bold text-stone-900">{apellido1 || <span className="text-stone-400 font-normal">—</span>}</p>
+            </div>
+            <div className="p-3.5 bg-stone-50 rounded-2xl border border-stone-200 space-y-1">
+              <span className="text-[10px] font-black text-stone-500 uppercase tracking-wider block">
+                apellido 2
+              </span>
+              <p className="text-sm font-bold text-stone-900">{apellido2 || <span className="text-stone-400 font-normal">—</span>}</p>
+            </div>
           </div>
 
+          {/* Teléfono */}
           <div className="p-3.5 bg-stone-50 rounded-2xl border border-stone-200 space-y-1">
-            <span className="text-[11px] font-black text-stone-500 uppercase tracking-wider flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5 text-stone-600" /> Pueblo / Municipio
+            <span className="text-[10px] font-black text-stone-500 uppercase tracking-wider block">
+              telefono
             </span>
-            <p className="text-sm font-bold text-stone-900">
-              {profile.town ? (
-                <>
-                  {profile.town} {profile.postal_code ? <span className="text-stone-500 font-normal">({profile.postal_code})</span> : ''}
-                </>
-              ) : (
-                <span className="text-stone-400 font-normal">Sin especificar</span>
-              )}
-            </p>
+            <p className="text-sm font-bold text-stone-900">{telefono || <span className="text-stone-400 font-normal">—</span>}</p>
           </div>
 
-          <div className="p-3.5 bg-stone-50 rounded-2xl border border-stone-200 space-y-1">
-            <span className="text-[11px] font-black text-stone-500 uppercase tracking-wider flex items-center gap-1.5">
-              <Phone className="w-3.5 h-3.5 text-stone-600" /> Teléfono
-            </span>
-            <p className="text-sm font-bold text-stone-900">
-              {profile.phone || <span className="text-stone-400 font-normal">Sin especificar</span>}
-            </p>
+          {/* Pueblo y Código Postal */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="p-3.5 bg-stone-50 rounded-2xl border border-stone-200 space-y-1">
+              <span className="text-[10px] font-black text-stone-500 uppercase tracking-wider block">
+                pueblo
+              </span>
+              <p className="text-sm font-bold text-stone-900">{pueblo || <span className="text-stone-400 font-normal">—</span>}</p>
+            </div>
+            <div className="p-3.5 bg-stone-50 rounded-2xl border border-stone-200 space-y-1">
+              <span className="text-[10px] font-black text-stone-500 uppercase tracking-wider block">
+                codigo postal
+              </span>
+              <p className="text-sm font-bold text-stone-900">{codigoPostal || <span className="text-stone-400 font-normal">—</span>}</p>
+            </div>
           </div>
 
-          <div className="p-3.5 bg-stone-50 rounded-2xl border border-stone-200 space-y-1">
-            <span className="text-[11px] font-black text-stone-500 uppercase tracking-wider flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5 text-stone-600" /> Dirección habitual
-            </span>
-            <p className="text-sm font-bold text-stone-900">
-              {profile.address || <span className="text-stone-400 font-normal">Sin especificar</span>}
-            </p>
+          {/* Dirección Desglosada: calle, portal, escalera, piso, puerta */}
+          <div className="grid grid-cols-2 sm:grid-cols-12 gap-3">
+            <div className="col-span-2 sm:col-span-4 p-3.5 bg-stone-50 rounded-2xl border border-stone-200 space-y-1">
+              <span className="text-[10px] font-black text-stone-500 uppercase tracking-wider block">
+                calle
+              </span>
+              <p className="text-sm font-bold text-stone-900">{calle || <span className="text-stone-400 font-normal">—</span>}</p>
+            </div>
+            <div className="col-span-1 sm:col-span-2 p-3.5 bg-stone-50 rounded-2xl border border-stone-200 space-y-1">
+              <span className="text-[10px] font-black text-stone-500 uppercase tracking-wider block">
+                portal
+              </span>
+              <p className="text-sm font-bold text-stone-900">{portal || <span className="text-stone-400 font-normal">—</span>}</p>
+            </div>
+            <div className="col-span-1 sm:col-span-2 p-3.5 bg-stone-50 rounded-2xl border border-stone-200 space-y-1">
+              <span className="text-[10px] font-black text-stone-500 uppercase tracking-wider block">
+                escalera
+              </span>
+              <p className="text-sm font-bold text-stone-900">{escalera || <span className="text-stone-400 font-normal">—</span>}</p>
+            </div>
+            <div className="col-span-1 sm:col-span-2 p-3.5 bg-stone-50 rounded-2xl border border-stone-200 space-y-1">
+              <span className="text-[10px] font-black text-stone-500 uppercase tracking-wider block">
+                piso
+              </span>
+              <p className="text-sm font-bold text-stone-900">{piso || <span className="text-stone-400 font-normal">—</span>}</p>
+            </div>
+            <div className="col-span-1 sm:col-span-2 p-3.5 bg-stone-50 rounded-2xl border border-stone-200 space-y-1">
+              <span className="text-[10px] font-black text-stone-500 uppercase tracking-wider block">
+                puerta
+              </span>
+              <p className="text-sm font-bold text-stone-900">{puerta || <span className="text-stone-400 font-normal">—</span>}</p>
+            </div>
           </div>
 
+          {/* Gustos y preferencias / Biografía */}
           <div className="p-3.5 bg-stone-50 rounded-2xl border border-stone-200 space-y-1">
-            <span className="text-[11px] font-black text-stone-500 uppercase tracking-wider flex items-center gap-1.5">
-              <FileText className="w-3.5 h-3.5 text-stone-600" /> Biografía / Presentación de tu huerta
+            <span className="text-[10px] font-black text-stone-500 uppercase tracking-wider block">
+              {isBuyer ? 'Gustos y preferencias:' : 'Biografía / Presentación de tu huerta:'}
             </span>
             <p className="text-xs font-semibold text-stone-800 whitespace-pre-wrap">
-              {profile.bio || <span className="text-stone-400 font-normal">Sin biografía añadida</span>}
+              {bio || <span className="text-stone-400 font-normal">Sin información añadida</span>}
             </p>
           </div>
 
@@ -159,61 +285,155 @@ export function ProfileEditor({ initialProfile }: ProfileEditorProps) {
             type="avatar"
           />
 
+          {/* Nombre, apellido 1, apellido 2 */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="text-[10px] font-black text-stone-900 mb-1 block uppercase tracking-wider">
+                nombre *
+              </label>
+              <input
+                type="text"
+                value={nombre}
+                onChange={(e) => setNombre(e.target.value)}
+                required
+                placeholder="Ej. Ane"
+                className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-black text-stone-900 mb-1 block uppercase tracking-wider">
+                apellido 1
+              </label>
+              <input
+                type="text"
+                value={apellido1}
+                onChange={(e) => setApellido1(e.target.value)}
+                placeholder="Ej. Goikoetxea"
+                className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-black text-stone-900 mb-1 block uppercase tracking-wider">
+                apellido 2
+              </label>
+              <input
+                type="text"
+                value={apellido2}
+                onChange={(e) => setApellido2(e.target.value)}
+                placeholder="Ej. Agirre"
+                className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          {/* Teléfono */}
           <div>
-            <label className="text-xs font-black text-stone-900 mb-1 flex items-center gap-1.5 uppercase tracking-wider">
-              <User className="w-3.5 h-3.5 text-stone-600" /> Nombre Completo / Caserío *
+            <label className="text-[10px] font-black text-stone-900 mb-1 block uppercase tracking-wider">
+              telefono
             </label>
             <input
-              name="full_name"
-              type="text"
-              defaultValue={profile.full_name || ''}
-              required
+              type="tel"
+              value={telefono}
+              onChange={(e) => setTelefono(e.target.value)}
+              placeholder="600 000 000"
               className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
             />
           </div>
 
+          {/* Pueblo y Código Postal con autocompletado */}
           <LocationSelector
             defaultProvince="Bizkaia"
-            defaultTown={profile.town || ''}
-            defaultPostalCode={profile.postal_code || ''}
-            showProvince={true}
+            defaultTown={pueblo}
+            defaultPostalCode={codigoPostal}
+            showProvince={false}
             showPostalCode={true}
             required={true}
+            labelTown="pueblo *"
+            labelPostalCode="codigo postal *"
+            onChange={({ town: newTown, postalCode: newCp }) => {
+              setPueblo(newTown);
+              setCodigoPostal(newCp);
+            }}
           />
 
-          <div>
-            <label className="text-xs font-black text-stone-900 mb-1 flex items-center gap-1.5 uppercase tracking-wider">
-              <Phone className="w-3.5 h-3.5 text-stone-600" /> Teléfono
-            </label>
-            <input
-              name="phone"
-              type="tel"
-              defaultValue={profile.phone || ''}
-              className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-            />
+          {/* Dirección: calle, portal, escalera, piso, puerta */}
+          <div className="grid grid-cols-2 sm:grid-cols-12 gap-3">
+            <div className="col-span-2 sm:col-span-4">
+              <label className="text-[10px] font-black text-stone-900 mb-1 block uppercase tracking-wider">
+                calle
+              </label>
+              <input
+                type="text"
+                value={calle}
+                onChange={(e) => setCalle(e.target.value)}
+                placeholder="Ej. Gran Vía"
+                className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+              />
+            </div>
+            <div className="col-span-1 sm:col-span-2">
+              <label className="text-[10px] font-black text-stone-900 mb-1 block uppercase tracking-wider">
+                portal
+              </label>
+              <input
+                type="text"
+                value={portal}
+                onChange={(e) => setPortal(e.target.value)}
+                placeholder="14"
+                className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+              />
+            </div>
+            <div className="col-span-1 sm:col-span-2">
+              <label className="text-[10px] font-black text-stone-900 mb-1 block uppercase tracking-wider">
+                escalera
+              </label>
+              <input
+                type="text"
+                value={escalera}
+                onChange={(e) => setEscalera(e.target.value)}
+                placeholder="A"
+                className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+              />
+            </div>
+            <div className="col-span-1 sm:col-span-2">
+              <label className="text-[10px] font-black text-stone-900 mb-1 block uppercase tracking-wider">
+                piso
+              </label>
+              <input
+                type="text"
+                value={piso}
+                onChange={(e) => setPiso(e.target.value)}
+                placeholder="3º"
+                className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+              />
+            </div>
+            <div className="col-span-1 sm:col-span-2">
+              <label className="text-[10px] font-black text-stone-900 mb-1 block uppercase tracking-wider">
+                puerta
+              </label>
+              <input
+                type="text"
+                value={puerta}
+                onChange={(e) => setPuerta(e.target.value)}
+                placeholder="B"
+                className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+              />
+            </div>
           </div>
 
+          {/* Gustos y preferencias / Biografía */}
           <div>
-            <label className="text-xs font-black text-stone-900 mb-1 flex items-center gap-1.5 uppercase tracking-wider">
-              <MapPin className="w-3.5 h-3.5 text-stone-600" /> Dirección habitual
-            </label>
-            <input
-              name="address"
-              type="text"
-              defaultValue={profile.address || ''}
-              className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs font-black text-stone-900 mb-1 flex items-center gap-1.5 uppercase tracking-wider">
-              <FileText className="w-3.5 h-3.5 text-stone-600" /> Biografía / Presentación de tu huerta
+            <label className="text-[10px] font-black text-stone-900 mb-1 block uppercase tracking-wider">
+              {isBuyer ? 'Gustos y preferencias:' : 'Biografía / Presentación de tu huerta:'}
             </label>
             <textarea
-              name="bio"
               rows={3}
-              defaultValue={profile.bio || ''}
-              placeholder="Cuéntanos un poco sobre tu huerta o actividad agrícola..."
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              placeholder={
+                isBuyer
+                  ? 'Cuéntanos qué productos te interesan, tus preferencias de temporada o ecológicas...'
+                  : 'Cuéntanos un poco sobre tu huerta o actividad agrícola...'
+              }
               className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-xs font-semibold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
             />
           </div>
