@@ -208,12 +208,17 @@ export default function CartPage() {
     sellerId: string,
     type: 'caserio' | 'sitio_fisico' | 'envio'
   ) => {
+    const physicalPoints = (sellerDeliveryPoints[sellerId] || []).filter(
+      (p) => p.type === 'sitio_fisico'
+    );
     setDeliveryConfigs((prev) => ({
       ...prev,
       [sellerId]: {
-        ...prev[sellerId],
         deliveryType: type,
-        deliveryPointId: prev[sellerId]?.deliveryPointId || sellerDeliveryPoints[sellerId]?.[0]?.id || null,
+        deliveryPointId:
+          type === 'sitio_fisico'
+            ? prev[sellerId]?.deliveryPointId || physicalPoints[0]?.id || null
+            : null,
         shippingAddress: prev[sellerId]?.shippingAddress || savedAddresses[0]?.address || '',
         groupMode: prev[sellerId]?.groupMode || 'junto_tardio',
       },
@@ -318,13 +323,16 @@ export default function CartPage() {
         ? currentConfig.deliveryType
         : defaultType;
 
-    const points = sellerDeliveryPoints[sellerId] || [];
+    const physicalPoints = (sellerDeliveryPoints[sellerId] || []).filter(
+      (p) => p.type === 'sitio_fisico'
+    );
 
     const effectiveDeliveryPointId =
-      currentConfig?.deliveryPointId ||
-      itemSelectedPointId ||
-      points.find((p) => p.type === 'sitio_fisico')?.id ||
-      null;
+      currentConfig?.deliveryPointId && physicalPoints.some((p) => p.id === currentConfig.deliveryPointId)
+        ? currentConfig.deliveryPointId
+        : itemSelectedPointId && physicalPoints.some((p) => p.id === itemSelectedPointId)
+        ? itemSelectedPointId
+        : physicalPoints[0]?.id || null;
 
     return {
       deliveryType: effectiveDeliveryType,
@@ -740,7 +748,10 @@ export default function CartPage() {
                   // Calcular estimaciones para este caserío / productos
                   const firstItem = group.items[0];
                   const caserioEst = getCaserioEstimate(firstItem);
-                  const selectedPt = points.find((p) => p.id === config.deliveryPointId) || points[0];
+                  const physicalPoints = (sellerDeliveryPoints[sellerId] || []).filter(
+                    (p) => p.type === 'sitio_fisico'
+                  );
+                  const selectedPt = physicalPoints.find((p) => p.id === config.deliveryPointId) || physicalPoints[0];
                   const puntoEst = getPuntoEntregaEstimate(firstItem, selectedPt);
                   const domicilioEst = getDomicilioEstimate(firstItem);
 
@@ -847,37 +858,37 @@ export default function CartPage() {
                                 {puntoEst.dateStr}
                               </p>
 
-                              {points.length > 1 ? (
+                              {physicalPoints.length > 1 ? (
                                 <div className="pt-1" onClick={(e) => e.stopPropagation()}>
                                   <label className="block text-[10px] font-bold text-stone-700 mb-1">
                                     Selecciona el punto de entrega:
                                   </label>
                                   <select
-                                    value={config.deliveryPointId || points[0]?.id}
+                                    value={config.deliveryPointId || physicalPoints[0]?.id}
                                     onChange={(e) => handleDeliveryPointChange(sellerId, e.target.value)}
                                     className="w-full px-3 py-1.5 border border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
                                   >
-                                    {points.map((pt) => (
+                                    {physicalPoints.map((pt) => (
                                       <option key={pt.id} value={pt.id}>
                                         {pt.name} - {pt.town} ({pt.address_details})
                                       </option>
                                     ))}
                                   </select>
                                 </div>
-                              ) : points.length === 1 ? (
+                              ) : physicalPoints.length === 1 ? (
                                 <div className="flex items-start gap-2.5 pt-1 text-[11px] text-stone-600">
-                                  {points[0].image_url ? (
+                                  {physicalPoints[0].image_url ? (
                                     <img
-                                      src={points[0].image_url}
-                                      alt={points[0].name}
+                                      src={physicalPoints[0].image_url}
+                                      alt={physicalPoints[0].name}
                                       className="w-10 h-10 rounded-lg object-cover border border-stone-200 shrink-0"
                                     />
                                   ) : null}
                                   <div className="space-y-0.5">
-                                    <p className="font-bold text-stone-900">{points[0].name} ({points[0].town})</p>
-                                    <p>{points[0].address_details}</p>
-                                    {points[0].schedule_notes && (
-                                      <p className="text-[10px] text-amber-900 font-bold">🕒 {points[0].schedule_notes}</p>
+                                    <p className="font-bold text-stone-900">{physicalPoints[0].name} ({physicalPoints[0].town})</p>
+                                    <p>{physicalPoints[0].address_details}</p>
+                                    {physicalPoints[0].schedule_notes && (
+                                      <p className="text-[10px] text-amber-900 font-bold">🕒 {physicalPoints[0].schedule_notes}</p>
                                     )}
                                   </div>
                                 </div>
@@ -1064,8 +1075,10 @@ export default function CartPage() {
               {sellerIds.map((sId) => {
                 const group = groupedBySeller[sId];
                 const config = getSellerConfig(sId);
-                const points = sellerDeliveryPoints[sId] || [];
-                const pointObj = points.find((p) => p.id === config.deliveryPointId);
+                const physicalPoints = (sellerDeliveryPoints[sId] || []).filter(
+                  (p) => p.type === 'sitio_fisico'
+                );
+                const pointObj = physicalPoints.find((p) => p.id === config.deliveryPointId);
 
                 // Calcular fecha unificada para el modal si groupMode === 'junto_tardio'
                 const datesMs = group.items
