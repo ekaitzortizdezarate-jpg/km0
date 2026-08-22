@@ -26,6 +26,8 @@ export interface CartItem {
   deliveryBadge?: string;
   deliveryBadgeDetail?: string;
   isOrganic?: boolean;
+  deliveryMethods?: string[] | null;
+  caserioSchedule?: string | null;
   selectedDeliveryType?: 'caserio' | 'punto_entrega' | 'domicilio';
   selectedPointId?: string | null;
   selectedPointName?: string | null;

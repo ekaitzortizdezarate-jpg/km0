@@ -99,6 +99,11 @@ export default function ProductDetailPage() {
       packItems: product.pack_items,
       estimatedDeliveryDate: deliveryInfo.estimatedDate.toISOString(),
       deliveryBadge: deliveryInfo.badgeText,
+      deliveryBadgeDetail: deliveryInfo.detailText,
+      deliveryMethods: product.delivery_methods,
+      caserioSchedule: product.caserio_schedule,
+      stock: Number(product.stock) || 0,
+      isUnlimitedStock: product.is_unlimited_stock,
     });
 
     if (goToCart) {
@@ -208,7 +213,7 @@ export default function ProductDetailPage() {
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-black uppercase bg-emerald-100 text-emerald-950 px-2 py-0.5 rounded">
                 {product.format === 'granel'
-                  ? 'A Granel'
+                  ? 'A Peso'
                   : product.format === 'suelto'
                   ? product.weight_kg
                     ? 'Pieza pesada'

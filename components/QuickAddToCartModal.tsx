@@ -30,9 +30,19 @@ export function QuickAddToCartModal({
   const [quantityInput, setQuantityInput] = useState<string>('1');
 
   // Opciones permitidas por el vendedor (estrictas)
-  const availableMethods = item.deliveryMethods && item.deliveryMethods.length > 0
+  const rawMethods = item.deliveryMethods && item.deliveryMethods.length > 0
     ? item.deliveryMethods
     : ['caserio'];
+
+  const availableMethods = Array.from(
+    new Set(
+      rawMethods.map((m) => {
+        if (m === 'sitio_fisico') return 'punto_entrega';
+        if (m === 'envio') return 'domicilio';
+        return m;
+      })
+    )
+  );
 
   const [deliveryMethod, setDeliveryMethod] = useState<string>(
     availableMethods[0] || 'caserio'

@@ -39,7 +39,7 @@ export default async function NewProductPage() {
           <div>
             <h1 className="text-2xl font-black text-stone-900">Publicar Producto</h1>
             <p className="text-xs font-medium text-stone-600">
-              Añade un producto a granel, suelto o pack con sus condiciones de entrega
+              Añade un producto a peso, suelto o pack con sus condiciones de entrega
             </p>
           </div>
         </div>

@@ -46,7 +46,7 @@ export function Footer() {
             <ul className="space-y-1.5 font-semibold text-stone-400">
               <li>
                 <Link href="/vendedor/productos/nuevo" className="hover:text-emerald-400 transition-colors">
-                  Publicar Cosecha
+                  Publicar Producto
                 </Link>
               </li>
               <li>

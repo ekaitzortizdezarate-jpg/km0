@@ -51,7 +51,7 @@ export async function createProduct(formData: FormData) {
   const name = formData.get('name') as string;
   const description = formData.get('description') as string;
   const category = formData.get('category') as ProductCategory;
-  const format = (formData.get('format') as ProductFormat) || 'suelto';
+  const format = (formData.get('format') as ProductFormat) || 'granel';
   const price_raw = formData.get('price') as string;
   const price_per_kilo_raw = formData.get('price_per_kilo') as string;
   const weight_kg_raw = formData.get('weight_kg') as string;
@@ -187,7 +187,7 @@ export async function updateProduct(productId: string, formData: FormData) {
   const name = formData.get('name') as string;
   const description = formData.get('description') as string;
   const category = formData.get('category') as ProductCategory;
-  const format = (formData.get('format') as ProductFormat) || 'suelto';
+  const format = (formData.get('format') as ProductFormat) || 'granel';
   const price_raw = formData.get('price') as string;
   const price_per_kilo_raw = formData.get('price_per_kilo') as string;
   const weight_kg_raw = formData.get('weight_kg') as string;

@@ -15,6 +15,7 @@ import {
   Edit2,
   Trash2,
   Package,
+  ArrowUpDown,
 } from 'lucide-react';
 import { ProductCategory, ProductWithSeller, Profile } from '@/types/database';
 import { QuickAddToCartModal } from '@/components/QuickAddToCartModal';
@@ -75,6 +76,16 @@ interface CatalogViewContainerProps {
   selectedTown?: string;
 }
 
+type SortOption =
+  | 'nombre_asc'
+  | 'nombre_desc'
+  | 'precio_asc'
+  | 'precio_desc'
+  | 'fecha_asc'
+  | 'fecha_desc'
+  | 'stock_desc'
+  | 'stock_asc';
+
 export function CatalogViewContainer({
   products,
   sellers,
@@ -93,6 +104,7 @@ export function CatalogViewContainer({
   const [activeCategory, setActiveCategory] = useState<string | null>(selectedCategory || null);
   const [selectedSellerId, setSelectedSellerId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<SortOption>('nombre_asc');
 
   const handleDeleteProduct = async (productId: string, productName: string) => {
     const confirmDelete = window.confirm(`¿Estás seguro de que deseas eliminar permanentemente "${productName}"?`);
@@ -148,56 +160,118 @@ export function CatalogViewContainer({
     ? products.filter((p) => p.seller_id === userProfile.id).length
     : 0;
 
-  // Filtrado de productos
+  // Filtrado de Vendedores para la pestaña "Vendedores / Caseríos"
+  const filteredSellers = allSellersList.filter(({ profile, products: sellerProds }) => {
+    if (searchTerm) {
+      const q = searchTerm.toLowerCase();
+      const matchName = profile.full_name?.toLowerCase().includes(q);
+      const matchTown = profile.town?.toLowerCase().includes(q);
+      const matchBio = profile.bio?.toLowerCase().includes(q);
+      const matchProd = sellerProds.some((p) => p.name.toLowerCase().includes(q));
+      if (!matchName && !matchTown && !matchBio && !matchProd) return false;
+    }
+    if (selectedTown) {
+      if (profile.town?.toLowerCase() !== selectedTown.toLowerCase()) return false;
+    }
+    return true;
+  });
+
+  // Filtrado de Productos para las pestañas de productos
   const filteredProducts = products.filter((product) => {
-    // Modo 1: Mis productos (vendedor)
+    // 1. Filtrado por Pestaña
     if (activeTab === 'mis_productos') {
-      if (!userProfile || product.seller_id !== userProfile.id) {
-        return false;
-      }
+      if (!userProfile || product.seller_id !== userProfile.id) return false;
+    } else if (activeTab === 'favoritos') {
+      if (!favProducts.has(product.id)) return false;
     }
 
-    // Modo 2: Vendedor filtrado explícitamente al pulsar "Ver productos"
-    if (selectedSellerId) {
-      if (product.seller_id !== selectedSellerId) {
-        return false;
-      }
-    } else if (activeTab === 'favoritos' && !favProducts.has(product.id)) {
+    // 2. Filtrado por Vendedor específico seleccionado
+    if (selectedSellerId && product.seller_id !== selectedSellerId) {
       return false;
     }
 
-    // Filtro por categoría
+    // 3. Filtrado por Categoría
     if (activeCategory && product.category !== activeCategory) {
       return false;
     }
 
-    // Filtro por búsqueda
-    if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase();
-      const matchName = product.name.toLowerCase().includes(term);
-      const matchTown = product.profiles?.town?.toLowerCase().includes(term);
-      const matchSeller = product.profiles?.full_name?.toLowerCase().includes(term);
-      if (!matchName && !matchTown && !matchSeller) return false;
+    // 4. Filtrado por Pueblo
+    if (selectedTown && product.profiles?.town?.toLowerCase() !== selectedTown.toLowerCase()) {
+      return false;
+    }
+
+    // 5. Filtrado por Búsqueda de Texto (Nombre, Pueblo, Caserío)
+    if (searchTerm) {
+      const q = searchTerm.toLowerCase();
+      const matchName = product.name.toLowerCase().includes(q);
+      const matchDesc = product.description?.toLowerCase().includes(q);
+      const matchSeller = product.profiles?.full_name?.toLowerCase().includes(q);
+      const matchTown = product.profiles?.town?.toLowerCase().includes(q);
+      if (!matchName && !matchDesc && !matchSeller && !matchTown) return false;
     }
 
     return true;
   });
 
-  // Filtrado de vendedores
-  const filteredSellers = allSellersList.filter((item) => {
-    if (activeTab === 'favoritos' && !favSellers.has(item.profile.id)) {
-      return false;
+  // Ordenación de Productos
+  const sortedProducts = [...filteredProducts].sort((a, b) => {
+    if (sortBy === 'nombre_asc') {
+      return a.name.localeCompare(b.name, 'es', { sensitivity: 'base' });
     }
-
-    if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase();
-      const matchName = item.profile.full_name?.toLowerCase().includes(term);
-      const matchTown = item.profile.town?.toLowerCase().includes(term);
-      const matchProducts = item.products.some((p) => p.name.toLowerCase().includes(term));
-      if (!matchName && !matchTown && !matchProducts) return false;
+    if (sortBy === 'nombre_desc') {
+      return b.name.localeCompare(a.name, 'es', { sensitivity: 'base' });
     }
-
-    return true;
+    if (sortBy === 'precio_asc') {
+      const priceA = a.format === 'granel' ? (a.price_per_kilo || a.price) : a.price;
+      const priceB = b.format === 'granel' ? (b.price_per_kilo || b.price) : b.price;
+      return Number(priceA) - Number(priceB);
+    }
+    if (sortBy === 'precio_desc') {
+      const priceA = a.format === 'granel' ? (a.price_per_kilo || a.price) : a.price;
+      const priceB = b.format === 'granel' ? (b.price_per_kilo || b.price) : b.price;
+      return Number(priceB) - Number(priceA);
+    }
+    if (sortBy === 'fecha_asc') {
+      const estA = getDeliveryEstimate(
+        a.availability_type,
+        a.availability_days,
+        a.availability_weekdays,
+        a.available_from_date
+      );
+      const estB = getDeliveryEstimate(
+        b.availability_type,
+        b.availability_days,
+        b.availability_weekdays,
+        b.available_from_date
+      );
+      return estA.estimatedDate.getTime() - estB.estimatedDate.getTime();
+    }
+    if (sortBy === 'fecha_desc') {
+      const estA = getDeliveryEstimate(
+        a.availability_type,
+        a.availability_days,
+        a.availability_weekdays,
+        a.available_from_date
+      );
+      const estB = getDeliveryEstimate(
+        b.availability_type,
+        b.availability_days,
+        b.availability_weekdays,
+        b.available_from_date
+      );
+      return estB.estimatedDate.getTime() - estA.estimatedDate.getTime();
+    }
+    if (sortBy === 'stock_desc') {
+      const stockA = a.is_unlimited_stock ? 999999 : Number(a.stock) || 0;
+      const stockB = b.is_unlimited_stock ? 999999 : Number(b.stock) || 0;
+      return stockB - stockA;
+    }
+    if (sortBy === 'stock_asc') {
+      const stockA = a.is_unlimited_stock ? 999999 : Number(a.stock) || 0;
+      const stockB = b.is_unlimited_stock ? 999999 : Number(b.stock) || 0;
+      return stockA - stockB;
+    }
+    return 0;
   });
 
   const activeSellerObj = selectedSellerId ? sellersMap[selectedSellerId]?.profile : null;
@@ -313,32 +387,7 @@ export function CatalogViewContainer({
                 </span>
               </button>
 
-              {/* 2. Mis Favoritos */}
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab('favoritos');
-                  setSelectedSellerId(null);
-                }}
-                className={`px-1.5 sm:px-4 py-1.5 sm:py-2.5 rounded-xl transition-all flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 ${
-                  activeTab === 'favoritos'
-                    ? 'bg-rose-600 text-white shadow-md'
-                    : 'text-stone-700 hover:text-stone-900 font-bold'
-                }`}
-              >
-                <Heart className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 ${activeTab === 'favoritos' ? 'fill-white' : 'text-rose-500'}`} />
-                <div className="flex flex-col items-center sm:items-start leading-tight">
-                  <span className="text-[8px] sm:text-[11px] font-semibold opacity-90">Mis</span>
-                  <span className="text-[9px] sm:text-xs font-black uppercase sm:normal-case">Favoritos</span>
-                </div>
-                {(favProducts.size > 0 || favSellers.size > 0) && (
-                  <span className="bg-white text-rose-600 text-[8px] sm:text-[10px] font-black px-1 sm:px-1.5 py-0.5 rounded-full">
-                    {favProducts.size + favSellers.size}
-                  </span>
-                )}
-              </button>
-
-              {/* 3. Caseríos y vendedores */}
+              {/* 2. Caseríos y Productores */}
               <button
                 type="button"
                 onClick={() => {
@@ -362,11 +411,36 @@ export function CatalogViewContainer({
                   {allSellersList.length}
                 </span>
               </button>
+
+              {/* 3. Favoritos */}
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('favoritos');
+                  setSelectedSellerId(null);
+                }}
+                className={`px-1.5 sm:px-4 py-1.5 sm:py-2.5 rounded-xl transition-all flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 ${
+                  activeTab === 'favoritos'
+                    ? 'bg-emerald-800 text-white shadow-md'
+                    : 'text-stone-700 hover:text-stone-900 font-bold'
+                }`}
+              >
+                <Heart className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 ${favProducts.size > 0 ? 'fill-rose-400 text-rose-400' : ''}`} />
+                <div className="flex flex-col items-center sm:items-start leading-tight">
+                  <span className="text-[8px] sm:text-[11px] font-semibold opacity-90">Tus</span>
+                  <span className="text-[9px] sm:text-xs font-black uppercase sm:normal-case">Favoritos</span>
+                </div>
+                <span className={`text-[8px] sm:text-[10px] font-black px-1 sm:px-1.5 py-0.5 rounded-md ${
+                  activeTab === 'favoritos' ? 'bg-emerald-950 text-white' : 'bg-stone-300 text-stone-700'
+                }`}>
+                  {favProducts.size}
+                </span>
+              </button>
             </>
           )}
         </div>
 
-        {/* Botón de Publicar Cosecha para Vendedores (Doble de alto, texto en dos líneas) */}
+        {/* Botón de Publicar Producto para Vendedores (Doble de alto, texto en dos líneas) */}
         {isSeller && (
           <Link
             href="/vendedor/productos/nuevo"
@@ -378,7 +452,7 @@ export function CatalogViewContainer({
                 PUBLICAR
               </span>
               <span className="text-xs sm:text-sm font-black uppercase tracking-wide text-white">
-                COSECHA
+                PRODUCTO
               </span>
             </div>
           </Link>
@@ -468,6 +542,34 @@ export function CatalogViewContainer({
         </div>
       )}
 
+      {/* Selector de Ordenación (para productos) */}
+      {activeTab !== 'vendedores' && (
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+          <span className="text-xs font-bold text-stone-500">
+            {sortedProducts.length} {sortedProducts.length === 1 ? 'producto' : 'productos'}
+          </span>
+
+          <div className="flex items-center gap-2">
+            <ArrowUpDown className="w-4 h-4 text-stone-500 shrink-0" />
+            <label className="text-xs font-bold text-stone-700 shrink-0">Ordenar por:</label>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortOption)}
+              className="px-3 py-1.5 bg-white border-2 border-stone-300 rounded-xl text-xs font-bold text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none shadow-sm cursor-pointer"
+            >
+              <option value="nombre_asc">Nombre (A - Z)</option>
+              <option value="nombre_desc">Nombre (Z - A)</option>
+              <option value="precio_asc">Precio: Menor a Mayor</option>
+              <option value="precio_desc">Precio: Mayor a Menor</option>
+              <option value="fecha_asc">Fecha entrega: Más próxima</option>
+              <option value="fecha_desc">Fecha entrega: Más lejana</option>
+              <option value="stock_desc">Cantidad disponible: Mayor a Menor</option>
+              <option value="stock_asc">Cantidad disponible: Menor a Mayor</option>
+            </select>
+          </div>
+        </div>
+      )}
+
       {/* 4. CONTENIDO PRINCIPAL */}
 
       {/* VISTA A: VENDEDORES / CASERÍOS */}
@@ -488,7 +590,7 @@ export function CatalogViewContainer({
                           <img
                             src={profile.avatar_url}
                             alt={profile.full_name || 'Vendedor'}
-                            className="w-12 h-12 rounded-2xl object-cover border border-stone-200 shrink-0"
+                            className="w-12 h-12 rounded-2xl object-cover border border-stone-200 shrink-0 shadow-sm"
                           />
                         ) : (
                           <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-900 font-black text-lg flex items-center justify-center border border-emerald-300 shrink-0">
@@ -553,7 +655,7 @@ export function CatalogViewContainer({
                         </div>
                       ) : (
                         <p className="text-xs text-stone-400 font-semibold italic bg-stone-50 p-2.5 rounded-xl text-center">
-                          Actualmente sin cosechas publicadas.
+                          Actualmente sin productos publicados.
                         </p>
                       )}
                     </div>
@@ -569,15 +671,16 @@ export function CatalogViewContainer({
                       }}
                       className="flex-1 py-2.5 px-3 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-black rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5"
                     >
+                      <Sprout className="w-3.5 h-3.5" />
                       <span>Ver Productos ({sellerProds.length})</span>
                     </button>
 
                     <Link
                       href={`/chat/${profile.id}`}
-                      className="p-2.5 bg-white hover:bg-stone-100 text-stone-800 rounded-xl transition-colors border border-stone-300"
-                      title="Enviar mensaje al caserío"
+                      className="p-2.5 bg-white hover:bg-emerald-50 text-emerald-900 border border-stone-300 rounded-xl transition-colors shadow-sm"
+                      title="Chatear con el productor"
                     >
-                      <MessageCircle className="w-4 h-4 text-emerald-800" />
+                      <MessageCircle className="w-4 h-4" />
                     </Link>
                   </div>
                 </div>
@@ -587,26 +690,27 @@ export function CatalogViewContainer({
             <div className="bg-white rounded-3xl border-2 border-stone-200 p-10 text-center space-y-3 shadow-sm">
               <Store className="w-12 h-12 text-stone-400 mx-auto" />
               <h3 className="text-base font-black text-stone-900">
-                No se encontraron caseríos
+                No se encontraron caseríos ni productores
               </h3>
               <p className="text-xs font-semibold text-stone-500 max-w-sm mx-auto">
-                Prueba con otro término de búsqueda.
+                Prueba a limpiar la búsqueda o cambia el pueblo seleccionado.
               </p>
             </div>
           )}
         </div>
       )}
 
-      {/* VISTA B: PRODUCTOS (Mis Productos, Todos los Productos o Favoritos) */}
+      {/* VISTA B: PRODUCTOS (MIS PRODUCTOS / TODOS LOS PRODUCTOS / FAVORITOS) */}
       {activeTab !== 'vendedores' && (
-        <div className="space-y-4">
-          {filteredProducts.length > 0 ? (
+        <div className="space-y-6">
+          {sortedProducts.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-              {filteredProducts.map((product) => {
+              {sortedProducts.map((product) => {
+                const isMyProduct = userProfile?.id === product.seller_id;
                 const stockQty = Number(product.stock) || 0;
                 const isOutOfStock = !product.is_unlimited_stock && stockQty <= 0;
-                const isMyProduct = isSeller && userProfile?.id === product.seller_id;
 
+                // Cálculo de entrega estimada
                 const estimate = getDeliveryEstimate(
                   product.availability_type,
                   product.availability_days,
@@ -618,13 +722,13 @@ export function CatalogViewContainer({
                   productId: product.id,
                   sellerId: product.seller_id,
                   sellerName: product.profiles?.full_name || 'Caserío',
-                  sellerTown: product.profiles?.town || 'Local',
+                  sellerTown: product.profiles?.town || '',
                   sellerAvatarUrl: product.profiles?.avatar_url || null,
                   name: product.name,
                   category: product.category,
                   format: product.format,
                   price: product.price,
-                  unitPrice: product.format === 'granel' ? product.price_per_kilo || product.price : product.price,
+                  unitPrice: product.format === 'granel' ? (product.price_per_kilo || product.price) : product.price,
                   weightKg: product.weight_kg,
                   imageUrl: product.image_url,
                   quantity: 1,
@@ -646,8 +750,19 @@ export function CatalogViewContainer({
                 return (
                   <div
                     key={product.id}
-                    className="bg-white rounded-3xl border-2 border-stone-200 overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+                    className="bg-white rounded-3xl border-2 border-stone-200 overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative"
                   >
+                    {/* Botón Favorito arriba a la derecha */}
+                    {!isMyProduct && (
+                      <div className="absolute top-2.5 right-2.5 z-20">
+                        <FavoriteButton
+                          id={product.id}
+                          type="product"
+                          className="bg-white/95 backdrop-blur-sm shadow-sm hover:bg-white p-2 rounded-xl border border-stone-200"
+                        />
+                      </div>
+                    )}
+
                     {/* Parte Superior: Imagen y Modal de Compra */}
                     <div className="relative">
                       <QuickAddToCartModal
@@ -780,16 +895,13 @@ export function CatalogViewContainer({
                               </button>
                             </>
                           ) : (
-                            <>
-                              <Link
-                                href={`/chat/${product.seller_id}`}
-                                className="p-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-lg transition-colors border border-stone-200"
-                                title="Chatear con el caserío"
-                              >
-                                <MessageCircle className="w-3.5 h-3.5 text-emerald-800" />
-                              </Link>
-                              <FavoriteButton id={product.id} type="product" />
-                            </>
+                            <Link
+                              href={`/chat/${product.seller_id}`}
+                              className="p-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-lg transition-colors border border-stone-200"
+                              title="Chatear con el caserío"
+                            >
+                              <MessageCircle className="w-3.5 h-3.5 text-emerald-800" />
+                            </Link>
                           )}
                         </div>
                       </div>
@@ -869,7 +981,7 @@ export function CatalogViewContainer({
         </div>
       )}
 
-      {/* Botón inferior idéntico para Publicar Cosecha (siempre debajo del último producto y vendedor) */}
+      {/* Botón inferior idéntico para Publicar Producto (siempre debajo del último producto y vendedor) */}
       {isSeller && (
         <div className="pt-6 pb-2 flex justify-center w-full border-t border-stone-200">
           <Link
@@ -882,7 +994,7 @@ export function CatalogViewContainer({
                 PUBLICAR
               </span>
               <span className="text-xs sm:text-sm font-black uppercase tracking-wide text-white">
-                COSECHA
+                PRODUCTO
               </span>
             </div>
           </Link>

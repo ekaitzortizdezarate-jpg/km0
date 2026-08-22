@@ -6,12 +6,9 @@ import {
   Trash2,
   Store,
   Truck,
-  Clock,
   MapPin,
-  Calendar,
   AlertCircle,
   CheckCircle2,
-  Edit2,
 } from 'lucide-react';
 import type { DeliveryPoint } from '@/types/database';
 import {
@@ -24,16 +21,6 @@ interface DeliveryPointsManagerProps {
   initialPoints: DeliveryPoint[];
 }
 
-const WEEKDAYS = [
-  { id: 'Lunes', label: 'Lunes' },
-  { id: 'Martes', label: 'Martes' },
-  { id: 'Miércoles', label: 'Miércoles' },
-  { id: 'Jueves', label: 'Jueves' },
-  { id: 'Viernes', label: 'Viernes' },
-  { id: 'Sábado', label: 'Sábado' },
-  { id: 'Domingo', label: 'Domingo' },
-];
-
 export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerProps) {
   const [points, setPoints] = useState<DeliveryPoint[]>(initialPoints);
   const [selectedType, setSelectedType] = useState<'caserio' | 'sitio_fisico'>('sitio_fisico');
@@ -41,9 +28,6 @@ export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerPr
   const [town, setTown] = useState('');
   const [postalCode, setPostalCode] = useState('');
   const [addressDetails, setAddressDetails] = useState('');
-  const [selectedDays, setSelectedDays] = useState<string[]>(['Lunes', 'Miércoles', 'Viernes']);
-  const [openingTime, setOpeningTime] = useState('10:00');
-  const [closingTime, setClosingTime] = useState('14:00');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,12 +42,6 @@ export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerPr
 
   const physicalPoints = points.filter((p) => p.type !== 'envio');
 
-  const toggleDay = (day: string) => {
-    setSelectedDays((prev) =>
-      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
-    );
-  };
-
   const handleSelectType = (type: 'caserio' | 'sitio_fisico') => {
     setSelectedType(type);
     if (type === 'caserio' && caserioPoint) {
@@ -71,11 +49,6 @@ export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerPr
       setTown(caserioPoint.town);
       setPostalCode(caserioPoint.postal_code || '');
       setAddressDetails(caserioPoint.address_details);
-      if (caserioPoint.days_of_week && caserioPoint.days_of_week.length > 0) {
-        setSelectedDays(caserioPoint.days_of_week);
-      }
-      if (caserioPoint.opening_time) setOpeningTime(caserioPoint.opening_time);
-      if (caserioPoint.closing_time) setClosingTime(caserioPoint.closing_time);
     }
   };
 
@@ -91,9 +64,6 @@ export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerPr
     formData.append('town', town);
     formData.append('postal_code', postalCode);
     formData.append('address_details', addressDetails);
-    selectedDays.forEach((d) => formData.append('days_of_week', d));
-    formData.append('opening_time', openingTime);
-    formData.append('closing_time', closingTime);
 
     const res = await createDeliveryPoint(formData);
     setLoading(false);
@@ -139,9 +109,10 @@ export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerPr
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-black text-stone-900">Puntos de Entrega y Servicios</h1>
+        <h1 className="text-2xl font-black text-stone-900">Puntos de Entrega y Ubicaciones</h1>
         <p className="text-xs font-semibold text-stone-500 mt-1">
-          Configura la ubicación de tu caserío, tus puestos en mercados/plazas y el servicio de reparto a domicilio.
+          Registra la ubicación de tu caserío, tus puntos físicos en mercados/plazas y activa el reparto a domicilio.
+          (Los días y horarios de entrega se configuran al publicar cada producto).
         </p>
       </div>
 
@@ -172,7 +143,7 @@ export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerPr
               {/* Tipo de Modalidad */}
               <div>
                 <label className="block text-xs font-black text-stone-800 uppercase tracking-wider mb-1.5">
-                  Tipo de Modalidad
+                  Tipo de Ubicación
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
@@ -185,7 +156,7 @@ export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerPr
                     }`}
                   >
                     <Store className="w-4 h-4 text-emerald-700" />
-                    <span>Recogida en Caserío</span>
+                    <span>Instalaciones Caserío</span>
                     <span className="text-[9px] font-semibold text-stone-500">(Máximo 1)</span>
                   </button>
 
@@ -206,7 +177,7 @@ export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerPr
 
                 {selectedType === 'caserio' && caserioPoint && (
                   <p className="text-[11px] font-bold text-amber-800 bg-amber-50 p-2 rounded-xl border border-amber-200 mt-2">
-                    ℹ️ Ya tienes un caserío registrado. Guardar este formulario actualizará la dirección y horarios de tu caserío.
+                    ℹ️ Ya tienes un caserío registrado. Guardar este formulario actualizará la dirección de tu caserío.
                   </p>
                 )}
               </div>
@@ -214,7 +185,7 @@ export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerPr
               {/* Nombre */}
               <div>
                 <label className="block text-xs font-bold text-stone-700 mb-1">
-                  Nombre del Punto
+                  Nombre del Punto / Caserío
                 </label>
                 <input
                   type="text"
@@ -277,61 +248,6 @@ export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerPr
                 />
               </div>
 
-              {/* Días de la semana seleccionables */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-stone-700">
-                  Días de la semana para recogida:
-                </label>
-                <div className="flex flex-wrap gap-1.5">
-                  {WEEKDAYS.map((day) => (
-                    <button
-                      type="button"
-                      key={day.id}
-                      onClick={() => toggleDay(day.id)}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all border ${
-                        selectedDays.includes(day.id)
-                          ? 'bg-emerald-800 text-white border-emerald-900 shadow-sm'
-                          : 'bg-stone-100 text-stone-600 border-stone-200 hover:bg-stone-200'
-                      }`}
-                    >
-                      {day.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Horario: Hora Inicio y Hora Fin */}
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-stone-700">
-                  Horario de apertura y recogida:
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <span className="text-[10px] font-bold text-stone-500 block mb-0.5">
-                      Hora Inicio:
-                    </span>
-                    <input
-                      type="time"
-                      value={openingTime}
-                      onChange={(e) => setOpeningTime(e.target.value)}
-                      className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <span className="text-[10px] font-bold text-stone-500 block mb-0.5">
-                      Hora Fin:
-                    </span>
-                    <input
-                      type="time"
-                      value={closingTime}
-                      onChange={(e) => setClosingTime(e.target.value)}
-                      className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
-
               <button
                 type="submit"
                 disabled={loading}
@@ -354,7 +270,7 @@ export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerPr
                     Servicio de Envío a Domicilio
                   </h3>
                   <p className="text-[11px] font-semibold text-stone-500">
-                    {homeDeliveryActive ? 'Activo: los clientes pueden pedir a domicilio' : 'Inactivo: solo recogida presencial'}
+                    {homeDeliveryActive ? 'Activo: puedes ofrecer entrega a domicilio' : 'Inactivo: solo recogida'}
                   </p>
                 </div>
               </div>
@@ -378,7 +294,7 @@ export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerPr
             </div>
 
             <p className="text-[11px] font-medium text-stone-600 bg-stone-50 p-2.5 rounded-xl border border-stone-200">
-              Al activar este servicio, los compradores podrán seleccionar que entregues sus pedidos directamente en su dirección.
+              Al activar este servicio, podrás habilitar la entrega a domicilio en los productos que desees.
             </p>
           </div>
         </div>
@@ -386,7 +302,7 @@ export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerPr
         {/* Columna Derecha: Lista de Puntos Guardados */}
         <div className="lg:col-span-7 space-y-4">
           <h2 className="text-sm font-black text-stone-900 flex items-center justify-between">
-            <span>Tus Puntos de Entrega Guardados ({physicalPoints.length})</span>
+            <span>Tus Ubicaciones Guardadas ({physicalPoints.length})</span>
           </h2>
 
           {physicalPoints.length > 0 ? (
@@ -410,7 +326,7 @@ export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerPr
                             : 'bg-stone-100 text-stone-700 border-stone-300'
                         }`}
                       >
-                        {pt.type === 'caserio' ? '🏡 Caserío Principal' : '📍 Punto Físico'}
+                        {pt.type === 'caserio' ? '🏡 Caserío' : '📍 Punto Físico'}
                       </span>
 
                       <span className="text-[10px] font-bold bg-stone-100 text-stone-600 px-2 py-0.5 rounded-lg">
@@ -421,13 +337,6 @@ export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerPr
                     <p className="text-xs font-semibold text-stone-700 pl-8">
                       {pt.address_details}
                     </p>
-
-                    {pt.schedule_notes && (
-                      <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-950 bg-emerald-50 p-2 rounded-xl border border-emerald-200 pl-3">
-                        <Clock className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                        <span>{pt.schedule_notes}</span>
-                      </div>
-                    )}
                   </div>
 
                   <div className="flex items-center gap-1 shrink-0">

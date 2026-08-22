@@ -617,68 +617,99 @@ export default function CartPage() {
                   </div>
                 )}
 
-                {/* Selección de Modalidad de Entrega */}
-                <div className="p-4 bg-stone-100/70 rounded-2xl border border-stone-200 space-y-3">
-                  <label className="block text-xs font-black text-stone-900 uppercase tracking-wider">
-                    Modalidad de Entrega para este Caserío:
-                  </label>
+                {/* Selección de Modalidad de Entrega (limitada a lo que los productos de este vendedor permiten) */}
+                {(() => {
+                  const allowedMethods = new Set<string>();
+                  group.items.forEach((it) => {
+                    const methods = (it.deliveryMethods && it.deliveryMethods.length > 0)
+                      ? it.deliveryMethods
+                      : ['caserio'];
+                    methods.forEach((m: string) => {
+                      if (m === 'caserio') allowedMethods.add('caserio');
+                      if (m === 'punto_entrega' || m === 'sitio_fisico') allowedMethods.add('sitio_fisico');
+                      if (m === 'domicilio' || m === 'envio') allowedMethods.add('envio');
+                    });
+                  });
+                  if (allowedMethods.size === 0) allowedMethods.add('caserio');
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleDeliveryTypeChange(sellerId, 'caserio')}
-                      className={`p-3 rounded-xl border-2 text-left text-xs font-black transition-all flex flex-col justify-between gap-1 ${
-                        config.deliveryType === 'caserio'
-                          ? 'border-emerald-700 bg-white ring-2 ring-emerald-600 text-emerald-950 shadow-sm'
-                          : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
-                      }`}
-                    >
-                      <span className="flex items-center gap-1.5">
-                        <Store className="w-4 h-4 text-emerald-700" />
-                        <span>En Caserío</span>
-                      </span>
-                      <span className="text-[10px] font-semibold text-stone-500">Recogida directa</span>
-                    </button>
+                  const allowsCaserio = allowedMethods.has('caserio');
+                  const allowsPunto = allowedMethods.has('sitio_fisico');
+                  const allowsEnvio = allowedMethods.has('envio');
 
-                    <button
-                      type="button"
-                      onClick={() => handleDeliveryTypeChange(sellerId, 'sitio_fisico')}
-                      className={`p-3 rounded-xl border-2 text-left text-xs font-black transition-all flex flex-col justify-between gap-1 ${
-                        config.deliveryType === 'sitio_fisico'
-                          ? 'border-emerald-700 bg-white ring-2 ring-emerald-600 text-emerald-950 shadow-sm'
-                          : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
-                      }`}
-                    >
-                      <span className="flex items-center gap-1.5">
-                        <MapPin className="w-4 h-4 text-emerald-700" />
-                        <span>Punto Entrega</span>
-                      </span>
-                      <span className="text-[10px] font-semibold text-stone-500">Mercado / Plaza</span>
-                    </button>
+                  return (
+                    <div className="p-4 bg-stone-100/70 rounded-2xl border border-stone-200 space-y-3">
+                      <label className="block text-xs font-black text-stone-900 uppercase tracking-wider">
+                        Modalidad de Entrega para este Caserío:
+                      </label>
 
-                    <button
-                      type="button"
-                      onClick={() => handleDeliveryTypeChange(sellerId, 'envio')}
-                      className={`p-3 rounded-xl border-2 text-left text-xs font-black transition-all flex flex-col justify-between gap-1 ${
-                        config.deliveryType === 'envio'
-                          ? 'border-emerald-700 bg-white ring-2 ring-emerald-600 text-emerald-950 shadow-sm'
-                          : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
-                      }`}
-                    >
-                      <span className="flex items-center gap-1.5">
-                        <Truck className="w-4 h-4 text-emerald-700" />
-                        <span>Envío</span>
-                      </span>
-                      <span className="text-[10px] font-semibold text-stone-500">A Domicilio</span>
-                    </button>
-                  </div>
+                      <div className={`grid gap-2 ${
+                        allowedMethods.size === 1
+                          ? 'grid-cols-1'
+                          : allowedMethods.size === 2
+                          ? 'grid-cols-2'
+                          : 'grid-cols-1 sm:grid-cols-3'
+                      }`}>
+                        {allowsCaserio && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeliveryTypeChange(sellerId, 'caserio')}
+                            className={`p-3 rounded-xl border-2 text-left text-xs font-black transition-all flex flex-col justify-between gap-1 ${
+                              config.deliveryType === 'caserio'
+                                ? 'border-emerald-700 bg-white ring-2 ring-emerald-600 text-emerald-950 shadow-sm'
+                                : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
+                            }`}
+                          >
+                            <span className="flex items-center gap-1.5">
+                              <Store className="w-4 h-4 text-emerald-700" />
+                              <span>En Caserío</span>
+                            </span>
+                            <span className="text-[10px] font-semibold text-stone-500">Recogida directa</span>
+                          </button>
+                        )}
 
-                  {config.deliveryType === 'caserio' && (
-                    <div className="p-3 bg-white rounded-xl border border-stone-200 text-xs font-semibold text-stone-800 flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-emerald-700 shrink-0" />
-                      <span>Recogida directa en las instalaciones del caserío ({group.sellerTown}).</span>
-                    </div>
-                  )}
+                        {allowsPunto && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeliveryTypeChange(sellerId, 'sitio_fisico')}
+                            className={`p-3 rounded-xl border-2 text-left text-xs font-black transition-all flex flex-col justify-between gap-1 ${
+                              config.deliveryType === 'sitio_fisico'
+                                ? 'border-emerald-700 bg-white ring-2 ring-emerald-600 text-emerald-950 shadow-sm'
+                                : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
+                            }`}
+                          >
+                            <span className="flex items-center gap-1.5">
+                              <MapPin className="w-4 h-4 text-emerald-700" />
+                              <span>Punto Entrega</span>
+                            </span>
+                            <span className="text-[10px] font-semibold text-stone-500">Mercado / Plaza</span>
+                          </button>
+                        )}
+
+                        {allowsEnvio && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeliveryTypeChange(sellerId, 'envio')}
+                            className={`p-3 rounded-xl border-2 text-left text-xs font-black transition-all flex flex-col justify-between gap-1 ${
+                              config.deliveryType === 'envio'
+                                ? 'border-emerald-700 bg-white ring-2 ring-emerald-600 text-emerald-950 shadow-sm'
+                                : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
+                            }`}
+                          >
+                            <span className="flex items-center gap-1.5">
+                              <Truck className="w-4 h-4 text-emerald-700" />
+                              <span>Envío</span>
+                            </span>
+                            <span className="text-[10px] font-semibold text-stone-500">A Domicilio</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {config.deliveryType === 'caserio' && (
+                        <div className="p-3 bg-white rounded-xl border border-stone-200 text-xs font-semibold text-stone-800 flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-emerald-700 shrink-0" />
+                          <span>Recogida directa en las instalaciones del caserío ({group.sellerTown}).</span>
+                        </div>
+                      )}
 
                   {config.deliveryType === 'sitio_fisico' && (
                     <div>
@@ -754,9 +785,11 @@ export default function CartPage() {
                     </div>
                   )}
                 </div>
-              </div>
-            );
-          })}
+              );
+            })()}
+          </div>
+        );
+      })}
         </div>
 
         {/* Columna Derecha: Resumen de Totales y Botón Pedir */}
