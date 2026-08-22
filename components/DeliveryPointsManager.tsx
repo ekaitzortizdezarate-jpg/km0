@@ -319,6 +319,7 @@ export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerPr
 
               {/* Selector de Foto para el Punto de Entrega */}
               <ImageSelector
+                key={editingPointId || `new_${selectedType}`}
                 name="image_url"
                 defaultValue={imageUrl}
                 label="Foto del Punto / Caserío"
@@ -395,26 +396,32 @@ export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerPr
                 return (
                   <div
                     key={pt.id}
-                    className={`bg-white p-5 rounded-3xl border-2 shadow-sm flex flex-col sm:flex-row items-start justify-between gap-4 transition-all ${
+                    className={`bg-white p-4 sm:p-5 rounded-3xl border-2 shadow-sm flex flex-col sm:flex-row items-start justify-between gap-4 transition-all ${
                       isBeingEdited
                         ? 'border-emerald-600 ring-2 ring-emerald-500 bg-emerald-50/20'
                         : 'border-stone-200 hover:border-emerald-700'
                     }`}
                   >
-                    <div className="flex items-start gap-3.5 min-w-0">
+                    <div className="flex items-start gap-3.5 min-w-0 w-full">
                       {pt.image_url ? (
-                        <img
-                          src={pt.image_url}
-                          alt={pt.name}
-                          className="w-20 h-20 rounded-2xl object-cover border border-stone-200 shrink-0 shadow-sm"
-                        />
+                        <div className="relative shrink-0">
+                          <img
+                            src={pt.image_url}
+                            alt={pt.name}
+                            className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl object-cover border-2 border-stone-200 shadow-sm"
+                          />
+                          <span className="absolute bottom-1 right-1 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md backdrop-blur-sm">
+                            📷 Foto
+                          </span>
+                        </div>
                       ) : (
-                        <div className="w-20 h-20 rounded-2xl bg-emerald-50 text-emerald-800 flex items-center justify-center border border-emerald-200 shrink-0">
+                        <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-emerald-50 text-emerald-800 flex flex-col items-center justify-center border-2 border-emerald-200 shrink-0 gap-1">
                           {pt.type === 'caserio' ? (
                             <Store className="w-8 h-8" />
                           ) : (
                             <MapPin className="w-8 h-8" />
                           )}
+                          <span className="text-[9px] font-bold text-emerald-700">Sin foto</span>
                         </div>
                       )}
 

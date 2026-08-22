@@ -185,10 +185,10 @@ export function NavbarNavLinks({
               </span>
             </Link>
 
-            {/* 6. PERFIL / CASERÍO */}
+            {/* 6. CUENTA (Vendedor y Comprador) */}
             <Link
               href="/perfil"
-              title={profile.role === 'vendedor' ? 'Mi Caserío' : 'Mi Perfil'}
+              title="Mi Cuenta"
               className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-xl transition-all ${
                 isProfileActive
                   ? 'bg-emerald-800 text-white font-black shadow-sm'
@@ -197,7 +197,7 @@ export function NavbarNavLinks({
             >
               <User className={`w-4 h-4 shrink-0 ${isProfileActive ? 'text-white' : 'text-emerald-700'}`} />
               <span className="text-[8px] sm:text-[10px] font-black uppercase leading-tight tracking-wider text-center max-w-[46px] sm:max-w-none truncate">
-                {profile.role === 'vendedor' ? 'CASERÍO' : 'PERFIL'}
+                CUENTA
               </span>
             </Link>
 
