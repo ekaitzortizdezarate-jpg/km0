@@ -738,10 +738,11 @@ export default function CartPage() {
 
                   <Link
                     href={`/chat/${sellerId}`}
+                    title="Chatear con el caserío"
                     className="inline-flex items-center gap-1.5 bg-stone-100 hover:bg-stone-200 text-stone-900 font-bold text-xs px-3 py-1.5 rounded-xl border border-stone-200 transition-colors"
                   >
                     <MessageCircle className="w-3.5 h-3.5" />
-                    Preguntar al Caserío
+                    Chat
                   </Link>
                 </div>
 
