@@ -292,7 +292,7 @@ CREATE POLICY "chat_messages_update_policy" ON public.chat_messages FOR UPDATE U
 CREATE POLICY "reviews_select_policy" ON public.reviews FOR SELECT USING (true);
 CREATE POLICY "reviews_insert_policy" ON public.reviews FOR INSERT WITH CHECK (auth.uid() = reviewer_id);
 
--- 8. TRIGGER AUTOMÁTICO PARA CREAR/SINCRONIZAR PERFILES AL REGISTRARSE
+-- 8. TRIGGER AUTOMÁTICO PARA CREAR PERFIL INICIAL AL REGISTRARSE (SOLO SI NO EXISTE)
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -306,11 +306,7 @@ BEGIN
     NEW.raw_user_meta_data->>'address',
     'approved'
   )
-  ON CONFLICT (id) DO UPDATE SET
-    role = EXCLUDED.role,
-    full_name = EXCLUDED.full_name,
-    town = EXCLUDED.town,
-    seller_status = 'approved';
+  ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

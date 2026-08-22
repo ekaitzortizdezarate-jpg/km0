@@ -10,40 +10,13 @@ export async function login(formData: FormData) {
   const email = formData.get('email') as string;
   const password = formData.get('password') as string;
 
-  const { data, error } = await supabase.auth.signInWithPassword({
+  const { error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
 
   if (error) {
     return { error: error.message };
-  }
-
-  if (data?.user) {
-    // Verificar si el usuario tiene fila en profiles
-    const { data: existingProfile } = await supabase
-      .from('profiles')
-      .select('id, role')
-      .eq('id', data.user.id)
-      .maybeSingle();
-
-    const metaRole = data.user.user_metadata?.role || 'comprador';
-    const metaFullName = data.user.user_metadata?.full_name || email.split('@')[0];
-    const metaTown = data.user.user_metadata?.town || 'Local';
-    const metaPhone = data.user.user_metadata?.phone || null;
-    const metaAddress = data.user.user_metadata?.address || null;
-
-    if (!existingProfile) {
-      await supabase.from('profiles').insert({
-        id: data.user.id,
-        role: metaRole,
-        full_name: metaFullName,
-        town: metaTown,
-        phone: metaPhone,
-        address: metaAddress,
-        seller_status: 'approved',
-      });
-    }
   }
 
   revalidatePath('/', 'layout');
@@ -80,7 +53,7 @@ export async function signup(formData: FormData) {
   }
 
   if (data?.user) {
-    await supabase.from('profiles').upsert({
+    await supabase.from('profiles').insert({
       id: data.user.id,
       role,
       full_name,
