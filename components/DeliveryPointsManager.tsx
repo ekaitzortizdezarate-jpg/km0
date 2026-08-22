@@ -150,15 +150,7 @@ export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerPr
   };
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-black text-stone-900">Puntos de Entrega y Ubicaciones</h1>
-        <p className="text-xs font-semibold text-stone-500 mt-1">
-          Registra la ubicación de tu caserío, tus puntos físicos en mercados/plazas con su foto y activa el reparto a domicilio.
-          (Los días y horarios de entrega se configuran al publicar cada producto).
-        </p>
-      </div>
-
+    <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Columna Izquierda: Formulario de Punto + Tarjeta de Reparto a Domicilio */}
         <div className="lg:col-span-5 space-y-6">

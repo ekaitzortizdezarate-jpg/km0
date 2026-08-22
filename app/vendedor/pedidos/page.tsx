@@ -29,15 +29,7 @@ export default async function SellerOrdersPage() {
   const activeOrders = orders?.filter((o) => o.status !== 'pendiente') || [];
 
   return (
-    <div className="max-w-4xl mx-auto py-4 space-y-6">
-      {/* Cabecera */}
-      <div className="bg-white p-4 sm:p-5 rounded-3xl border-2 border-stone-200 shadow-sm">
-        <h1 className="text-xl sm:text-2xl font-black text-stone-900">Gestión de Pedidos de Caserío</h1>
-        <p className="text-xs font-bold text-stone-600 mt-0.5">
-          Valida las compras de tus clientes y confirma la fecha de entrega
-        </p>
-      </div>
-
+    <div className="max-w-4xl mx-auto py-2 space-y-6">
       {/* SECCIÓN 1: PEDIDOS PENDIENTES DE VALIDAR POR EL VENDEDOR */}
       {pendingOrders.length > 0 && (
         <div className="space-y-4">

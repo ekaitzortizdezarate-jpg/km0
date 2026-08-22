@@ -39,10 +39,7 @@ export default async function ProfilePage() {
             <User className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-2xl font-black text-stone-900">Configuración de Cuenta</h1>
-            <p className="text-xs font-bold text-stone-500">
-              Gestiona tus datos personales y de contacto
-            </p>
+            <h1 className="text-2xl font-black text-stone-900">Configurar Cuenta</h1>
           </div>
         </div>
 
