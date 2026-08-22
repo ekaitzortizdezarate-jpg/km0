@@ -18,9 +18,11 @@ import {
 import { updateOrderStatus, cancelActiveOrderWithReason } from '@/app/actions/order-status';
 import type { OrderStatus } from '@/types/database';
 import ReviewForm from '@/components/ReviewForm';
+import { OrderProductItemsList, ProductViewMode } from '@/components/OrderProductItemsList';
 
 interface SellerActiveOrderCardProps {
   order: any;
+  viewMode?: ProductViewMode;
 }
 
 const statusLabels: Record<string, string> = {
@@ -41,7 +43,10 @@ const statusColors: Record<string, string> = {
   cancelado: 'bg-red-100 text-red-950 border-red-300',
 };
 
-export function SellerActiveOrderCard({ order }: SellerActiveOrderCardProps) {
+export function SellerActiveOrderCard({
+  order,
+  viewMode,
+}: SellerActiveOrderCardProps) {
   const [currentStatus, setCurrentStatus] = useState<OrderStatus>(order.status);
   const [loading, setLoading] = useState(false);
   const [statusUpdated, setStatusUpdated] = useState(false);
@@ -288,39 +293,10 @@ export function SellerActiveOrderCard({ order }: SellerActiveOrderCardProps) {
         <span className="text-[11px] font-black text-stone-500 uppercase tracking-wider block">
           Productos ({totalProductItems} {totalProductItems === 1 ? 'línea' : 'líneas'}, {totalProductQty} uds/kg):
         </span>
-        <div className="space-y-2">
-          {order.order_items?.map((item: any) => (
-            <div
-              key={item.id}
-              className="flex items-center justify-between text-xs bg-white p-2.5 rounded-xl border border-stone-200 shadow-sm"
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                {item.products?.image_url ? (
-                  <img
-                    src={item.products.image_url}
-                    alt={item.products.name}
-                    className="w-10 h-10 rounded-xl object-cover border border-stone-200 shrink-0"
-                  />
-                ) : (
-                  <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center border border-emerald-200 font-bold shrink-0">
-                    🌿
-                  </div>
-                )}
-                <div className="min-w-0">
-                  <span className="font-black text-stone-900 block truncate">
-                    {item.products?.name}
-                  </span>
-                  <span className="text-[11px] font-semibold text-stone-500">
-                    {item.quantity} {item.products?.format === 'granel' ? 'kg' : 'ud(s)'} x {Number(item.unit_price).toFixed(2)} €
-                  </span>
-                </div>
-              </div>
-              <span className="font-black text-sm text-stone-900 shrink-0 ml-2">
-                {Number(item.subtotal).toFixed(2)} €
-              </span>
-            </div>
-          ))}
-        </div>
+        <OrderProductItemsList
+          items={order.order_items || []}
+          viewMode={viewMode}
+        />
 
         <div className="flex justify-between items-center pt-2 border-t border-stone-200 text-sm font-black text-stone-900">
           <span>Total del Pedido:</span>

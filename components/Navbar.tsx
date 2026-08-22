@@ -56,18 +56,6 @@ export default async function Navbar() {
           sellerPendingCount={sellerPendingCount}
           buyerConfirmedCount={buyerConfirmedCount}
         />
-
-        {user && (
-          <form action={signout} className="ml-1 shrink-0">
-            <button
-              type="submit"
-              title="Cerrar sesión"
-              className="p-2 text-stone-500 hover:text-red-700 rounded-xl hover:bg-stone-100 transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </form>
-        )}
       </div>
     </header>
   );

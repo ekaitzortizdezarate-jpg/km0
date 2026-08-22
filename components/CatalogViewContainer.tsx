@@ -16,6 +16,7 @@ import {
   Trash2,
   Package,
   ArrowUpDown,
+  MapPin,
 } from 'lucide-react';
 import { ProductCategory, ProductWithSeller, Profile } from '@/types/database';
 import { QuickAddToCartModal } from '@/components/QuickAddToCartModal';
@@ -72,6 +73,7 @@ interface CatalogViewContainerProps {
   products: ProductWithSeller[];
   sellers: Profile[];
   userProfile?: Profile | null;
+  userDeliveryPointsCount?: number;
   selectedCategory?: ProductCategory;
   selectedTown?: string;
 }
@@ -90,6 +92,7 @@ export function CatalogViewContainer({
   products,
   sellers,
   userProfile,
+  userDeliveryPointsCount = 0,
   selectedCategory,
   selectedTown,
 }: CatalogViewContainerProps) {
@@ -493,22 +496,40 @@ export function CatalogViewContainer({
           )}
         </div>
 
-        {/* Botón de Publicar Producto para Vendedores (Doble de alto, texto en dos líneas) */}
+        {/* Botón de Publicar Producto / Añadir Puntos para Vendedores */}
         {isSeller && (
-          <Link
-            href="/vendedor/productos/nuevo"
-            className="w-full sm:w-auto px-6 py-3.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-2xl shadow-md transition-all flex items-center justify-center gap-2.5 shrink-0 border border-emerald-950 hover:scale-[1.02] active:scale-[0.98]"
-          >
-            <PlusCircle className="w-5 h-5 text-emerald-300 shrink-0" />
-            <div className="flex flex-col items-center sm:items-start leading-tight">
-              <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-emerald-200">
-                PUBLICAR
-              </span>
-              <span className="text-xs sm:text-sm font-black uppercase tracking-wide text-white">
-                PRODUCTO
-              </span>
-            </div>
-          </Link>
+          userDeliveryPointsCount === 0 ? (
+            <Link
+              href="/vendedor/puntos-entrega"
+              title="Debes añadir al menos un punto de entrega o caserío antes de publicar productos"
+              className="w-full sm:w-auto px-5 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-2xl shadow-md transition-all flex items-center justify-center gap-2.5 shrink-0 border border-amber-800 hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <MapPin className="w-5 h-5 text-amber-200 shrink-0" />
+              <div className="flex flex-col items-center sm:items-start leading-tight">
+                <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-amber-100">
+                  PASO PREVIO
+                </span>
+                <span className="text-xs sm:text-sm font-black tracking-tight text-white">
+                  Añadir Sitios y Puntos de Entrega
+                </span>
+              </div>
+            </Link>
+          ) : (
+            <Link
+              href="/vendedor/productos/nuevo"
+              className="w-full sm:w-auto px-6 py-3.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-2xl shadow-md transition-all flex items-center justify-center gap-2.5 shrink-0 border border-emerald-950 hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <PlusCircle className="w-5 h-5 text-emerald-300 shrink-0" />
+              <div className="flex flex-col items-center sm:items-start leading-tight">
+                <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-emerald-200">
+                  PUBLICAR
+                </span>
+                <span className="text-xs sm:text-sm font-black uppercase tracking-wide text-white">
+                  PRODUCTO
+                </span>
+              </div>
+            </Link>
+          )
         )}
       </div>
 
@@ -1000,81 +1021,64 @@ export function CatalogViewContainer({
                           </div>
                         </button>
 
-                        <div className="flex items-center gap-1 shrink-0">
-                          {isMyProduct ? (
-                            <>
-                              <Link
-                                href={`/vendedor/productos/${product.id}/editar`}
-                                className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg transition-colors border border-emerald-200"
-                                title="Editar este producto"
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </Link>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteProduct(product.id, product.name)}
-                                disabled={deletingId === product.id}
-                                className="p-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg transition-colors border border-red-200"
-                                title="Borrar este producto"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </>
-                          ) : (
+                        {/* Botones de acción del vendedor en la misma fila del caserío */}
+                        {isMyProduct ? (
+                          <div className="flex items-center gap-1.5 shrink-0">
                             <Link
-                              href={`/chat/${product.seller_id}`}
-                              className="p-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-lg transition-colors border border-stone-200"
-                              title="Chatear con el caserío"
+                              href={`/vendedor/productos/${product.id}/editar`}
+                              className="py-1.5 px-2.5 bg-stone-100 hover:bg-stone-200 text-stone-900 text-xs font-black rounded-xl transition-all border border-stone-300 flex items-center justify-center gap-1 shadow-sm"
+                              title="Editar este producto"
                             >
-                              <MessageCircle className="w-3.5 h-3.5 text-emerald-800" />
+                              <Edit2 className="w-3.5 h-3.5 text-stone-700 shrink-0" />
+                              <span>Editar</span>
                             </Link>
-                          )}
-                        </div>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteProduct(product.id, product.name)}
+                              disabled={deletingId === product.id}
+                              className="py-1.5 px-2.5 bg-red-50 hover:bg-red-100 text-red-700 hover:text-red-800 text-xs font-black rounded-xl transition-all border border-red-200 flex items-center justify-center gap-1 shadow-sm disabled:opacity-50"
+                              title="Borrar este producto"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 text-red-600 shrink-0" />
+                              <span>{deletingId === product.id ? '...' : 'Borrar'}</span>
+                            </button>
+                          </div>
+                        ) : isSeller ? (
+                          <Link
+                            href={`/chat/${product.seller_id}`}
+                            className="p-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-lg transition-colors border border-stone-200 shrink-0"
+                            title="Chatear con el caserío"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5 text-emerald-800" />
+                          </Link>
+                        ) : null}
                       </div>
 
-                      {/* Botón de acción: Si es mi producto -> Editar y Borrar; Si es otro vendedor -> Contactar; Si es comprador -> Añadir */}
-                      {isMyProduct ? (
-                        <div className="flex items-center gap-2 w-full">
+                      {/* Botón inferior: Solo para compradores -> Añadir a la Cesta; o para otros vendedores -> Contactar */}
+                      {!isMyProduct && (
+                        isSeller ? (
                           <Link
-                            href={`/vendedor/productos/${product.id}/editar`}
-                            className="flex-1 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-900 text-xs font-black rounded-xl transition-all border border-stone-300 flex items-center justify-center gap-1.5"
+                            href={`/chat/${product.seller_id}`}
+                            className="w-full py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-900 text-xs font-black rounded-xl transition-all border border-stone-300 flex items-center justify-center gap-1.5"
                           >
-                            <Edit2 className="w-3.5 h-3.5 text-stone-700" />
-                            <span>Editar</span>
+                            <MessageCircle className="w-4 h-4 text-emerald-800" />
+                            <span>Contactar con el Caserío</span>
                           </Link>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteProduct(product.id, product.name)}
-                            disabled={deletingId === product.id}
-                            className="py-2.5 px-3 bg-red-50 hover:bg-red-100 text-red-700 hover:text-red-800 text-xs font-black rounded-xl transition-all border border-red-200 flex items-center justify-center gap-1.5"
-                            title="Borrar este producto"
+                        ) : (
+                          <QuickAddToCartModal
+                            item={itemPayload}
+                            isCardOverlay={false}
+                            className="w-full"
                           >
-                            <Trash2 className="w-3.5 h-3.5 text-red-600" />
-                            <span>{deletingId === product.id ? 'Borrando...' : 'Borrar'}</span>
-                          </button>
-                        </div>
-                      ) : isSeller ? (
-                        <Link
-                          href={`/chat/${product.seller_id}`}
-                          className="w-full py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-900 text-xs font-black rounded-xl transition-all border border-stone-300 flex items-center justify-center gap-1.5"
-                        >
-                          <MessageCircle className="w-4 h-4 text-emerald-800" />
-                          <span>Contactar con el Caserío</span>
-                        </Link>
-                      ) : (
-                        <QuickAddToCartModal
-                          item={itemPayload}
-                          isCardOverlay={false}
-                          className="w-full"
-                        >
-                          <button
-                            type="button"
-                            disabled={isOutOfStock}
-                            className="w-full py-2.5 bg-emerald-800 hover:bg-emerald-900 disabled:opacity-50 text-white text-xs font-black rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5"
-                          >
-                            {isOutOfStock ? 'Agotado' : 'Añadir a la Cesta'}
-                          </button>
-                        </QuickAddToCartModal>
+                            <button
+                              type="button"
+                              disabled={isOutOfStock}
+                              className="w-full py-2.5 bg-emerald-800 hover:bg-emerald-900 disabled:opacity-50 text-white text-xs font-black rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5"
+                            >
+                              {isOutOfStock ? 'Agotado' : 'Añadir a la Cesta'}
+                            </button>
+                          </QuickAddToCartModal>
+                        )
                       )}
                     </div>
                   </div>

@@ -11,9 +11,12 @@ import {
   MessageCircle,
   LogIn,
   UserPlus,
+  MapPin,
+  LogOut,
 } from 'lucide-react';
 import type { Profile } from '@/types/database';
 import { CartNavButton } from '@/components/CartNavButton';
+import { signout } from '@/app/actions/auth';
 
 interface NavbarNavLinksProps {
   user: { id: string } | null;
@@ -35,6 +38,7 @@ export function NavbarNavLinks({
   const isCatalogueActive = pathname === '/';
   const isOrdersActive = pathname.includes('/pedidos');
   const isCalendarActive = pathname.includes('/calendario');
+  const isDeliveryPointsActive = pathname.startsWith('/vendedor/puntos-entrega');
   const isChatActive = pathname.startsWith('/chat');
   const isAdminActive = pathname.startsWith('/admin');
   const isProfileActive = pathname.startsWith('/perfil');
@@ -84,10 +88,24 @@ export function NavbarNavLinks({
       ? localSellerPending
       : localBuyerConfirmed;
 
+  const isSeller = profile?.role === 'vendedor';
+
+  const handleLogout = () => {
+    try {
+      localStorage.removeItem('km0_shopping_cart');
+      localStorage.removeItem('km0_fav_products');
+      localStorage.removeItem('km0_fav_sellers');
+      window.dispatchEvent(new Event('km0_cart_updated'));
+      window.dispatchEvent(new Event('km0_favorites_updated'));
+    } catch {
+      // Ignorar errores en client storage
+    }
+  };
+
   return (
     <div className="flex items-center justify-between w-full gap-1 sm:gap-2">
-      {/* 1. Lado Izquierdo: Pestañas de Navegación en orden solicitado: Mercado, Cesta, Pedidos, Fechas, Chat, Perfil */}
-      <div className="flex items-center gap-1 sm:gap-1.5">
+      {/* 1. Lado Izquierdo: Mercado, Cesta, Pedidos, Fechas, y si es Vendedor: Sitios */}
+      <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
         {/* 1. MERCADO */}
         <Link
           href="/"
@@ -98,7 +116,11 @@ export function NavbarNavLinks({
               : 'text-stone-700 hover:text-emerald-800 hover:bg-stone-100 font-bold'
           }`}
         >
-          <span className={`font-black text-xs sm:text-sm leading-none tracking-tight ${isCatalogueActive ? 'text-white' : 'text-emerald-700'}`}>
+          <span
+            className={`font-black text-xs sm:text-sm leading-none tracking-tight ${
+              isCatalogueActive ? 'text-white' : 'text-emerald-700'
+            }`}
+          >
             km0
           </span>
           <span className="text-[8px] sm:text-[10px] font-black uppercase leading-tight tracking-wider text-center sm:text-left max-w-[46px] sm:max-w-none truncate">
@@ -106,8 +128,8 @@ export function NavbarNavLinks({
           </span>
         </Link>
 
-        {/* 2. CESTA (solo compradores/visitantes) */}
-        {profile?.role !== 'vendedor' && <CartNavButton />}
+        {/* 2. CESTA (solo compradores / visitantes) */}
+        {!isSeller && <CartNavButton />}
 
         {user && profile && (
           <>
@@ -152,17 +174,52 @@ export function NavbarNavLinks({
               }`}
             >
               <Calendar
-                className={`w-4 h-4 shrink-0 ${isCalendarActive ? 'text-white' : 'text-emerald-700'}`}
+                className={`w-4 h-4 shrink-0 ${
+                  isCalendarActive ? 'text-white' : 'text-emerald-700'
+                }`}
               />
               <span className="text-[8px] sm:text-[10px] font-black uppercase leading-tight tracking-wider text-center max-w-[46px] sm:max-w-none truncate">
                 FECHAS
               </span>
             </Link>
 
-            {/* 5. CHAT (Pestaña Naranja si hay mensaje nuevo) */}
+            {/* 5. SITIOS (Puntos de entrega para vendedores a la derecha de Fechas con icono arriba) */}
+            {isSeller && (
+              <Link
+                href="/vendedor/puntos-entrega"
+                title="Puntos de Entrega y Ubicaciones del Caserío"
+                className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-xl transition-all ${
+                  isDeliveryPointsActive
+                    ? 'bg-emerald-800 text-white font-black shadow-sm'
+                    : 'text-stone-700 hover:text-emerald-800 hover:bg-stone-100 font-bold'
+                }`}
+              >
+                <MapPin
+                  className={`w-4 h-4 shrink-0 ${
+                    isDeliveryPointsActive ? 'text-white' : 'text-emerald-700'
+                  }`}
+                />
+                <span className="text-[8px] sm:text-[10px] font-black uppercase leading-tight tracking-wider text-center max-w-[46px] sm:max-w-none truncate">
+                  SITIOS
+                </span>
+              </Link>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* 2. Lado Derecho: Chat y Cuenta alineados a la derecha (y Admin / Salir) */}
+      <div className="flex items-center gap-1 sm:gap-1.5 ml-auto shrink-0">
+        {user && profile ? (
+          <>
+            {/* CHAT (Pestaña Naranja si hay mensaje nuevo) */}
             <Link
               href="/chat"
-              title={localUnread > 0 ? `${localUnread} mensajes nuevos sin leer` : 'Mis conversaciones y chat'}
+              title={
+                localUnread > 0
+                  ? `${localUnread} mensajes nuevos sin leer`
+                  : 'Mis conversaciones y chat'
+              }
               className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-xl transition-all ${
                 isChatActive
                   ? 'bg-emerald-800 text-white font-black shadow-sm'
@@ -185,7 +242,7 @@ export function NavbarNavLinks({
               </span>
             </Link>
 
-            {/* 6. CUENTA (Vendedor y Comprador) */}
+            {/* CUENTA (Vendedor y Comprador) */}
             <Link
               href="/perfil"
               title="Mi Cuenta"
@@ -195,13 +252,17 @@ export function NavbarNavLinks({
                   : 'text-stone-700 hover:text-emerald-800 hover:bg-stone-100 font-bold'
               }`}
             >
-              <User className={`w-4 h-4 shrink-0 ${isProfileActive ? 'text-white' : 'text-emerald-700'}`} />
+              <User
+                className={`w-4 h-4 shrink-0 ${
+                  isProfileActive ? 'text-white' : 'text-emerald-700'
+                }`}
+              />
               <span className="text-[8px] sm:text-[10px] font-black uppercase leading-tight tracking-wider text-center max-w-[46px] sm:max-w-none truncate">
                 CUENTA
               </span>
             </Link>
 
-            {/* 7. ADMIN (si aplica) */}
+            {/* ADMIN (si aplica) */}
             {profile.role === 'admin' && (
               <Link
                 href="/admin"
@@ -218,29 +279,37 @@ export function NavbarNavLinks({
                 </span>
               </Link>
             )}
+
+            {/* CERRAR SESIÓN */}
+            <form action={signout} onSubmit={handleLogout} className="ml-0.5 shrink-0">
+              <button
+                type="submit"
+                title="Cerrar sesión"
+                className="p-1.5 sm:p-2 text-stone-400 hover:text-red-700 rounded-xl hover:bg-red-50 transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </form>
           </>
+        ) : (
+          <div className="flex items-center gap-1 sm:gap-2">
+            <Link
+              href="/login"
+              className="flex items-center gap-1 text-stone-700 hover:text-emerald-800 font-black uppercase text-[10px] sm:text-xs px-2 sm:px-3 py-1.5 rounded-xl hover:bg-stone-100 transition-colors"
+            >
+              <LogIn className="w-3.5 h-3.5 sm:hidden text-stone-500" />
+              <span>ENTRAR</span>
+            </Link>
+            <Link
+              href="/register"
+              className="flex items-center gap-1 bg-emerald-800 hover:bg-emerald-900 text-white font-black uppercase text-[10px] sm:text-xs px-2.5 sm:px-3.5 py-1.5 rounded-xl shadow-sm transition-all"
+            >
+              <UserPlus className="w-3.5 h-3.5 sm:hidden" />
+              <span>REGISTRO</span>
+            </Link>
+          </div>
         )}
       </div>
-
-      {/* 2. Lado Derecho: Entrar y Registro alineados a la derecha si no está autenticado */}
-      {!user && (
-        <div className="flex items-center gap-1 sm:gap-2 ml-auto shrink-0">
-          <Link
-            href="/login"
-            className="flex items-center gap-1 text-stone-700 hover:text-emerald-800 font-black uppercase text-[10px] sm:text-xs px-2.5 sm:px-3 py-1.5 rounded-xl hover:bg-stone-100 transition-colors"
-          >
-            <LogIn className="w-3.5 h-3.5 sm:hidden text-stone-500" />
-            <span>ENTRAR</span>
-          </Link>
-          <Link
-            href="/register"
-            className="flex items-center gap-1 bg-emerald-800 hover:bg-emerald-900 text-white font-black uppercase text-[10px] sm:text-xs px-2.5 sm:px-3.5 py-1.5 rounded-xl shadow-sm transition-all"
-          >
-            <UserPlus className="w-3.5 h-3.5 sm:hidden" />
-            <span>REGISTRO</span>
-          </Link>
-        </div>
-      )}
     </div>
   );
 }

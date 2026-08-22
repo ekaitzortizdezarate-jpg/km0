@@ -40,12 +40,22 @@ export default async function HomePage({
   const products = (productsData || []) as unknown as ProductWithSeller[];
   const sellers = (sellersData || []) as unknown as Profile[];
 
+  let userDeliveryPointsCount = 0;
+  if (user) {
+    const { count } = await supabase
+      .from('delivery_points')
+      .select('*', { count: 'exact', head: true })
+      .eq('seller_id', user.id);
+    userDeliveryPointsCount = count || 0;
+  }
+
   return (
     <div className="space-y-6 pb-8">
       <CatalogViewContainer
         products={products}
         sellers={sellers}
         userProfile={userProfile}
+        userDeliveryPointsCount={userDeliveryPointsCount}
         selectedCategory={params.category}
         selectedTown={params.town}
       />
