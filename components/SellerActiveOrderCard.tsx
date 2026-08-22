@@ -7,6 +7,7 @@ import {
   Phone,
   Clock,
   Store,
+  MapPin,
   RefreshCw,
   Trash2,
   CheckCircle2,
@@ -247,7 +248,7 @@ export function SellerActiveOrderCard({ order }: SellerActiveOrderCardProps) {
           <div className="pt-2 border-t border-emerald-200/80 flex items-start gap-2 text-xs">
             {order.delivery_points ? (
               <>
-                <Store className="w-4 h-4 text-emerald-800 shrink-0 mt-0.5" />
+                <MapPin className="w-4 h-4 text-emerald-800 shrink-0 mt-0.5" />
                 <div className="space-y-0.5">
                   <strong className="text-stone-900 block">Punto de entrega:</strong>
                   <p className="text-stone-800 font-semibold">
@@ -263,7 +264,7 @@ export function SellerActiveOrderCard({ order }: SellerActiveOrderCardProps) {
                   )}
                 </div>
               </>
-            ) : order.shipping_address ? (
+            ) : order.shipping_address && order.shipping_address !== 'Recogida directa en Caserío' ? (
               <>
                 <Truck className="w-4 h-4 text-emerald-800 shrink-0 mt-0.5" />
                 <div className="space-y-0.5">

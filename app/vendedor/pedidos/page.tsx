@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { Store, MessageCircle, Phone, Truck, Clock } from 'lucide-react';
+import { Store, MapPin, MessageCircle, Phone, Truck, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { ConfirmOrderForm } from '@/components/ConfirmOrderForm';
 import { SellerActiveOrderCard } from '@/components/SellerActiveOrderCard';
@@ -154,7 +154,7 @@ export default async function SellerOrdersPage() {
                       <div className="flex items-start gap-2">
                         {order.delivery_points ? (
                           <>
-                            <Store className="w-4 h-4 text-emerald-800 shrink-0 mt-0.5" />
+                            <MapPin className="w-4 h-4 text-emerald-800 shrink-0 mt-0.5" />
                             <div className="space-y-0.5">
                               <strong className="text-stone-900 block">Punto de entrega:</strong>
                               <p className="text-stone-800 font-semibold">
@@ -170,7 +170,7 @@ export default async function SellerOrdersPage() {
                               )}
                             </div>
                           </>
-                        ) : order.shipping_address ? (
+                        ) : order.shipping_address && order.shipping_address !== 'Recogida directa en Caserío' ? (
                           <>
                             <Truck className="w-4 h-4 text-emerald-800 shrink-0 mt-0.5" />
                             <div className="space-y-0.5">
