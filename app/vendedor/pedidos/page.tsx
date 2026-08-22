@@ -4,6 +4,7 @@ import { Store } from 'lucide-react';
 import { SellerActiveOrderCard } from '@/components/SellerActiveOrderCard';
 import { SellerPendingOrderCard } from '@/components/SellerPendingOrderCard';
 import { OrdersHistorySection } from '@/components/OrdersHistorySection';
+import { BuyerOrdersPageSync } from '@/components/BuyerOrdersPageSync';
 
 export default async function SellerOrdersPage() {
   const supabase = await createClient();
@@ -32,6 +33,9 @@ export default async function SellerOrdersPage() {
 
   return (
     <div className="max-w-4xl mx-auto py-2 space-y-6">
+      {/* Sincronizador automático para limpiar alarmas residuales si no hay pedidos activos */}
+      <BuyerOrdersPageSync activeCount={activeOrders.length + pendingOrders.length} />
+
       {/* SECCIÓN 1: PEDIDOS PENDIENTES DE VALIDAR POR EL VENDEDOR */}
       {pendingOrders.length > 0 && (
         <div className="space-y-4">

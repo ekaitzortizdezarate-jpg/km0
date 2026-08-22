@@ -14,17 +14,16 @@ export function getReadOrdersMap(): Record<string, string> {
 
 /**
  * Determina si un pedido debe iluminarse como no leído según el rol del usuario actual.
- * Regla clave solicitada:
- * No se le ilumina la tarjeta a quien genera el cambio de estado en el pedido:
+ * Reglas:
+ * 1. Para Comprador:
+ *    - 'pendiente': Creado por el comprador -> NO se ilumina.
+ *    - 'entregado' o 'cancelado': Pedidos ya finalizados/cerrados -> NO se ilumina.
+ *    - 'confirmado', 'preparando', 'listo_entrega': Modificados por el vendedor -> SÍ se ilumina
+ *      hasta que el comprador pulse "Leído".
  *
- * - Para Comprador:
- *   - Si el pedido está 'pendiente' (recién realizado por el comprador), NO se ilumina.
- *   - Si el vendedor lo validó o cambió su estado ('confirmado', 'preparando', 'listo_entrega', 'entregado', 'cancelado'),
- *     SÍ se ilumina para el comprador hasta que pulse "Leído".
- *
- * - Para Vendedor:
- *   - Si el pedido está 'pendiente' (solicitado por el comprador), SÍ se ilumina para el vendedor hasta que lo valide o pulse "Leído".
- *   - Si el pedido ya está validado o en curso ('confirmado', etc.), el cambio lo hizo el propio vendedor, por lo que NO se le ilumina al vendedor.
+ * 2. Para Vendedor:
+ *    - 'pendiente': Nuevo pedido hecho por un cliente -> SÍ se ilumina hasta que el vendedor lo valide o pulse "Leído".
+ *    - Cualquier otro estado: Gestionado por el propio vendedor -> NO se ilumina.
  */
 export function isOrderUnreadForRole(
   order: { id: string; status?: string; updated_at?: string | null; created_at?: string | null },
@@ -37,22 +36,26 @@ export function isOrderUnreadForRole(
   const orderTimestamp = order.updated_at || order.created_at || '';
 
   if (role === 'comprador') {
-    // Si sigue en 'pendiente', lo generó el comprador -> no iluminar
-    if (order.status === 'pendiente') {
+    // Si sigue en 'pendiente' (hecho por el propio comprador), no hay alarma
+    if (!order.status || order.status === 'pendiente') {
       return false;
     }
-    // Si el vendedor lo validó o cambió de estado:
+    // Si ya está terminado o cancelado, no debe mantener la alarma encendida
+    if (order.status === 'entregado' || order.status === 'cancelado') {
+      return false;
+    }
+    // Pedidos en curso actualizados por el vendedor ('confirmado', 'preparando', 'listo_entrega'):
     if (!lastRead) return true;
     return new Date(orderTimestamp).getTime() > new Date(lastRead).getTime();
   }
 
   if (role === 'vendedor') {
-    // Si está 'pendiente', es un nuevo pedido generado por el comprador -> iluminar al vendedor
+    // Si está 'pendiente', es un nuevo pedido que requiere validación del vendedor
     if (order.status === 'pendiente') {
       if (!lastRead) return true;
       return new Date(orderTimestamp).getTime() > new Date(lastRead).getTime();
     }
-    // Los pedidos validados los cambia el vendedor -> no iluminar al vendedor
+    // Los pedidos validados ya los gestiona el vendedor
     return false;
   }
 
@@ -77,6 +80,31 @@ export function markOrderAsRead(orderId: string, orderUpdatedAt?: string | null)
     window.dispatchEvent(new CustomEvent('km0_orders_read_updated', { detail: { orderId } }));
   } catch (err) {
     console.error('Error saving read order state:', err);
+  }
+}
+
+export function markAllOrdersAsRead(orderIds: string[]) {
+  if (typeof window === 'undefined' || !orderIds || orderIds.length === 0) return;
+  try {
+    const readMap = getReadOrdersMap();
+    const now = new Date().toISOString();
+    for (const id of orderIds) {
+      readMap[id] = now;
+    }
+    localStorage.setItem(READ_ORDERS_STORAGE_KEY, JSON.stringify(readMap));
+    window.dispatchEvent(new CustomEvent('km0_orders_read_updated'));
+  } catch (err) {
+    console.error('Error saving all read orders state:', err);
+  }
+}
+
+export function clearAllOrderAlarms() {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(READ_ORDERS_STORAGE_KEY);
+    window.dispatchEvent(new CustomEvent('km0_orders_read_updated'));
+  } catch (err) {
+    console.error('Error clearing read orders state:', err);
   }
 }
 

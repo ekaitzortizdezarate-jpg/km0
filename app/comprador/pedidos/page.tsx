@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { BuyerOrderCard } from '@/components/BuyerOrderCard';
 import { OrdersHistorySection } from '@/components/OrdersHistorySection';
+import { BuyerOrdersPageSync } from '@/components/BuyerOrdersPageSync';
 
 export default async function BuyerOrdersPage() {
   const supabase = await createClient();
@@ -24,13 +25,16 @@ export default async function BuyerOrdersPage() {
     .order('created_at', { ascending: false })
     .limit(100);
 
-  // Pedidos activos (en curso / pendientes / confirmados)
+  // Pedidos activos (en curso / confirmados / preparando / listos)
   const activeOrders = orders?.filter((o) => o.status !== 'entregado' && o.status !== 'cancelado') || [];
   // Todo el histórico (últimos 100 pedidos)
   const historyOrders = orders || [];
 
   return (
     <div className="max-w-4xl mx-auto py-4 space-y-6">
+      {/* Sincronizador automático para limpiar alarmas residuales si no hay pedidos activos */}
+      <BuyerOrdersPageSync activeCount={activeOrders.length} />
+
       {/* Cabecera */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 sm:p-5 rounded-3xl border-2 border-stone-200 shadow-sm">
         <div>
