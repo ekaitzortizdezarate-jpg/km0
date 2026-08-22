@@ -79,7 +79,7 @@ export function SellerActiveOrderCard({ order }: SellerActiveOrderCardProps) {
           )}
           <div>
             <h3 className="text-base font-black text-stone-900">
-              Cliente: {order.profiles?.full_name} ({order.profiles?.town})
+              {order.profiles?.full_name} ({order.profiles?.town})
             </h3>
             {order.profiles?.phone && (
               <p className="text-xs font-bold text-stone-600 flex items-center gap-1 mt-0.5">

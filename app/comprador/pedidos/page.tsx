@@ -82,7 +82,7 @@ export default async function BuyerOrdersPage() {
                   )}
                   <div>
                     <span className="text-sm font-black text-stone-900 block">
-                      Caserío: {order.profiles?.full_name} ({order.profiles?.town})
+                      {order.profiles?.full_name} ({order.profiles?.town})
                     </span>
                     <p className="text-xs font-semibold text-stone-600">
                       Pedido realizado el {new Date(order.created_at).toLocaleDateString('es-ES')}

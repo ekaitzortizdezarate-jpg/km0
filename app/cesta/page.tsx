@@ -846,7 +846,7 @@ export default function CartPage() {
                 return (
                   <div key={sId} className="p-4 bg-stone-50 rounded-2xl border border-stone-200 space-y-3">
                     <div className="flex justify-between font-black text-stone-900">
-                      <span>🏡 Caserío: {group.sellerName}</span>
+                      <span>🏡 {group.sellerName}</span>
                       <span className="text-emerald-800">{group.sellerTown}</span>
                     </div>
 

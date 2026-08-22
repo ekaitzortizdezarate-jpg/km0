@@ -95,7 +95,7 @@ export default async function SellerOrdersPage() {
                           Requiere tu confirmación
                         </span>
                         <h3 className="text-base font-black text-stone-900 mt-0.5">
-                          Cliente: {order.profiles?.full_name} ({order.profiles?.town})
+                          {order.profiles?.full_name} ({order.profiles?.town})
                         </h3>
                         {order.profiles?.phone && (
                           <p className="text-xs font-bold text-stone-700 flex items-center gap-1 mt-0.5">

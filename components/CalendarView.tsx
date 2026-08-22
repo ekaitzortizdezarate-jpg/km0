@@ -279,7 +279,7 @@ export function CalendarView({ events, role }: CalendarViewProps) {
                       ) : (
                         <User className="w-3.5 h-3.5 text-stone-600 shrink-0" />
                       )}
-                      <span>Cliente: {ev.customerName}</span>
+                      <span>{ev.customerName}</span>
                     </div>
                   )}
 
@@ -294,7 +294,7 @@ export function CalendarView({ events, role }: CalendarViewProps) {
                       ) : (
                         <Store className="w-3.5 h-3.5 text-stone-600 shrink-0" />
                       )}
-                      <span>Caserío: {ev.sellerName}</span>
+                      <span>{ev.sellerName}</span>
                     </div>
                   )}
 
