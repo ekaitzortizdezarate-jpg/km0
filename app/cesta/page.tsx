@@ -841,8 +841,8 @@ export default function CartPage() {
                   </div>
                 )}
 
-                {/* BANNER 2: PLAZOS DE ENTREGA DISTINTOS (Por defecto: Entregas separadas) */}
-                {hasMultipleDates && (
+                {/* BANNER 2: PLAZOS DE ENTREGA DISTINTOS (Solo se muestra cuando comparten la misma modalidad de entrega o están unificados) */}
+                {(!hasMultipleDeliveryTypes || unifyDeliveryMode === 'unificado') && hasMultipleDates && (
                   <div className="p-4 bg-amber-50/90 rounded-2xl border-2 border-amber-200 space-y-3">
                     <label className="text-xs font-black text-amber-950 flex items-center gap-1.5">
                       <Layers className="w-4 h-4 text-amber-700" />
