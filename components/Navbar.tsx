@@ -28,7 +28,7 @@ export default async function Navbar() {
         .select('id, updated_at, created_at, status, seller_id, buyer_id')
         .or(`seller_id.eq.${user.id},buyer_id.eq.${user.id}`)
         .order('updated_at', { ascending: false })
-        .limit(50),
+        .limit(100),
     ]);
 
     profile = userProfile;

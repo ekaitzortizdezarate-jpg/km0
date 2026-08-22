@@ -73,22 +73,32 @@ export function SellerPendingOrderCard({ order }: SellerPendingOrderCardProps) {
         </div>
       )}
 
-      {/* 1. Foto a la izquierda + Nombre, Pueblo, Teléfono, Chat (en 4 líneas) + Estado del Pedido a la derecha */}
-      <div className="flex items-center justify-between gap-3 pb-3 border-b border-amber-200">
-        <div className="flex items-center gap-3.5 min-w-0">
-          {order.profiles?.avatar_url ? (
-            <img
-              src={order.profiles.avatar_url}
-              alt={order.profiles.full_name || 'Cliente'}
-              className="w-20 h-20 rounded-2xl object-cover border border-amber-300 shrink-0 shadow-sm"
-            />
-          ) : (
-            <div className="w-20 h-20 rounded-2xl bg-amber-200 text-amber-950 font-black text-xl flex items-center justify-center border border-amber-300 shrink-0">
-              {order.profiles?.full_name?.charAt(0) || 'U'}
+      {/* 1. Cabecera: Estado ENCIMA de la foto (anchura de la imagen) + Datos (Nombre, Pueblo, Teléfono, Chat) a la derecha */}
+      <div className="flex items-start justify-between gap-3 pb-3 border-b border-amber-200">
+        <div className="flex items-start gap-3 sm:gap-3.5 min-w-0">
+          {/* Bloque Izquierdo: Estado arriba + Imagen abajo (misma anchura) */}
+          <div className="flex flex-col items-center gap-1.5 w-20 sm:w-24 shrink-0">
+            {/* Estado encima de la foto */}
+            <div className="w-full py-1 px-1 rounded-xl border border-amber-300 bg-amber-100 text-amber-950 text-[10px] sm:text-[11px] font-black uppercase tracking-tight text-center leading-tight shadow-2xs">
+              POR VALIDAR
             </div>
-          )}
 
-          <div className="flex flex-col justify-center min-w-0 space-y-0.5 text-xs">
+            {/* Foto */}
+            {order.profiles?.avatar_url ? (
+              <img
+                src={order.profiles.avatar_url}
+                alt={order.profiles.full_name || 'Cliente'}
+                className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover border border-amber-300 shadow-sm"
+              />
+            ) : (
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-amber-200 text-amber-950 font-black text-xl flex items-center justify-center border border-amber-300 shadow-sm">
+                {order.profiles?.full_name?.charAt(0) || 'U'}
+              </div>
+            )}
+          </div>
+
+          {/* Bloque Derecho: Nombre, Pueblo, Teléfono, Chat */}
+          <div className="flex flex-col justify-center min-w-0 space-y-1 text-xs pt-0.5">
             {/* Línea 1: Nombre */}
             <span className="text-sm sm:text-base font-black text-stone-900 leading-tight truncate">
               {order.profiles?.full_name}
@@ -119,18 +129,13 @@ export function SellerPendingOrderCard({ order }: SellerPendingOrderCardProps) {
             <div className="pt-0.5">
               <Link
                 href={`/chat/${order.profiles?.id}`}
-                className="inline-flex items-center gap-1 text-amber-950 hover:bg-amber-200 bg-amber-100 px-2 py-0.5 rounded-lg border border-amber-300 transition-colors font-black text-[11px]"
+                className="inline-flex items-center gap-1 text-amber-950 hover:bg-amber-200 bg-amber-100 px-2.5 py-1 rounded-lg border border-amber-300 transition-colors font-black text-[11px]"
               >
                 <MessageCircle className="w-3 h-3" />
                 <span>Chat</span>
               </Link>
             </div>
           </div>
-        </div>
-
-        {/* Estado a la derecha ocupando dos alturas */}
-        <div className="h-12 sm:h-14 px-3 sm:px-4 flex items-center justify-center rounded-2xl border border-amber-300 bg-amber-100 text-amber-950 shadow-sm text-xs sm:text-sm font-black uppercase tracking-wider text-center shrink-0">
-          POR VALIDAR
         </div>
       </div>
 

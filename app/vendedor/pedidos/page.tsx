@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { Store } from 'lucide-react';
 import { SellerActiveOrderCard } from '@/components/SellerActiveOrderCard';
 import { SellerPendingOrderCard } from '@/components/SellerPendingOrderCard';
+import { OrdersHistorySection } from '@/components/OrdersHistorySection';
 
 export default async function SellerOrdersPage() {
   const supabase = await createClient();
@@ -21,10 +22,13 @@ export default async function SellerOrdersPage() {
       order_items(*, products(id, name, format, image_url, delivery_methods))
     `)
     .eq('seller_id', user.id)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(100);
 
   const pendingOrders = orders?.filter((o) => o.status === 'pendiente') || [];
-  const activeOrders = orders?.filter((o) => o.status !== 'pendiente') || [];
+  const activeOrders =
+    orders?.filter((o) => o.status !== 'pendiente' && o.status !== 'entregado' && o.status !== 'cancelado') || [];
+  const historyOrders = orders || [];
 
   return (
     <div className="max-w-4xl mx-auto py-2 space-y-6">
@@ -67,6 +71,9 @@ export default async function SellerOrdersPage() {
           </div>
         )}
       </div>
+
+      {/* SECCIÓN 3: HISTÓRICO DE PEDIDOS (DESPLEGABLE) */}
+      <OrdersHistorySection orders={historyOrders} role="vendedor" />
     </div>
   );
 }

@@ -229,12 +229,14 @@ export async function cancelPendingOrder(orderId: string) {
     }
   }
 
-  // 3. Eliminar líneas y pedido de la base de datos
-  await supabase.from('order_items').delete().eq('order_id', orderId);
-  const { error: delErr } = await supabase.from('orders').delete().eq('id', orderId);
+  // 3. Marcar como cancelado en la base de datos para preservar en el histórico
+  const { error: cancelErr } = await supabase
+    .from('orders')
+    .update({ status: 'cancelado', updated_at: new Date().toISOString() })
+    .eq('id', orderId);
 
-  if (delErr) {
-    return { error: delErr.message };
+  if (cancelErr) {
+    return { error: cancelErr.message };
   }
 
   revalidatePath('/');

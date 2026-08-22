@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { BuyerOrderCard } from '@/components/BuyerOrderCard';
+import { OrdersHistorySection } from '@/components/OrdersHistorySection';
 
 export default async function BuyerOrdersPage() {
   const supabase = await createClient();
@@ -20,7 +21,13 @@ export default async function BuyerOrdersPage() {
       order_items(*, products(id, name, format, image_url, delivery_methods))
     `)
     .eq('buyer_id', user.id)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(100);
+
+  // Pedidos activos (en curso / pendientes / confirmados)
+  const activeOrders = orders?.filter((o) => o.status !== 'entregado' && o.status !== 'cancelado') || [];
+  // Todo el histórico (últimos 100 pedidos)
+  const historyOrders = orders || [];
 
   return (
     <div className="max-w-4xl mx-auto py-4 space-y-6">
@@ -29,7 +36,7 @@ export default async function BuyerOrdersPage() {
         <div>
           <h1 className="text-xl sm:text-2xl font-black text-stone-900">Mis Compras</h1>
           <p className="text-xs font-bold text-stone-600 mt-0.5">
-            Historial de pedidos, validaciones de caseríos y fechas confirmadas de entrega
+            Pedidos en curso, validaciones de caseríos y fechas confirmadas de entrega
           </p>
         </div>
 
@@ -41,17 +48,17 @@ export default async function BuyerOrdersPage() {
         </Link>
       </div>
 
-      {/* Lista de Pedidos */}
+      {/* Lista de Pedidos Activos */}
       <div className="space-y-4">
-        {orders && orders.length > 0 ? (
-          orders.map((order) => (
+        {activeOrders.length > 0 ? (
+          activeOrders.map((order) => (
             <BuyerOrderCard key={order.id} order={order} />
           ))
         ) : (
           <div className="bg-white rounded-3xl border-2 border-stone-200 p-8 text-center space-y-3">
-            <h3 className="text-lg font-black text-stone-800">No tienes pedidos aún</h3>
+            <h3 className="text-lg font-black text-stone-800">No tienes pedidos activos en curso</h3>
             <p className="text-xs font-bold text-stone-500">
-              Explora los caseríos de tu zona y haz tu primera compra km0
+              Explora los caseríos de tu zona y haz tu compra km0 o consulta tus pedidos anteriores en el histórico abajo.
             </p>
             <Link
               href="/"
@@ -62,6 +69,9 @@ export default async function BuyerOrdersPage() {
           </div>
         )}
       </div>
+
+      {/* Sección de Histórico desplegable (abajo del todo) */}
+      <OrdersHistorySection orders={historyOrders} role="comprador" />
     </div>
   );
 }

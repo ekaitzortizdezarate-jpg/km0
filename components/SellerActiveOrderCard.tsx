@@ -130,22 +130,36 @@ export function SellerActiveOrderCard({ order }: SellerActiveOrderCardProps) {
           </button>
         </div>
       )}
-      {/* 1. Foto a la izquierda + Nombre, Pueblo, Teléfono, Chat (en 4 líneas) + Estado del Pedido a la derecha */}
-      <div className="flex items-center justify-between gap-3 pb-3 border-b border-stone-100">
-        <div className="flex items-center gap-3.5 min-w-0">
-          {order.profiles?.avatar_url ? (
-            <img
-              src={order.profiles.avatar_url}
-              alt={order.profiles.full_name || 'Cliente'}
-              className="w-20 h-20 rounded-2xl object-cover border border-stone-200 shrink-0 shadow-sm"
-            />
-          ) : (
-            <div className="w-20 h-20 rounded-2xl bg-emerald-100 text-emerald-800 font-black text-xl flex items-center justify-center border border-emerald-300 shrink-0">
-              {order.profiles?.full_name?.charAt(0) || 'U'}
+      {/* 1. Cabecera: Estado ENCIMA de la foto (anchura de la imagen) + Datos (Nombre, Pueblo, Teléfono, Chat) a la derecha */}
+      <div className="flex items-start justify-between gap-3 pb-3 border-b border-stone-100">
+        <div className="flex items-start gap-3 sm:gap-3.5 min-w-0">
+          {/* Bloque Izquierdo: Estado arriba + Imagen abajo (misma anchura) */}
+          <div className="flex flex-col items-center gap-1.5 w-20 sm:w-24 shrink-0">
+            {/* Estado del pedido encima de la foto */}
+            <div
+              className={`w-full py-1 px-1 rounded-xl border text-[10px] sm:text-[11px] font-black uppercase tracking-tight text-center leading-tight shadow-2xs ${
+                statusColors[currentStatus] || 'bg-stone-100 text-stone-900 border-stone-300'
+              }`}
+            >
+              {statusLabels[currentStatus] || currentStatus.toUpperCase()}
             </div>
-          )}
 
-          <div className="flex flex-col justify-center min-w-0 space-y-0.5 text-xs">
+            {/* Foto */}
+            {order.profiles?.avatar_url ? (
+              <img
+                src={order.profiles.avatar_url}
+                alt={order.profiles.full_name || 'Cliente'}
+                className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover border border-stone-200 shadow-sm"
+              />
+            ) : (
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-emerald-100 text-emerald-800 font-black text-xl flex items-center justify-center border border-emerald-300 shadow-sm">
+                {order.profiles?.full_name?.charAt(0) || 'U'}
+              </div>
+            )}
+          </div>
+
+          {/* Bloque Derecho: Nombre, Pueblo, Teléfono, Chat */}
+          <div className="flex flex-col justify-center min-w-0 space-y-1 text-xs pt-0.5">
             {/* Línea 1: Nombre */}
             <span className="text-sm sm:text-base font-black text-stone-900 leading-tight truncate">
               {order.profiles?.full_name}
@@ -176,7 +190,7 @@ export function SellerActiveOrderCard({ order }: SellerActiveOrderCardProps) {
             <div className="pt-0.5">
               <Link
                 href={`/chat/${order.profiles?.id}`}
-                className="inline-flex items-center gap-1 text-emerald-800 hover:text-emerald-950 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-lg border border-emerald-200 transition-colors font-black text-[11px]"
+                className="inline-flex items-center gap-1 text-emerald-800 hover:text-emerald-950 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg border border-emerald-200 transition-colors font-black text-[11px]"
               >
                 <MessageCircle className="w-3 h-3" />
                 <span>Chat</span>
@@ -185,21 +199,11 @@ export function SellerActiveOrderCard({ order }: SellerActiveOrderCardProps) {
           </div>
         </div>
 
-        {/* Estado del Pedido a la derecha ocupando dos alturas */}
-        <div className="flex flex-col items-end shrink-0 gap-1">
-          <div
-            className={`h-12 sm:h-14 px-3 sm:px-4 flex items-center justify-center rounded-2xl border shadow-sm text-xs sm:text-sm font-black uppercase tracking-wider text-center ${
-              statusColors[currentStatus] || 'bg-stone-100 text-stone-900 border-stone-300'
-            }`}
-          >
-            {statusLabels[currentStatus] || currentStatus.toUpperCase()}
-          </div>
-          {order.is_recurring && (
-            <span className="flex items-center gap-1 text-[9px] font-black bg-emerald-100 text-emerald-950 border border-emerald-300 px-2 py-0.5 rounded-full">
-              <RefreshCw className="w-2.5 h-2.5" /> Recurrente ({order.recurrence_interval_days}d)
-            </span>
-          )}
-        </div>
+        {order.is_recurring && (
+          <span className="flex items-center gap-1 text-[9px] font-black bg-emerald-100 text-emerald-950 border border-emerald-300 px-2 py-0.5 rounded-full shrink-0">
+            <RefreshCw className="w-2.5 h-2.5" /> Recurrente ({order.recurrence_interval_days}d)
+          </span>
+        )}
       </div>
 
       {/* 2. Información estructurada de Pedido realizado, validado, y recuadro verde con Fecha de Entrega + Tipo de Envío */}
