@@ -3,28 +3,61 @@
 import { useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import {
-  Sprout,
-  Store,
-  Heart,
   Search,
-  Filter,
+  Store,
   Clock,
-  Phone,
-  MessageCircle,
-  Truck,
-  Package,
-  Scale,
   Sparkles,
-  ChevronRight,
-  X,
+  Sprout,
+  Heart,
   PlusCircle,
-  Edit,
+  MessageCircle,
+  X,
+  Edit2,
+  Package,
 } from 'lucide-react';
-import type { ProductWithSeller, Profile, ProductCategory } from '@/types/database';
+import { ProductCategory, ProductWithSeller, Profile } from '@/types/database';
 import { QuickAddToCartModal } from '@/components/QuickAddToCartModal';
 import { FavoriteButton } from '@/components/FavoriteButton';
-import { DeleteProductButton } from '@/components/DeleteProductButton';
-import { getDeliveryEstimate, formatTimeAgo } from '@/lib/delivery';
+import { getDeliveryEstimate } from '@/lib/delivery';
+
+const CATEGORIES: { id: ProductCategory; name: string; icon: string }[] = [
+  { id: 'verduras_hortalizas', name: 'Verduras', icon: '🥬' },
+  { id: 'frutas', name: 'Frutas', icon: '🍎' },
+  { id: 'quesos_lacteos', name: 'Lácteos', icon: '🧀' },
+  { id: 'bebidas', name: 'Bebidas', icon: '🍷' },
+  { id: 'otros_alimentos', name: 'Otros', icon: '🍯' },
+  { id: 'plantas_flores', name: 'Plantas', icon: '🌻' },
+  { id: 'artesania', name: 'Artesanía', icon: '🧶' },
+];
+
+const EMPTY_FAV_SET = new Set<string>();
+const cachedFavSets: Record<string, Set<string>> = {};
+const cachedFavStrings: Record<string, string> = {};
+
+function getFavList(key: string): Set<string> {
+  try {
+    const raw = localStorage.getItem(key) || '[]';
+    if (raw === cachedFavStrings[key]) {
+      return cachedFavSets[key] || EMPTY_FAV_SET;
+    }
+    cachedFavStrings[key] = raw;
+    const parsed: string[] = JSON.parse(raw);
+    const set = new Set(parsed);
+    cachedFavSets[key] = set;
+    return set;
+  } catch {
+    return EMPTY_FAV_SET;
+  }
+}
+
+function subscribeFavorites(callback: () => void) {
+  window.addEventListener('storage', callback);
+  window.addEventListener('km0_favorites_updated', callback);
+  return () => {
+    window.removeEventListener('storage', callback);
+    window.removeEventListener('km0_favorites_updated', callback);
+  };
+}
 
 interface SellerWithProducts {
   profile: Profile;
@@ -35,52 +68,9 @@ interface SellerWithProducts {
 interface CatalogViewContainerProps {
   products: ProductWithSeller[];
   sellers: Profile[];
-  userProfile: Profile | null;
-  selectedCategory?: string;
+  userProfile?: Profile | null;
+  selectedCategory?: ProductCategory;
   selectedTown?: string;
-}
-
-const CATEGORIES: { id: ProductCategory; name: string; icon: string }[] = [
-  { id: 'verduras_hortalizas', name: 'Verduras y Hortalizas', icon: '🥬' },
-  { id: 'frutas', name: 'Frutas', icon: '🍎' },
-  { id: 'quesos_lacteos', name: 'Quesos y Lácteos', icon: '🧀' },
-  { id: 'bebidas', name: 'Bebidas (Sidra, Txakoli...)', icon: '🍷' },
-  { id: 'otros_alimentos', name: 'Otros Alimentos (Huevos, Miel...)', icon: '🍯' },
-  { id: 'plantas_flores', name: 'Plantas y Flores', icon: '🌸' },
-  { id: 'articulos_diversos', name: 'Artículos Diversos', icon: '📦' },
-  { id: 'artesania', name: 'Artesanía de Caserío', icon: '🪵' },
-];
-
-const cachedFavSets: Record<string, { raw: string; set: Set<string> }> = {
-  km0_fav_products: { raw: '', set: new Set() },
-  km0_fav_sellers: { raw: '', set: new Set() },
-};
-
-const EMPTY_FAV_SET = new Set<string>();
-
-function subscribeFavorites(callback: () => void) {
-  window.addEventListener('km0_favorites_updated', callback);
-  window.addEventListener('storage', callback);
-  return () => {
-    window.removeEventListener('km0_favorites_updated', callback);
-    window.removeEventListener('storage', callback);
-  };
-}
-
-function getFavList(key: string): Set<string> {
-  if (typeof window === 'undefined') return EMPTY_FAV_SET;
-  try {
-    const raw = localStorage.getItem(key) || '[]';
-    if (!cachedFavSets[key] || cachedFavSets[key].raw !== raw) {
-      cachedFavSets[key] = {
-        raw,
-        set: new Set(JSON.parse(raw)),
-      };
-    }
-    return cachedFavSets[key].set;
-  } catch {
-    return EMPTY_FAV_SET;
-  }
 }
 
 export function CatalogViewContainer({
@@ -90,8 +80,13 @@ export function CatalogViewContainer({
   selectedCategory,
   selectedTown,
 }: CatalogViewContainerProps) {
-  const [mainTab, setMainTab] = useState<'todos' | 'favoritos'>('todos');
-  const [viewMode, setViewMode] = useState<'productos' | 'vendedores'>('productos');
+  const isSeller = userProfile?.role === 'vendedor';
+
+  // Pestaña activa: para vendedor por defecto 'mis_productos', para comprador 'todos_productos'
+  const [activeTab, setActiveTab] = useState<
+    'mis_productos' | 'todos_productos' | 'vendedores' | 'favoritos'
+  >(isSeller ? 'mis_productos' : 'todos_productos');
+
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState<string | null>(selectedCategory || null);
   const [selectedSellerId, setSelectedSellerId] = useState<string | null>(null);
@@ -107,8 +102,6 @@ export function CatalogViewContainer({
     () => getFavList('km0_fav_sellers'),
     () => EMPTY_FAV_SET
   );
-
-  const isSeller = userProfile?.role === 'vendedor';
 
   // Agrupar productos por vendedor
   const sellersMap: Record<string, SellerWithProducts> = {};
@@ -133,15 +126,25 @@ export function CatalogViewContainer({
   });
 
   const allSellersList = Object.values(sellersMap);
+  const mySellerProductsCount = userProfile
+    ? products.filter((p) => p.seller_id === userProfile.id).length
+    : 0;
 
   // Filtrado de productos
   const filteredProducts = products.filter((product) => {
-    // Si hay un vendedor seleccionado específicamente, mostramos todos sus productos
+    // Modo 1: Mis productos (vendedor)
+    if (activeTab === 'mis_productos') {
+      if (!userProfile || product.seller_id !== userProfile.id) {
+        return false;
+      }
+    }
+
+    // Modo 2: Vendedor filtrado explícitamente al pulsar "Ver productos"
     if (selectedSellerId) {
       if (product.seller_id !== selectedSellerId) {
         return false;
       }
-    } else if (mainTab === 'favoritos' && !favProducts.has(product.id)) {
+    } else if (activeTab === 'favoritos' && !favProducts.has(product.id)) {
       return false;
     }
 
@@ -164,7 +167,7 @@ export function CatalogViewContainer({
 
   // Filtrado de vendedores
   const filteredSellers = allSellersList.filter((item) => {
-    if (mainTab === 'favoritos' && !favSellers.has(item.profile.id)) {
+    if (activeTab === 'favoritos' && !favSellers.has(item.profile.id)) {
       return false;
     }
 
@@ -183,115 +186,155 @@ export function CatalogViewContainer({
 
   return (
     <div className="space-y-6">
-      {/* 1. Nivel Superior: Pestañas Principales (Todo el Catálogo vs Favoritos) */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b-2 border-stone-200 pb-4">
-        {/* Pestañas Principales */}
-        <div className="flex items-center gap-2 bg-stone-200/80 p-1.5 rounded-2xl w-full sm:w-auto">
-          <button
-            type="button"
-            onClick={() => {
-              setMainTab('todos');
-              setSelectedSellerId(null);
-            }}
-            className={`flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 ${
-              mainTab === 'todos'
-                ? 'bg-emerald-800 text-white shadow-md'
-                : 'text-stone-700 hover:text-stone-900 font-bold'
-            }`}
-          >
-            <Sprout className="w-4 h-4" />
-            <span>Todo el Catálogo</span>
-          </button>
+      {/* 1. Barra Superior de Pestañas Unificadas */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-stone-200 pb-4">
+        <div className="flex flex-wrap items-center gap-2 bg-stone-200/80 p-1.5 rounded-2xl w-full sm:w-auto">
+          {/* Pestañas para VENDEDOR */}
+          {isSeller ? (
+            <>
+              {/* 1. Mis Productos (Por defecto) */}
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('mis_productos');
+                  setSelectedSellerId(null);
+                }}
+                className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 ${
+                  activeTab === 'mis_productos'
+                    ? 'bg-emerald-800 text-white shadow-md'
+                    : 'text-stone-700 hover:text-stone-900 font-bold'
+                }`}
+              >
+                <Package className="w-4 h-4" />
+                <span>Mis Productos</span>
+                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${
+                  activeTab === 'mis_productos' ? 'bg-emerald-950 text-white' : 'bg-stone-300 text-stone-700'
+                }`}>
+                  {mySellerProductsCount}
+                </span>
+              </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              setMainTab('favoritos');
-              setSelectedSellerId(null);
-            }}
-            className={`flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 ${
-              mainTab === 'favoritos'
-                ? 'bg-rose-600 text-white shadow-md'
-                : 'text-stone-700 hover:text-stone-900 font-bold'
-            }`}
-          >
-            <Heart className={`w-4 h-4 ${mainTab === 'favoritos' ? 'fill-white' : 'text-rose-500'}`} />
-            <span>Mis Favoritos</span>
-            {(favProducts.size > 0 || favSellers.size > 0) && (
-              <span className="bg-white text-rose-600 text-[10px] font-black px-1.5 py-0.5 rounded-full ml-0.5">
-                {favProducts.size + favSellers.size}
-              </span>
-            )}
-          </button>
-        </div>
+              {/* 2. Todos los productos */}
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('todos_productos');
+                  setSelectedSellerId(null);
+                }}
+                className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 ${
+                  activeTab === 'todos_productos'
+                    ? 'bg-emerald-800 text-white shadow-md'
+                    : 'text-stone-700 hover:text-stone-900 font-bold'
+                }`}
+              >
+                <Sprout className="w-4 h-4" />
+                <span>Todos los Productos</span>
+                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${
+                  activeTab === 'todos_productos' ? 'bg-emerald-950 text-white' : 'bg-stone-300 text-stone-700'
+                }`}>
+                  {products.length}
+                </span>
+              </button>
 
-        {/* Sub-selector de Vista: Productos vs Vendedores */}
-        <div className="flex items-center gap-1.5 bg-stone-100 p-1 rounded-xl border border-stone-300 w-full sm:w-auto">
-          <button
-            type="button"
-            onClick={() => setViewMode('productos')}
-            className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
-              viewMode === 'productos'
-                ? 'bg-white text-emerald-950 shadow-sm border border-stone-200'
-                : 'text-stone-600 hover:text-stone-900'
-            }`}
-          >
-            <span>🥦 Productos</span>
-            <span className="text-[10px] opacity-75">
-              ({mainTab === 'favoritos' ? favProducts.size : products.length})
-            </span>
-          </button>
+              {/* 3. Caseríos y vendedores */}
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('vendedores');
+                  setSelectedSellerId(null);
+                }}
+                className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 ${
+                  activeTab === 'vendedores'
+                    ? 'bg-emerald-800 text-white shadow-md'
+                    : 'text-stone-700 hover:text-stone-900 font-bold'
+                }`}
+              >
+                <Store className="w-4 h-4" />
+                <span>Caseríos y Vendedores</span>
+                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${
+                  activeTab === 'vendedores' ? 'bg-emerald-950 text-white' : 'bg-stone-300 text-stone-700'
+                }`}>
+                  {allSellersList.length}
+                </span>
+              </button>
+            </>
+          ) : (
+            /* Pestañas para COMPRADOR / VISITANTE */
+            <>
+              {/* 1. Todos los productos */}
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('todos_productos');
+                  setSelectedSellerId(null);
+                }}
+                className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 ${
+                  activeTab === 'todos_productos'
+                    ? 'bg-emerald-800 text-white shadow-md'
+                    : 'text-stone-700 hover:text-stone-900 font-bold'
+                }`}
+              >
+                <Sprout className="w-4 h-4" />
+                <span>Todos los Productos</span>
+                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${
+                  activeTab === 'todos_productos' ? 'bg-emerald-950 text-white' : 'bg-stone-300 text-stone-700'
+                }`}>
+                  {products.length}
+                </span>
+              </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              setViewMode('vendedores');
-              setSelectedSellerId(null);
-            }}
-            className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
-              viewMode === 'vendedores'
-                ? 'bg-white text-emerald-950 shadow-sm border border-stone-200'
-                : 'text-stone-600 hover:text-stone-900'
-            }`}
-          >
-            <span>🏡 Caseríos y Vendedores</span>
-            <span className="text-[10px] opacity-75">
-              ({mainTab === 'favoritos' ? favSellers.size : allSellersList.length})
-            </span>
-          </button>
-        </div>
-      </div>
+              {/* 2. Caseríos y vendedores */}
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('vendedores');
+                  setSelectedSellerId(null);
+                }}
+                className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 ${
+                  activeTab === 'vendedores'
+                    ? 'bg-emerald-800 text-white shadow-md'
+                    : 'text-stone-700 hover:text-stone-900 font-bold'
+                }`}
+              >
+                <Store className="w-4 h-4" />
+                <span>Caseríos y Vendedores</span>
+                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${
+                  activeTab === 'vendedores' ? 'bg-emerald-950 text-white' : 'bg-stone-300 text-stone-700'
+                }`}>
+                  {allSellersList.length}
+                </span>
+              </button>
 
-      {/* 2. Barra de Búsqueda y Filtros */}
-      <div className="flex flex-col sm:flex-row items-center gap-3">
-        <div className="relative flex-1 w-full">
-          <Search className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder={
-              viewMode === 'productos'
-                ? 'Buscar por nombre de producto, caserío o pueblo (ej. tomate, Gernika...)'
-                : 'Buscar por caserío, productor o pueblo...'
-            }
-            className="w-full pl-10 pr-4 py-2.5 bg-white border-2 border-stone-300 rounded-2xl text-xs font-bold text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600 shadow-sm"
-          />
-          {searchTerm && (
-            <button
-              type="button"
-              onClick={() => setSearchTerm('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700"
-            >
-              <X className="w-4 h-4" />
-            </button>
+              {/* 3. Mis Favoritos */}
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('favoritos');
+                  setSelectedSellerId(null);
+                }}
+                className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 ${
+                  activeTab === 'favoritos'
+                    ? 'bg-rose-600 text-white shadow-md'
+                    : 'text-stone-700 hover:text-stone-900 font-bold'
+                }`}
+              >
+                <Heart className={`w-4 h-4 ${activeTab === 'favoritos' ? 'fill-white' : 'text-rose-500'}`} />
+                <span>Mis Favoritos</span>
+                {(favProducts.size > 0 || favSellers.size > 0) && (
+                  <span className="bg-white text-rose-600 text-[10px] font-black px-1.5 py-0.5 rounded-full ml-0.5">
+                    {favProducts.size + favSellers.size}
+                  </span>
+                )}
+              </button>
+            </>
           )}
         </div>
 
+        {/* Botón de Publicar Cosecha para Vendedores */}
         {isSeller && (
           <Link
             href="/vendedor/productos/nuevo"
-            className="w-full sm:w-auto px-4 py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white font-black text-xs rounded-2xl shadow-sm transition-all flex items-center justify-center gap-1.5 shrink-0"
+            className="w-full sm:w-auto px-5 py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white font-black text-xs sm:text-sm rounded-2xl shadow-sm transition-all flex items-center justify-center gap-2 shrink-0"
           >
             <PlusCircle className="w-4 h-4" />
             <span>Publicar Cosecha</span>
@@ -299,7 +342,32 @@ export function CatalogViewContainer({
         )}
       </div>
 
-      {/* Banner de Filtro de Vendedor Activo */}
+      {/* 2. Barra de Búsqueda */}
+      <div className="relative w-full">
+        <Search className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+        <input
+          type="text"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder={
+            activeTab === 'vendedores'
+              ? 'Buscar por caserío, productor o pueblo...'
+              : 'Buscar por nombre de producto, caserío o pueblo (ej. tomate, Gernika...)'
+          }
+          className="w-full pl-10 pr-4 py-2.5 bg-white border-2 border-stone-300 rounded-2xl text-xs font-bold text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600 shadow-sm"
+        />
+        {searchTerm && (
+          <button
+            type="button"
+            onClick={() => setSearchTerm('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+
+      {/* Banner de Filtro de Vendedor Activo (al hacer clic en Ver productos de un caserío) */}
       {selectedSellerId && activeSellerObj && (
         <div className="p-4 bg-emerald-50 rounded-2xl border-2 border-emerald-300 flex flex-wrap items-center justify-between gap-3 animate-fadeIn">
           <div className="flex items-center gap-2.5">
@@ -324,8 +392,8 @@ export function CatalogViewContainer({
         </div>
       )}
 
-      {/* 3. Selector de Categorías (solo en vista productos) */}
-      {viewMode === 'productos' && (
+      {/* 3. Selector de Categorías (cuando se visualizan productos) */}
+      {activeTab !== 'vendedores' && (
         <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
           <button
             type="button"
@@ -357,10 +425,10 @@ export function CatalogViewContainer({
         </div>
       )}
 
-      {/* 4. CONTENIDO SEGÚN MODO DE VISTA */}
+      {/* 4. CONTENIDO PRINCIPAL */}
 
       {/* VISTA A: VENDEDORES / CASERÍOS */}
-      {viewMode === 'vendedores' && (
+      {activeTab === 'vendedores' && (
         <div className="space-y-4">
           {filteredSellers.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -380,10 +448,9 @@ export function CatalogViewContainer({
                           <h3 className="text-base font-black text-stone-900 leading-tight">
                             {profile.full_name}
                           </h3>
-                          <p className="text-xs font-bold text-stone-500 flex items-center gap-1 mt-0.5">
-                            <Store className="w-3.5 h-3.5 text-emerald-700" />
-                            <span>{profile.town || 'Euskadi'}</span>
-                          </p>
+                          <span className="text-xs font-bold text-emerald-800">
+                            📍 {profile.town}
+                          </span>
                         </div>
                       </div>
 
@@ -396,7 +463,7 @@ export function CatalogViewContainer({
                       </p>
                     )}
 
-                    {/* Resumen de Productos disponibles */}
+                    {/* Resumen de Productos disponibles con stock */}
                     <div className="space-y-2">
                       <span className="text-[11px] font-black uppercase text-stone-400 block tracking-wider">
                         Productos de temporada ({sellerProds.length}):
@@ -447,18 +514,17 @@ export function CatalogViewContainer({
                       type="button"
                       onClick={() => {
                         setSelectedSellerId(profile.id);
-                        setViewMode('productos');
+                        setActiveTab('todos_productos');
                       }}
                       className="flex-1 py-2.5 px-3 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-black rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5"
                     >
                       <span>Ver Productos ({sellerProds.length})</span>
-                      <ChevronRight className="w-3.5 h-3.5" />
                     </button>
 
                     <Link
                       href={`/chat/${profile.id}`}
-                      className="p-2.5 bg-white hover:bg-stone-100 text-stone-800 rounded-xl border border-stone-300 transition-colors"
-                      title="Chatear con el caserío"
+                      className="p-2.5 bg-white hover:bg-stone-100 text-stone-800 rounded-xl transition-colors border border-stone-300"
+                      title="Enviar mensaje al caserío"
                     >
                       <MessageCircle className="w-4 h-4 text-emerald-800" />
                     </Link>
@@ -470,28 +536,26 @@ export function CatalogViewContainer({
             <div className="bg-white rounded-3xl border-2 border-stone-200 p-10 text-center space-y-3 shadow-sm">
               <Store className="w-12 h-12 text-stone-400 mx-auto" />
               <h3 className="text-base font-black text-stone-900">
-                {mainTab === 'favoritos'
-                  ? 'No tienes caseríos guardados en favoritos'
-                  : 'No se encontraron caseríos'}
+                No se encontraron caseríos
               </h3>
               <p className="text-xs font-semibold text-stone-500 max-w-sm mx-auto">
-                {mainTab === 'favoritos'
-                  ? 'Guarda caseríos como favoritos pulsando la estrella para verlos aquí.'
-                  : 'Prueba a cambiar los términos de búsqueda.'}
+                Prueba con otro término de búsqueda.
               </p>
             </div>
           )}
         </div>
       )}
 
-      {/* VISTA B: PRODUCTOS DE LA HUERTA */}
-      {viewMode === 'productos' && (
+      {/* VISTA B: PRODUCTOS (Mis Productos, Todos los Productos o Favoritos) */}
+      {activeTab !== 'vendedores' && (
         <div className="space-y-4">
           {filteredProducts.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
               {filteredProducts.map((product) => {
-                const isOutOfStock = !product.is_unlimited_stock && (Number(product.stock) || 0) <= 0;
                 const stockQty = Number(product.stock) || 0;
+                const isOutOfStock = !product.is_unlimited_stock && stockQty <= 0;
+                const isMyProduct = isSeller && userProfile?.id === product.seller_id;
+
                 const estimate = getDeliveryEstimate(
                   product.availability_type,
                   product.availability_days,
@@ -502,24 +566,26 @@ export function CatalogViewContainer({
                 const itemPayload = {
                   productId: product.id,
                   sellerId: product.seller_id,
+                  sellerName: product.profiles?.full_name || 'Caserío',
+                  sellerTown: product.profiles?.town || 'Local',
                   name: product.name,
                   category: product.category,
-                  quantity: 1,
-                  price: Number(product.price) || 0,
-                  unitPrice:
-                    product.format === 'granel'
-                      ? Number(product.price_per_kilo || product.price) || 0
-                      : Number(product.price) || 0,
                   format: product.format,
+                  price: product.price,
+                  unitPrice: product.format === 'granel' ? product.price_per_kilo || product.price : product.price,
                   weightKg: product.weight_kg,
-                  pricePerKilo: product.price_per_kilo,
                   imageUrl: product.image_url,
-                  sellerName: product.profiles?.full_name || 'Caserío',
-                  sellerTown: product.profiles?.town || 'Euskadi',
+                  quantity: 1,
+                  packItems: product.pack_items,
+                  availabilityType: product.availability_type,
+                  availabilityDays: product.availability_days,
+                  availabilityWeekdays: product.availability_weekdays,
+                  availableFromDate: product.available_from_date,
+                  estimatedDeliveryDate: estimate.estimatedDate.toISOString(),
                   deliveryBadge: estimate.badgeText,
                   deliveryBadgeDetail: estimate.detailText,
-                  estimatedDeliveryDate: estimate.estimatedDate.toISOString(),
                   deliveryMethods: product.delivery_methods,
+                  caserioSchedule: product.caserio_schedule,
                   isOrganic: product.is_organic,
                   stock: stockQty,
                   isUnlimitedStock: product.is_unlimited_stock,
@@ -608,13 +674,14 @@ export function CatalogViewContainer({
                       </QuickAddToCartModal>
                     </div>
 
-                    {/* Parte Inferior Independiente: Caserío, Chat y Añadir */}
+                    {/* Parte Inferior: Caserío, Acciones y Añadir / Editar */}
                     <div className="px-4 pb-4 pt-0 space-y-3">
                       <div className="pt-2 border-t border-stone-100 flex items-center justify-between gap-2">
                         <button
                           type="button"
                           onClick={() => {
                             setSelectedSellerId(product.seller_id);
+                            setActiveTab('todos_productos');
                           }}
                           className="text-left flex-1 group"
                           title={`Ver todos los productos de ${product.profiles?.full_name}`}
@@ -628,32 +695,53 @@ export function CatalogViewContainer({
                         </button>
 
                         <div className="flex items-center gap-1 shrink-0">
-                          <Link
-                            href={`/chat/${product.seller_id}`}
-                            className="p-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-lg transition-colors border border-stone-200"
-                            title="Chatear con el caserío"
-                          >
-                            <MessageCircle className="w-3.5 h-3.5 text-emerald-800" />
-                          </Link>
-
-                          <FavoriteButton id={product.id} type="product" />
+                          {isMyProduct ? (
+                            <Link
+                              href={`/vendedor/productos/${product.id}/editar`}
+                              className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg transition-colors border border-emerald-200"
+                              title="Editar este producto"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </Link>
+                          ) : (
+                            <>
+                              <Link
+                                href={`/chat/${product.seller_id}`}
+                                className="p-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-lg transition-colors border border-stone-200"
+                                title="Chatear con el caserío"
+                              >
+                                <MessageCircle className="w-3.5 h-3.5 text-emerald-800" />
+                              </Link>
+                              <FavoriteButton id={product.id} type="product" />
+                            </>
+                          )}
                         </div>
                       </div>
 
-                      {/* Botón Añadir explícito */}
-                      <QuickAddToCartModal
-                        item={itemPayload}
-                        isCardOverlay={false}
-                        className="w-full"
-                      >
-                        <button
-                          type="button"
-                          disabled={isOutOfStock}
-                          className="w-full py-2.5 bg-emerald-800 hover:bg-emerald-900 disabled:opacity-50 text-white text-xs font-black rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5"
+                      {/* Botón de acción: Si es mi producto -> Editar; Si no -> Añadir a la Cesta */}
+                      {isMyProduct ? (
+                        <Link
+                          href={`/vendedor/productos/${product.id}/editar`}
+                          className="w-full py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-900 text-xs font-black rounded-xl transition-all border border-stone-300 flex items-center justify-center gap-1.5"
                         >
-                          {isOutOfStock ? 'Agotado' : 'Añadir a la Cesta'}
-                        </button>
-                      </QuickAddToCartModal>
+                          <Edit2 className="w-3.5 h-3.5 text-stone-700" />
+                          <span>Editar mi Producto</span>
+                        </Link>
+                      ) : (
+                        <QuickAddToCartModal
+                          item={itemPayload}
+                          isCardOverlay={false}
+                          className="w-full"
+                        >
+                          <button
+                            type="button"
+                            disabled={isOutOfStock}
+                            className="w-full py-2.5 bg-emerald-800 hover:bg-emerald-900 disabled:opacity-50 text-white text-xs font-black rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5"
+                          >
+                            {isOutOfStock ? 'Agotado' : 'Añadir a la Cesta'}
+                          </button>
+                        </QuickAddToCartModal>
+                      )}
                     </div>
                   </div>
                 );
@@ -663,15 +751,31 @@ export function CatalogViewContainer({
             <div className="bg-white rounded-3xl border-2 border-stone-200 p-10 text-center space-y-3 shadow-sm">
               <Sparkles className="w-12 h-12 text-stone-400 mx-auto" />
               <h3 className="text-base font-black text-stone-900">
-                {mainTab === 'favoritos'
+                {activeTab === 'mis_productos'
+                  ? 'Aún no has publicado productos'
+                  : activeTab === 'favoritos'
                   ? 'No tienes productos guardados en favoritos'
                   : 'No se encontraron productos'}
               </h3>
               <p className="text-xs font-semibold text-stone-500 max-w-sm mx-auto">
-                {mainTab === 'favoritos'
+                {activeTab === 'mis_productos'
+                  ? 'Comienza a vender tus cosechas y productos de proximidad en el mercado de km0.'
+                  : activeTab === 'favoritos'
                   ? 'Guarda productos con el corazón para tenerlos siempre a mano.'
                   : 'Prueba a seleccionar otra categoría o limpiar la búsqueda.'}
               </p>
+
+              {activeTab === 'mis_productos' && (
+                <div className="pt-2">
+                  <Link
+                    href="/vendedor/productos/nuevo"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-black rounded-xl shadow-md transition-all"
+                  >
+                    <PlusCircle className="w-4 h-4" />
+                    <span>Publicar mi Primer Producto</span>
+                  </Link>
+                </div>
+              )}
             </div>
           )}
         </div>
