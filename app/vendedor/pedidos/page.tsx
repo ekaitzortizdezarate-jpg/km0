@@ -84,42 +84,55 @@ export default async function SellerOrdersPage() {
                   key={order.id}
                   className="bg-amber-50/80 rounded-3xl border-2 border-amber-300 p-5 sm:p-6 shadow-sm space-y-4"
                 >
-                  {/* 1. Foto (ocupando dos líneas) + Nombre y población (arriba) + Teléfono y Chat (abajo) + ESTADO (derecha, 2 alturas) */}
+                  {/* 1. Foto a la izquierda + Nombre, Pueblo, Teléfono, Chat (en 4 líneas) + Estado del Pedido a la derecha */}
                   <div className="flex items-center justify-between gap-3 pb-3 border-b border-amber-200">
-                    <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex items-center gap-3.5 min-w-0">
                       {order.profiles?.avatar_url ? (
                         <img
                           src={order.profiles.avatar_url}
                           alt={order.profiles.full_name || 'Cliente'}
-                          className="w-12 h-12 rounded-2xl object-cover border border-amber-300 shrink-0 shadow-sm"
+                          className="w-20 h-20 rounded-2xl object-cover border border-amber-300 shrink-0 shadow-sm"
                         />
                       ) : (
-                        <div className="w-12 h-12 rounded-2xl bg-amber-200 text-amber-950 font-black text-sm flex items-center justify-center border border-amber-300 shrink-0">
+                        <div className="w-20 h-20 rounded-2xl bg-amber-200 text-amber-950 font-black text-xl flex items-center justify-center border border-amber-300 shrink-0">
                           {order.profiles?.full_name?.charAt(0) || 'U'}
                         </div>
                       )}
-                      <div className="flex flex-col justify-center min-w-0">
-                        {/* Línea arriba: Nombre y población */}
+
+                      <div className="flex flex-col justify-center min-w-0 space-y-0.5 text-xs">
+                        {/* Línea 1: Nombre */}
                         <span className="text-sm sm:text-base font-black text-stone-900 leading-tight truncate">
-                          {order.profiles?.full_name} ({order.profiles?.town})
+                          {order.profiles?.full_name}
                         </span>
-                        {/* Línea abajo: Teléfono y Chat */}
-                        <div className="flex items-center gap-2.5 mt-1 text-xs font-bold text-stone-700">
+
+                        {/* Línea 2: Pueblo */}
+                        <span className="text-xs font-bold text-stone-700 truncate">
+                          {order.profiles?.town || 'Ubicación no especificada'}
+                        </span>
+
+                        {/* Línea 3: Teléfono */}
+                        <div className="text-xs font-bold text-stone-700 truncate">
                           {order.profiles?.phone ? (
                             <a
                               href={`tel:${order.profiles.phone}`}
-                              className="flex items-center gap-1 hover:text-emerald-800 transition-colors"
+                              className="inline-flex items-center gap-1 hover:text-emerald-800 transition-colors"
                               title="Llamar al cliente"
                             >
-                              <Phone className="w-3.5 h-3.5 text-stone-500" />
+                              <Phone className="w-3 h-3 text-stone-500" />
                               <span>{order.profiles.phone}</span>
                             </a>
-                          ) : null}
+                          ) : (
+                            <span className="text-stone-500 italic">Sin teléfono</span>
+                          )}
+                        </div>
+
+                        {/* Línea 4: Chat */}
+                        <div className="pt-0.5">
                           <Link
                             href={`/chat/${order.profiles?.id}`}
                             className="inline-flex items-center gap-1 text-amber-950 hover:bg-amber-200 bg-amber-100 px-2 py-0.5 rounded-lg border border-amber-300 transition-colors font-black text-[11px]"
                           >
-                            <MessageCircle className="w-3.5 h-3.5" />
+                            <MessageCircle className="w-3 h-3" />
                             <span>Chat</span>
                           </Link>
                         </div>
@@ -127,7 +140,7 @@ export default async function SellerOrdersPage() {
                     </div>
 
                     {/* Estado a la derecha ocupando dos alturas */}
-                    <div className="h-12 px-3 sm:px-4 flex items-center justify-center rounded-2xl border border-amber-300 bg-amber-100 text-amber-950 shadow-sm text-xs sm:text-sm font-black uppercase tracking-wider text-center shrink-0">
+                    <div className="h-12 sm:h-14 px-3 sm:px-4 flex items-center justify-center rounded-2xl border border-amber-300 bg-amber-100 text-amber-950 shadow-sm text-xs sm:text-sm font-black uppercase tracking-wider text-center shrink-0">
                       POR VALIDAR
                     </div>
                   </div>
