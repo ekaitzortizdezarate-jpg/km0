@@ -21,7 +21,7 @@ import { updateOrderStatus, cancelActiveOrderWithReason } from '@/app/actions/or
 import type { OrderStatus } from '@/types/database';
 import ReviewForm from '@/components/ReviewForm';
 import { DeliveryMethodsBadges } from '@/components/DeliveryMethodsBadges';
-import { isOrderUnread, markOrderAsRead } from '@/lib/order-read-tracker';
+import { isOrderUnreadForRole, markOrderAsRead } from '@/lib/order-read-tracker';
 
 interface SellerActiveOrderCardProps {
   order: any;
@@ -56,9 +56,9 @@ export function SellerActiveOrderCard({ order }: SellerActiveOrderCardProps) {
   const [unread, setUnread] = useState(false);
 
   useEffect(() => {
-    const isUpdated = isOrderUnread(order.id, order.updated_at || order.created_at);
+    const isUpdated = isOrderUnreadForRole(order, 'vendedor');
     setUnread(isUpdated);
-  }, [order.id, order.updated_at, order.created_at]);
+  }, [order.id, order.status, order.updated_at, order.created_at]);
 
   const handleMarkRead = () => {
     markOrderAsRead(order.id, order.updated_at || order.created_at);

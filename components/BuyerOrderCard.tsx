@@ -17,7 +17,7 @@ import {
 import ReviewForm from '@/components/ReviewForm';
 import { CancelOrderButton } from '@/components/CancelOrderButton';
 import { DeliveryMethodsBadges } from '@/components/DeliveryMethodsBadges';
-import { isOrderUnread, markOrderAsRead } from '@/lib/order-read-tracker';
+import { isOrderUnreadForRole, markOrderAsRead } from '@/lib/order-read-tracker';
 
 interface BuyerOrderCardProps {
   order: any;
@@ -45,10 +45,9 @@ export function BuyerOrderCard({ order }: BuyerOrderCardProps) {
   const [unread, setUnread] = useState(false);
 
   useEffect(() => {
-    // Solo se considera no leído si el estado ha avanzado o fue actualizado por el vendedor
-    const isUpdated = isOrderUnread(order.id, order.updated_at || order.created_at);
+    const isUpdated = isOrderUnreadForRole(order, 'comprador');
     setUnread(isUpdated);
-  }, [order.id, order.updated_at, order.created_at]);
+  }, [order.id, order.status, order.updated_at, order.created_at]);
 
   const handleMarkRead = () => {
     markOrderAsRead(order.id, order.updated_at || order.created_at);

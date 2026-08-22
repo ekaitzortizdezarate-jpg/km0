@@ -5,6 +5,7 @@ import { CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
 import { validateAndConfirmOrder } from '@/app/actions/order-status';
 import { useRouter } from 'next/navigation';
 import { RejectOrderModal } from '@/components/RejectOrderModal';
+import { markOrderAsRead } from '@/lib/order-read-tracker';
 
 interface ConfirmOrderFormProps {
   orderId: string;
@@ -34,6 +35,7 @@ export function ConfirmOrderForm({
         setError(res.error);
         setLoading(false);
       } else {
+        markOrderAsRead(orderId, new Date().toISOString());
         setSuccess(true);
         setLoading(false);
         router.refresh();

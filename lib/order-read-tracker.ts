@@ -12,6 +12,53 @@ export function getReadOrdersMap(): Record<string, string> {
   }
 }
 
+/**
+ * Determina si un pedido debe iluminarse como no leído según el rol del usuario actual.
+ * Regla clave solicitada:
+ * No se le ilumina la tarjeta a quien genera el cambio de estado en el pedido:
+ *
+ * - Para Comprador:
+ *   - Si el pedido está 'pendiente' (recién realizado por el comprador), NO se ilumina.
+ *   - Si el vendedor lo validó o cambió su estado ('confirmado', 'preparando', 'listo_entrega', 'entregado', 'cancelado'),
+ *     SÍ se ilumina para el comprador hasta que pulse "Leído".
+ *
+ * - Para Vendedor:
+ *   - Si el pedido está 'pendiente' (solicitado por el comprador), SÍ se ilumina para el vendedor hasta que lo valide o pulse "Leído".
+ *   - Si el pedido ya está validado o en curso ('confirmado', etc.), el cambio lo hizo el propio vendedor, por lo que NO se le ilumina al vendedor.
+ */
+export function isOrderUnreadForRole(
+  order: { id: string; status?: string; updated_at?: string | null; created_at?: string | null },
+  role: 'comprador' | 'vendedor'
+): boolean {
+  if (typeof window === 'undefined') return false;
+
+  const readMap = getReadOrdersMap();
+  const lastRead = readMap[order.id];
+  const orderTimestamp = order.updated_at || order.created_at || '';
+
+  if (role === 'comprador') {
+    // Si sigue en 'pendiente', lo generó el comprador -> no iluminar
+    if (order.status === 'pendiente') {
+      return false;
+    }
+    // Si el vendedor lo validó o cambió de estado:
+    if (!lastRead) return true;
+    return new Date(orderTimestamp).getTime() > new Date(lastRead).getTime();
+  }
+
+  if (role === 'vendedor') {
+    // Si está 'pendiente', es un nuevo pedido generado por el comprador -> iluminar al vendedor
+    if (order.status === 'pendiente') {
+      if (!lastRead) return true;
+      return new Date(orderTimestamp).getTime() > new Date(lastRead).getTime();
+    }
+    // Los pedidos validados los cambia el vendedor -> no iluminar al vendedor
+    return false;
+  }
+
+  return false;
+}
+
 export function isOrderUnread(orderId: string, orderUpdatedAt?: string | null): boolean {
   if (typeof window === 'undefined') return false;
   const readMap = getReadOrdersMap();
@@ -38,18 +85,10 @@ export function getUnreadOrdersCount(
   role: 'comprador' | 'vendedor'
 ): number {
   if (typeof window === 'undefined') return 0;
-  const readMap = getReadOrdersMap();
   let count = 0;
   for (const o of orders) {
-    const timestamp = o.updated_at || o.created_at || '';
-    const lastRead = readMap[o.id];
-    const isUnread = !lastRead || (timestamp && new Date(timestamp).getTime() > new Date(lastRead).getTime());
-    if (isUnread) {
-      if (role === 'vendedor') {
-        count++;
-      } else {
-        count++;
-      }
+    if (isOrderUnreadForRole(o, role)) {
+      count++;
     }
   }
   return count;
