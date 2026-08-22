@@ -21,7 +21,7 @@ export async function updateProfile(formData: FormData) {
   const bio = (formData.get('bio') as string) || null;
   const avatar_url = (formData.get('avatar_url') as string) || null;
 
-  // Guardar en user_metadata de Auth para máxima compatibilidad
+  // 1. Guardar en user_metadata de Auth (SIEMPRE funciona en Supabase Auth y persiste todos los campos)
   await supabase.auth.updateUser({
     data: {
       full_name,
@@ -31,51 +31,49 @@ export async function updateProfile(formData: FormData) {
       phone,
       town,
       postal_code,
+      bio,
+      avatar_url,
     },
   });
 
-  const updateData: Record<string, any> = {
+  // 2. Columnas base que siempre existen en la tabla profiles
+  const safeBaseUpdate: Record<string, any> = {
     full_name,
     town,
-    postal_code,
     phone,
     address,
     bio,
     avatar_url,
   };
 
-  if (birth_date) updateData.birth_date = birth_date;
-  if (dni) updateData.dni = dni;
-  if (address_notes) updateData.address_notes = address_notes;
-
   if (role) {
-    updateData.role = role;
+    safeBaseUpdate.role = role;
     if (role === 'vendedor') {
-      updateData.seller_status = 'approved';
+      safeBaseUpdate.seller_status = 'approved';
     }
   }
 
+  // Intentar primero con todas las columnas
+  const extendedUpdate: Record<string, any> = {
+    ...safeBaseUpdate,
+  };
+  if (postal_code) extendedUpdate.postal_code = postal_code;
+  if (birth_date) extendedUpdate.birth_date = birth_date;
+  if (dni) extendedUpdate.dni = dni;
+  if (address_notes) extendedUpdate.address_notes = address_notes;
+
   let { error } = await supabase
     .from('profiles')
-    .update(updateData)
+    .update(extendedUpdate)
     .eq('id', user.id);
 
-  if (error && (error.message.includes('column') || error.code === '42703')) {
-    const basicUpdate: Record<string, any> = {
-      full_name,
-      town,
-      postal_code,
-      phone,
-      address,
-      bio,
-      avatar_url,
-    };
-    if (role) {
-      basicUpdate.role = role;
-      if (role === 'vendedor') basicUpdate.seller_status = 'approved';
-    }
-    const retry = await supabase.from('profiles').update(basicUpdate).eq('id', user.id);
-    error = retry.error;
+  // Si da error de columna o schema cache (ej. postal_code, dni, etc. no existen en la tabla)
+  if (error) {
+    const fallbackRes = await supabase
+      .from('profiles')
+      .update(safeBaseUpdate)
+      .eq('id', user.id);
+    error = fallbackRes.error;
   }
 
   if (error) return { error: error.message };

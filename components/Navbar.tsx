@@ -12,12 +12,11 @@ export default async function Navbar() {
   } = await supabase.auth.getUser();
 
   let profile: Profile | null = null;
-  let sellerPendingCount = 0;
-  let buyerConfirmedCount = 0;
   let unreadMessagesCount = 0;
+  let ordersList: any[] = [];
 
   if (user) {
-    const [userProfile, unreadRes, sellerOrdersRes, buyerOrdersRes] = await Promise.all([
+    const [userProfile, unreadRes, ordersRes] = await Promise.all([
       getOrCreateUserProfile(supabase, user),
       supabase
         .from('chat_messages')
@@ -26,23 +25,15 @@ export default async function Navbar() {
         .eq('is_read', false),
       supabase
         .from('orders')
-        .select('*', { count: 'exact', head: true })
-        .eq('seller_id', user.id)
-        .eq('status', 'pendiente'),
-      supabase
-        .from('orders')
-        .select('*', { count: 'exact', head: true })
-        .eq('buyer_id', user.id)
-        .eq('status', 'confirmado'),
+        .select('id, updated_at, created_at, status, seller_id, buyer_id')
+        .or(`seller_id.eq.${user.id},buyer_id.eq.${user.id}`)
+        .order('updated_at', { ascending: false })
+        .limit(50),
     ]);
 
     profile = userProfile;
     unreadMessagesCount = unreadRes.count || 0;
-    if (profile?.role === 'vendedor') {
-      sellerPendingCount = sellerOrdersRes.count || 0;
-    } else {
-      buyerConfirmedCount = buyerOrdersRes.count || 0;
-    }
+    ordersList = ordersRes.data || [];
   }
 
   return (
@@ -53,8 +44,7 @@ export default async function Navbar() {
           user={user}
           profile={profile}
           unreadMessagesCount={unreadMessagesCount}
-          sellerPendingCount={sellerPendingCount}
-          buyerConfirmedCount={buyerConfirmedCount}
+          orders={ordersList}
         />
       </div>
     </header>

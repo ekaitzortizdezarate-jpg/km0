@@ -17,17 +17,24 @@ export default async function ProfilePage() {
     .eq('id', user.id)
     .single();
 
-  const userProfile = (profile || {
+  const meta = user.user_metadata || {};
+  const userProfile: Profile = {
     id: user.id,
-    role: 'comprador',
-    full_name: '',
-    town: '',
-    phone: '',
-    address: '',
-    bio: '',
-    avatar_url: '',
-    seller_status: 'approved',
-  }) as Profile;
+    role: profile?.role || meta.role || 'comprador',
+    full_name: profile?.full_name || meta.full_name || '',
+    town: profile?.town || meta.town || '',
+    phone: profile?.phone || meta.phone || '',
+    postal_code: profile?.postal_code || meta.postal_code || null,
+    birth_date: profile?.birth_date || meta.birth_date || null,
+    dni: profile?.dni || meta.dni || null,
+    address: profile?.address || meta.address || null,
+    address_notes: profile?.address_notes || meta.address_notes || null,
+    bio: profile?.bio || meta.bio || null,
+    avatar_url: profile?.avatar_url || meta.avatar_url || null,
+    seller_status: profile?.seller_status || 'approved',
+    created_at: profile?.created_at || new Date().toISOString(),
+    updated_at: profile?.updated_at || new Date().toISOString(),
+  };
 
   return (
     <div className="max-w-xl mx-auto py-6 space-y-6">

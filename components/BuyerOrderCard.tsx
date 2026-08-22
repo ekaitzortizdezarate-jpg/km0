@@ -3,27 +3,23 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
-  MessageCircle,
-  Phone,
-  Clock,
+  RefreshCw,
   Store,
   MapPin,
-  RefreshCw,
-  Trash2,
-  CheckCircle2,
-  AlertCircle,
-  X,
-  Truck,
+  MessageCircle,
   Calendar,
+  Clock,
+  CheckCircle2,
+  Truck,
+  Phone,
   Bell,
 } from 'lucide-react';
-import { updateOrderStatus, cancelActiveOrderWithReason } from '@/app/actions/order-status';
-import type { OrderStatus } from '@/types/database';
 import ReviewForm from '@/components/ReviewForm';
+import { CancelOrderButton } from '@/components/CancelOrderButton';
 import { DeliveryMethodsBadges } from '@/components/DeliveryMethodsBadges';
 import { isOrderUnread, markOrderAsRead } from '@/lib/order-read-tracker';
 
-interface SellerActiveOrderCardProps {
+interface BuyerOrderCardProps {
   order: any;
 }
 
@@ -45,17 +41,11 @@ const statusColors: Record<string, string> = {
   cancelado: 'bg-red-100 text-red-950 border-red-300',
 };
 
-export function SellerActiveOrderCard({ order }: SellerActiveOrderCardProps) {
-  const [currentStatus, setCurrentStatus] = useState<OrderStatus>(order.status);
-  const [loading, setLoading] = useState(false);
-  const [statusUpdated, setStatusUpdated] = useState(false);
-  const [showCancelModal, setShowCancelModal] = useState(false);
-  const [cancelReason, setCancelReason] = useState('');
-  const [cancelling, setCancelling] = useState(false);
-  const [deleted, setDeleted] = useState(false);
+export function BuyerOrderCard({ order }: BuyerOrderCardProps) {
   const [unread, setUnread] = useState(false);
 
   useEffect(() => {
+    // Solo se considera no leído si el estado ha avanzado o fue actualizado por el vendedor
     const isUpdated = isOrderUnread(order.id, order.updated_at || order.created_at);
     setUnread(isUpdated);
   }, [order.id, order.updated_at, order.created_at]);
@@ -65,36 +55,6 @@ export function SellerActiveOrderCard({ order }: SellerActiveOrderCardProps) {
     setUnread(false);
   };
 
-  if (deleted) return null;
-
-  const handleStatusChange = async (newStatus: OrderStatus) => {
-    setCurrentStatus(newStatus);
-    setLoading(true);
-    setStatusUpdated(false);
-
-    const res = await updateOrderStatus(order.id, newStatus);
-    setLoading(false);
-    if (res.success) {
-      setStatusUpdated(true);
-      setTimeout(() => setStatusUpdated(false), 2500);
-    }
-  };
-
-  const handleConfirmCancel = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setCancelling(true);
-
-    const res = await cancelActiveOrderWithReason(order.id, cancelReason);
-    setCancelling(false);
-
-    if (res.success) {
-      setShowCancelModal(false);
-      setDeleted(true);
-    } else {
-      alert(res.error || 'Error al cancelar el pedido');
-    }
-  };
-
   const totalProductItems = order.order_items?.length || 0;
   const totalProductQty =
     order.order_items?.reduce(
@@ -102,7 +62,7 @@ export function SellerActiveOrderCard({ order }: SellerActiveOrderCardProps) {
       0
     ) || 0;
 
-  const isValidated = currentStatus !== 'pendiente' && currentStatus !== 'cancelado';
+  const isValidated = order.status !== 'pendiente' && order.status !== 'cancelado';
 
   return (
     <div
@@ -118,7 +78,7 @@ export function SellerActiveOrderCard({ order }: SellerActiveOrderCardProps) {
           <div className="flex items-center gap-2 text-xs font-black">
             <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping" />
             <Bell className="w-4 h-4 text-amber-800 shrink-0" />
-            <span>Actualización en este pedido ({statusLabels[currentStatus] || currentStatus})</span>
+            <span>Actualización en este pedido ({statusLabels[order.status] || order.status})</span>
           </div>
           <button
             type="button"
@@ -130,18 +90,19 @@ export function SellerActiveOrderCard({ order }: SellerActiveOrderCardProps) {
           </button>
         </div>
       )}
+
       {/* 1. Foto a la izquierda + Nombre, Pueblo, Teléfono, Chat (en 4 líneas) + Estado del Pedido a la derecha */}
       <div className="flex items-center justify-between gap-3 pb-3 border-b border-stone-100">
         <div className="flex items-center gap-3.5 min-w-0">
           {order.profiles?.avatar_url ? (
             <img
               src={order.profiles.avatar_url}
-              alt={order.profiles.full_name || 'Cliente'}
+              alt={order.profiles.full_name || 'Vendedor'}
               className="w-20 h-20 rounded-2xl object-cover border border-stone-200 shrink-0 shadow-sm"
             />
           ) : (
             <div className="w-20 h-20 rounded-2xl bg-emerald-100 text-emerald-800 font-black text-xl flex items-center justify-center border border-emerald-300 shrink-0">
-              {order.profiles?.full_name?.charAt(0) || 'U'}
+              {order.profiles?.full_name?.charAt(0) || 'C'}
             </div>
           )}
 
@@ -162,7 +123,7 @@ export function SellerActiveOrderCard({ order }: SellerActiveOrderCardProps) {
                 <a
                   href={`tel:${order.profiles.phone}`}
                   className="inline-flex items-center gap-1 hover:text-emerald-800 transition-colors"
-                  title="Llamar al cliente"
+                  title="Llamar por teléfono"
                 >
                   <Phone className="w-3 h-3 text-stone-400" />
                   <span>{order.profiles.phone}</span>
@@ -189,10 +150,10 @@ export function SellerActiveOrderCard({ order }: SellerActiveOrderCardProps) {
         <div className="flex flex-col items-end shrink-0 gap-1">
           <div
             className={`h-12 sm:h-14 px-3 sm:px-4 flex items-center justify-center rounded-2xl border shadow-sm text-xs sm:text-sm font-black uppercase tracking-wider text-center ${
-              statusColors[currentStatus] || 'bg-stone-100 text-stone-900 border-stone-300'
+              statusColors[order.status] || 'bg-stone-100 text-stone-900 border-stone-300'
             }`}
           >
-            {statusLabels[currentStatus] || currentStatus.toUpperCase()}
+            {statusLabels[order.status] || order.status.toUpperCase()}
           </div>
           {order.is_recurring && (
             <span className="flex items-center gap-1 text-[9px] font-black bg-emerald-100 text-emerald-950 border border-emerald-300 px-2 py-0.5 rounded-full">
@@ -245,7 +206,7 @@ export function SellerActiveOrderCard({ order }: SellerActiveOrderCardProps) {
             <Clock className="w-4 h-4 text-stone-400 shrink-0" />
             <span>
               <strong className="text-stone-500">Pedido validado:</strong>{' '}
-              <span>Pendiente de validación</span>
+              <span>Pendiente de validación por el caserío</span>
             </span>
           </div>
         )}
@@ -266,7 +227,7 @@ export function SellerActiveOrderCard({ order }: SellerActiveOrderCardProps) {
                   })}
                 </span>
               ) : (
-                <span className="font-semibold text-stone-700">Por definir</span>
+                <span className="font-semibold text-stone-700">Pendiente de confirmación</span>
               )}
               {order.delivery_points ? (
                 order.delivery_points.opening_time && order.delivery_points.closing_time ? (
@@ -312,183 +273,91 @@ export function SellerActiveOrderCard({ order }: SellerActiveOrderCardProps) {
             ) : (
               <>
                 <Store className="w-4 h-4 text-emerald-800 shrink-0 mt-0.5" />
-                <strong className="text-stone-900 block">Recogida en caserío</strong>
+                <div className="space-y-0.5">
+                  <strong className="text-stone-900 block">Recogida en Caserío:</strong>
+                  <p className="text-stone-800 font-semibold">
+                    {order.profiles?.address
+                      ? `${order.profiles.address} (${order.profiles.town})`
+                      : `En caserío del productor (${order.profiles?.town})`}
+                  </p>
+                </div>
               </>
             )}
           </div>
         </div>
       </div>
 
-      {/* 3. Los productos y total de productos con los 3 iconos de entrega entre el nombre y el precio */}
-      <div className="space-y-2.5 bg-stone-50 p-4 rounded-2xl border border-stone-200">
-        <span className="text-[11px] font-black text-stone-500 uppercase tracking-wider block">
-          Productos ({totalProductItems} {totalProductItems === 1 ? 'línea' : 'líneas'}, {totalProductQty} uds/kg):
+      {/* 3. Lista de Productos del Pedido */}
+      <div className="space-y-2 pt-1">
+        <span className="text-[10px] font-black text-stone-500 uppercase tracking-wider block">
+          Productos del pedido ({totalProductItems} {totalProductItems === 1 ? 'producto' : 'productos'} · {totalProductQty.toFixed(1)} uds/kg):
         </span>
 
         <div className="space-y-2">
           {order.order_items?.map((item: any) => (
             <div
               key={item.id}
-              className="flex items-center justify-between text-xs bg-white p-3 rounded-2xl border border-stone-200 shadow-2xs gap-3"
+              className="flex items-center justify-between p-3 bg-stone-50 hover:bg-stone-100/80 rounded-2xl border border-stone-200 text-xs transition-colors gap-3"
             >
-              <div className="flex items-center gap-3 min-w-0 flex-1">
-                {/* Imagen */}
-                <div className="shrink-0">
-                  {item.products?.image_url ? (
-                    <img
-                      src={item.products.image_url}
-                      alt={item.products?.name || 'Producto'}
-                      className="w-14 h-14 rounded-xl object-cover border border-stone-200 shrink-0 shadow-2xs"
-                    />
-                  ) : (
-                    <div className="w-14 h-14 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center border border-emerald-200 font-bold shrink-0 text-base">
-                      🌿
-                    </div>
-                  )}
-                </div>
-
-                {/* Nombre del producto con los 3 iconos a la derecha */}
-                <div className="min-w-0 flex-1 space-y-1">
-                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                    <span className="font-black text-stone-900 text-xs sm:text-sm leading-tight">
-                      {item.products?.name || 'Producto'}
-                    </span>
-                    <DeliveryMethodsBadges deliveryMethods={item.products?.delivery_methods} />
+              <div className="flex items-center gap-3 min-w-0">
+                {item.products?.image_url ? (
+                  <img
+                    src={item.products.image_url}
+                    alt={item.products.name}
+                    className="w-12 h-12 rounded-xl object-cover border border-stone-200 shrink-0 shadow-2xs"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-xl bg-stone-200 text-stone-600 flex items-center justify-center shrink-0 font-black">
+                    {item.products?.name?.charAt(0) || 'P'}
                   </div>
+                )}
 
-                  {/* Cantidad y precio unitario */}
-                  <span className="text-[11px] font-bold text-stone-500 block">
-                    {item.quantity} {item.products?.format === 'granel' ? 'kg' : 'ud(s)'} x {Number(item.unit_price).toFixed(2)} €
-                  </span>
+                <div className="min-w-0">
+                  <h4 className="font-extrabold text-stone-900 text-xs sm:text-sm truncate">
+                    {item.products?.name || 'Producto de caserío'}
+                  </h4>
+                  <div className="flex items-center gap-2 mt-0.5 text-stone-600 font-bold text-[11px]">
+                    <span>
+                      {item.quantity} {item.products?.format === 'granel' ? 'kg' : 'uds'} × {item.unit_price.toFixed(2)} €
+                    </span>
+                    {item.products?.delivery_methods && (
+                      <DeliveryMethodsBadges deliveryMethods={item.products.delivery_methods} />
+                    )}
+                  </div>
                 </div>
               </div>
 
-              {/* Subtotal del producto */}
               <div className="text-right shrink-0">
-                <span className="font-black text-stone-900 text-sm block">
-                  {Number(item.subtotal ?? item.quantity * item.unit_price).toFixed(2)} €
+                <span className="text-sm font-black text-stone-900">
+                  {(item.quantity * item.unit_price).toFixed(2)} €
                 </span>
               </div>
             </div>
           ))}
         </div>
-
-        <div className="flex justify-between items-center pt-2 border-t border-stone-200 text-sm font-black text-stone-900">
-          <span>Total del Pedido:</span>
-          <span className="text-base text-emerald-950 font-black">
-            {Number(order.total_amount).toFixed(2)} €
-          </span>
-        </div>
       </div>
 
-      {/* Acciones de Cambio de Estado y Cancelar Pedido */}
-      {statusUpdated && (
-        <div className="p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-bold rounded-xl flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
-          <span>¡Estado del pedido actualizado con éxito!</span>
+      {/* 4. Importe Total y Acciones (Cancelar / Valorar) */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t-2 border-stone-100">
+        <div>
+          <span className="text-[10px] font-black text-stone-500 uppercase tracking-wider block">
+            Importe Total del Pedido
+          </span>
+          <span className="text-xl font-black text-emerald-950">
+            {Number(order.total_price || 0).toFixed(2)} €
+          </span>
         </div>
-      )}
 
-      {currentStatus !== 'entregado' && currentStatus !== 'cancelado' && (
-        <div className="pt-2 border-t border-stone-100 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-xs font-black text-stone-600 mr-1">Cambiar estado:</span>
-            {currentStatus === 'confirmado' && (
-              <button
-                type="button"
-                disabled={loading}
-                onClick={() => handleStatusChange('preparando')}
-                className="px-3 py-1.5 bg-purple-100 hover:bg-purple-200 text-purple-950 font-black text-xs rounded-xl border border-purple-300 transition-colors"
-              >
-                {loading ? '...' : 'Pasar a Preparando'}
-              </button>
-            )}
-            {currentStatus === 'preparando' && (
-              <button
-                type="button"
-                disabled={loading}
-                onClick={() => handleStatusChange('listo_entrega')}
-                className="px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-950 font-black text-xs rounded-xl border border-blue-300 transition-colors"
-              >
-                {loading ? '...' : 'Listo para Entrega'}
-              </button>
-            )}
-            {currentStatus === 'listo_entrega' && (
-              <button
-                type="button"
-                disabled={loading}
-                onClick={() => handleStatusChange('entregado')}
-                className="px-3 py-1.5 bg-stone-200 hover:bg-stone-300 text-stone-900 font-black text-xs rounded-xl border border-stone-400 transition-colors"
-              >
-                {loading ? '...' : 'Marcar como Entregado'}
-              </button>
-            )}
-          </div>
+        <div className="flex items-center gap-2">
+          {order.status === 'pendiente' && (
+            <CancelOrderButton orderId={order.id} />
+          )}
 
-          <button
-            type="button"
-            onClick={() => setShowCancelModal(true)}
-            className="flex items-center gap-1 text-xs font-bold text-red-700 hover:text-red-900 hover:bg-red-50 px-2.5 py-1.5 rounded-lg border border-red-200 transition-colors ml-auto"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>Cancelar Pedido</span>
-          </button>
+          {order.status === 'entregado' && (
+            <ReviewForm orderId={order.id} targetId={order.seller_id} />
+          )}
         </div>
-      )}
-
-      {/* Modal de Cancelación con Motivo */}
-      {showCancelModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border-2 border-red-200 space-y-4 animate-fadeIn">
-            <div className="flex items-center justify-between border-b border-stone-100 pb-3">
-              <div className="flex items-center gap-2 text-red-700 font-black text-sm">
-                <AlertCircle className="w-5 h-5" />
-                <span>Cancelar Pedido #{order.id.slice(0, 8)}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowCancelModal(false)}
-                className="text-stone-400 hover:text-stone-700"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleConfirmCancel} className="space-y-4">
-              <div>
-                <label className="block text-xs font-black text-stone-800 mb-1">
-                  Motivo de cancelación para el comprador <span className="text-red-600">*</span>:
-                </label>
-                <textarea
-                  required
-                  value={cancelReason}
-                  onChange={(e) => setCancelReason(e.target.value)}
-                  placeholder="Ej: Falta de stock por inclemencias del tiempo, producto no disponible..."
-                  rows={3}
-                  className="w-full p-3 bg-stone-50 border-2 border-stone-300 rounded-xl text-xs font-bold text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-red-600 shadow-inner"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowCancelModal(false)}
-                  className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold text-xs rounded-xl"
-                >
-                  Volver
-                </button>
-                <button
-                  type="submit"
-                  disabled={cancelling || !cancelReason.trim()}
-                  className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5"
-                >
-                  {cancelling ? 'Cancelando...' : 'Confirmar Cancelación'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 }

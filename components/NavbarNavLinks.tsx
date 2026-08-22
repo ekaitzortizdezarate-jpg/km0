@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -17,21 +17,20 @@ import {
 import type { Profile } from '@/types/database';
 import { CartNavButton } from '@/components/CartNavButton';
 import { signout } from '@/app/actions/auth';
+import { getUnreadOrdersCount } from '@/lib/order-read-tracker';
 
 interface NavbarNavLinksProps {
   user: { id: string } | null;
   profile: Profile | null;
   unreadMessagesCount: number;
-  sellerPendingCount: number;
-  buyerConfirmedCount: number;
+  orders?: any[];
 }
 
 export function NavbarNavLinks({
   user,
   profile,
   unreadMessagesCount,
-  sellerPendingCount,
-  buyerConfirmedCount,
+  orders = [],
 }: NavbarNavLinksProps) {
   const pathname = usePathname();
 
@@ -43,35 +42,43 @@ export function NavbarNavLinks({
   const isAdminActive = pathname.startsWith('/admin');
   const isProfileActive = pathname.startsWith('/perfil');
 
-  // Estado local para limpiar alertas en cuanto se entra en la sección
   const [localUnread, setLocalUnread] = useState(unreadMessagesCount);
-  const [localSellerPending, setLocalSellerPending] = useState(sellerPendingCount);
-  const [localBuyerConfirmed, setLocalBuyerConfirmed] = useState(buyerConfirmedCount);
+  const isSeller = profile?.role === 'vendedor';
+  const role = isSeller ? 'vendedor' : 'comprador';
+
+  const relevantOrders = useMemo(() => {
+    if (!orders || orders.length === 0) return [];
+    if (!user) return [];
+    return orders.filter((o) => (isSeller ? o.seller_id === user.id : o.buyer_id === user.id));
+  }, [orders, isSeller, user]);
+
+  const [unreadOrdersCount, setUnreadOrdersCount] = useState(0);
 
   useEffect(() => {
     setLocalUnread(unreadMessagesCount);
   }, [unreadMessagesCount]);
 
   useEffect(() => {
-    setLocalSellerPending(sellerPendingCount);
-  }, [sellerPendingCount]);
-
-  useEffect(() => {
-    setLocalBuyerConfirmed(buyerConfirmedCount);
-  }, [buyerConfirmedCount]);
-
-  useEffect(() => {
     if (isChatActive) {
       setLocalUnread(0);
     }
-    if (isOrdersActive) {
-      if (profile?.role === 'vendedor') {
-        setLocalSellerPending(0);
-      } else {
-        setLocalBuyerConfirmed(0);
-      }
-    }
-  }, [pathname, isChatActive, isOrdersActive, profile?.role]);
+  }, [pathname, isChatActive]);
+
+  useEffect(() => {
+    const count = getUnreadOrdersCount(relevantOrders, role);
+    setUnreadOrdersCount(count);
+  }, [relevantOrders, role]);
+
+  useEffect(() => {
+    const handleOrderReadEvent = () => {
+      const count = getUnreadOrdersCount(relevantOrders, role);
+      setUnreadOrdersCount(count);
+    };
+    window.addEventListener('km0_orders_read_updated', handleOrderReadEvent);
+    return () => {
+      window.removeEventListener('km0_orders_read_updated', handleOrderReadEvent);
+    };
+  }, [relevantOrders, role]);
 
   const calendarHref =
     profile?.role === 'vendedor'
@@ -83,12 +90,7 @@ export function NavbarNavLinks({
       ? '/vendedor/pedidos'
       : '/comprador/pedidos';
 
-  const ordersBadgeCount =
-    profile?.role === 'vendedor'
-      ? localSellerPending
-      : localBuyerConfirmed;
-
-  const isSeller = profile?.role === 'vendedor';
+  const ordersBadgeCount = unreadOrdersCount;
 
   return (
     <div className="flex items-center justify-between w-full gap-1 sm:gap-2">
