@@ -122,7 +122,8 @@ export function ImageSelector({
         const rawBase64 = reader.result;
         const img = new window.Image();
         img.onload = () => {
-          const maxDim = 1200;
+          const maxDim = type === 'avatar' ? 400 : 800;
+          const quality = type === 'avatar' ? 0.75 : 0.78;
           let width = img.width;
           let height = img.height;
           if (width > maxDim || height > maxDim) {
@@ -140,7 +141,7 @@ export function ImageSelector({
           const ctx = canvas.getContext('2d');
           if (ctx) {
             ctx.drawImage(img, 0, 0, width, height);
-            const compressed = canvas.toDataURL('image/jpeg', 0.82);
+            const compressed = canvas.toDataURL('image/jpeg', quality);
             setSelectedUrl(compressed);
             setInputUrl('');
           } else {

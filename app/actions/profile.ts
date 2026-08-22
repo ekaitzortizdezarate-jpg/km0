@@ -3,6 +3,49 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 
+/**
+ * Procesa avatar_url:
+ * Si es una imagen base64, intenta subirla a Supabase Storage (bucket 'avatars' o 'images')
+ * para obtener una URL pública corta y evitar inflar las cookies de sesión.
+ */
+async function processAvatarUrl(
+  supabase: any,
+  rawAvatarUrl: string | null,
+  userId: string
+): Promise<string | null> {
+  if (!rawAvatarUrl) return null;
+  if (!rawAvatarUrl.startsWith('data:image/')) {
+    return rawAvatarUrl;
+  }
+
+  try {
+    const matches = rawAvatarUrl.match(/^data:image\/([a-zA-Z0-9+]+);base64,(.+)$/);
+    if (matches) {
+      const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
+      const buffer = Buffer.from(matches[2], 'base64');
+      const filename = `avatar_${userId}_${Date.now()}.${ext}`;
+
+      const { data, error } = await supabase.storage
+        .from('avatars')
+        .upload(filename, buffer, {
+          contentType: `image/${matches[1]}`,
+          upsert: true,
+        });
+
+      if (!error && data) {
+        const { data: publicUrlData } = supabase.storage.from('avatars').getPublicUrl(filename);
+        if (publicUrlData?.publicUrl) {
+          return publicUrlData.publicUrl;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Supabase storage upload skipped/unavailable, using raw value for database:', err);
+  }
+
+  return rawAvatarUrl;
+}
+
 export async function updateProfile(formData: FormData) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -19,24 +62,37 @@ export async function updateProfile(formData: FormData) {
   const phone = (formData.get('phone') as string) || null;
   const address = (formData.get('address') as string) || null;
   const bio = (formData.get('bio') as string) || null;
-  const avatar_url = (formData.get('avatar_url') as string) || null;
+  const raw_avatar_url = (formData.get('avatar_url') as string) || null;
 
-  // 1. Guardar en user_metadata de Auth (SIEMPRE funciona en Supabase Auth y persiste todos los campos)
+  // Procesar avatar de forma segura
+  const avatar_url = await processAvatarUrl(supabase, raw_avatar_url, user.id);
+
+  // 1. Guardar metadatos LIGEROS en Auth.
+  // IMPORTANTE: NUNCA guardar base64 en user_metadata porque Supabase Auth lo serializa en el JWT Cookie
+  // y excede el límite HTTP de cabeceras de Vercel (Error 494 REQUEST_HEADER_TOO_LARGE).
+  const safeAuthMetadata: Record<string, any> = {
+    full_name,
+    birth_date,
+    dni,
+    address_notes,
+    phone,
+    town,
+    postal_code,
+  };
+
+  // Solo guardamos avatar_url en user_metadata si es una URL corta HTTP(S) normal
+  if (avatar_url && !avatar_url.startsWith('data:') && avatar_url.length < 500) {
+    safeAuthMetadata.avatar_url = avatar_url;
+  } else {
+    // Si es base64 o null, limpiamos la propiedad del token JWT para reducir de inmediato las cookies
+    safeAuthMetadata.avatar_url = null;
+  }
+
   await supabase.auth.updateUser({
-    data: {
-      full_name,
-      birth_date,
-      dni,
-      address_notes,
-      phone,
-      town,
-      postal_code,
-      bio,
-      avatar_url,
-    },
+    data: safeAuthMetadata,
   });
 
-  // 2. Columnas base que siempre existen en la tabla profiles
+  // 2. Columnas base que se guardan en la tabla 'profiles' de la BD Postgres
   const safeBaseUpdate: Record<string, any> = {
     full_name,
     town,
