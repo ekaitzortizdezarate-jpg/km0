@@ -1,7 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
-import Link from 'next/link';
 import { CalendarView, CalendarEvent } from '@/components/CalendarView';
 import { Order } from '@/types/database';
 
@@ -96,16 +94,7 @@ export default async function BuyerCalendarPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 py-4">
-      <div className="flex items-center justify-between">
-        <Link
-          href="/comprador/pedidos"
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-stone-700 hover:text-stone-900 bg-white px-3 py-1.5 rounded-lg border border-stone-200 shadow-sm"
-        >
-          <ArrowLeft className="w-4 h-4" /> Volver a mis compras
-        </Link>
-      </div>
-
+    <div className="max-w-6xl mx-auto space-y-6 py-2">
       <CalendarView events={events} role="comprador" />
     </div>
   );
