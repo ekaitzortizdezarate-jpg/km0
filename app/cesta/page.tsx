@@ -270,6 +270,30 @@ export default function CartPage() {
     loadUser();
   }, [supabase]);
 
+  // Validar que los productos de la cesta sigan existiendo en la base de datos (si el vendedor los borró, se quitan)
+  useEffect(() => {
+    async function validateCartProducts() {
+      if (items.length === 0) return;
+      const productIds = Array.from(new Set(items.map((i) => i.productId)));
+      const { data: existingProds } = await supabase
+        .from('products')
+        .select('id')
+        .in('id', productIds);
+
+      const existingIds = new Set((existingProds || []).map((p: any) => p.id));
+      const itemsToRemove = items.filter((item) => !existingIds.has(item.productId));
+      if (itemsToRemove.length > 0) {
+        itemsToRemove.forEach((it) => {
+          const itemKey =
+            it.cartItemId ||
+            `${it.productId}_${it.selectedDeliveryType || 'caserio'}_${it.selectedPointId || 'none'}`;
+          removeFromCart(itemKey);
+        });
+      }
+    }
+    validateCartProducts();
+  }, [items.length, supabase]);
+
   // Agrupar productos por Caserío / Vendedor
   const groupedBySeller = items.reduce(
     (acc, item) => {

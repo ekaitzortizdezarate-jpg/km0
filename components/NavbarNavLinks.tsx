@@ -90,18 +90,6 @@ export function NavbarNavLinks({
 
   const isSeller = profile?.role === 'vendedor';
 
-  const handleLogout = () => {
-    try {
-      localStorage.removeItem('km0_shopping_cart');
-      localStorage.removeItem('km0_fav_products');
-      localStorage.removeItem('km0_fav_sellers');
-      window.dispatchEvent(new Event('km0_cart_updated'));
-      window.dispatchEvent(new Event('km0_favorites_updated'));
-    } catch {
-      // Ignorar errores en client storage
-    }
-  };
-
   return (
     <div className="flex items-center justify-between w-full gap-1 sm:gap-2">
       {/* 1. Lado Izquierdo: Mercado, Cesta, Pedidos, Fechas, y si es Vendedor: Sitios */}
@@ -285,7 +273,7 @@ export function NavbarNavLinks({
             )}
 
             {/* CERRAR SESIÓN */}
-            <form action={signout} onSubmit={handleLogout} className="ml-0.5 shrink-0">
+            <form action={signout} className="ml-0.5 shrink-0">
               <button
                 type="submit"
                 title="Cerrar sesión"
