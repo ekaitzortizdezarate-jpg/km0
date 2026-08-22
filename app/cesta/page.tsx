@@ -714,37 +714,54 @@ export default function CartPage() {
                 key={sellerId}
                 className="bg-white rounded-3xl border-2 border-stone-200 p-5 sm:p-6 space-y-5 shadow-sm"
               >
-                {/* Cabecera del Caserío */}
-                <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-stone-100">
-                  <div className="flex items-center gap-3">
-                    {group.sellerAvatarUrl ? (
-                      <img
-                        src={group.sellerAvatarUrl}
-                        alt={group.sellerName}
-                        className="w-10 h-10 rounded-2xl object-cover border border-stone-200 shrink-0"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-800 flex items-center justify-center font-black text-sm border border-emerald-200 shrink-0">
-                        {group.sellerName?.charAt(0) || 'C'}
-                      </div>
-                    )}
-                    <div>
-                      <h2 className="text-base font-black text-stone-900">{group.sellerName}</h2>
-                      <span className="text-[11px] font-bold text-emerald-800">
-                        📍 {group.sellerTown}
-                      </span>
-                    </div>
-                  </div>
+                {/* Cabecera del Caserío: Chat arriba a la derecha, en el centro: nombre, debajo apellido, debajo población */}
+                {(() => {
+                  const nameParts = (group.sellerName || '').trim().split(' ');
+                  const firstName = nameParts[0] || group.sellerName || 'Caserío';
+                  const lastName = nameParts.slice(1).join(' ');
 
-                  <Link
-                    href={`/chat/${sellerId}`}
-                    title="Chatear con el caserío"
-                    className="inline-flex items-center gap-1.5 bg-stone-100 hover:bg-stone-200 text-stone-900 font-bold text-xs px-3 py-1.5 rounded-xl border border-stone-200 transition-colors"
-                  >
-                    <MessageCircle className="w-3.5 h-3.5" />
-                    Chat
-                  </Link>
-                </div>
+                  return (
+                    <div className="flex items-start justify-between gap-3 pb-3 border-b border-stone-100">
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        {group.sellerAvatarUrl ? (
+                          <img
+                            src={group.sellerAvatarUrl}
+                            alt={group.sellerName}
+                            className="w-12 h-12 rounded-2xl object-cover border border-stone-200 shrink-0 shadow-sm"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-800 flex items-center justify-center font-black text-sm border border-emerald-200 shrink-0 shadow-sm">
+                            {group.sellerName?.charAt(0) || 'C'}
+                          </div>
+                        )}
+
+                        <div className="flex flex-col justify-center leading-tight min-w-0">
+                          <span className="text-sm font-black text-stone-900 truncate">
+                            {firstName}
+                          </span>
+                          {lastName ? (
+                            <span className="text-xs font-bold text-stone-700 truncate">
+                              {lastName}
+                            </span>
+                          ) : null}
+                          <span className="text-[11px] font-semibold text-emerald-800 flex items-center gap-1 mt-0.5">
+                            <MapPin className="w-3 h-3 shrink-0 text-emerald-700" />
+                            <span>{group.sellerTown}</span>
+                          </span>
+                        </div>
+                      </div>
+
+                      <Link
+                        href={`/chat/${sellerId}`}
+                        title="Chatear con el caserío"
+                        className="inline-flex items-center gap-1.5 bg-stone-100 hover:bg-stone-200 text-stone-900 font-black text-xs px-3.5 py-2 rounded-xl border border-stone-200 transition-colors shrink-0 shadow-sm"
+                      >
+                        <MessageCircle className="w-4 h-4 text-emerald-700" />
+                        <span>Chat</span>
+                      </Link>
+                    </div>
+                  );
+                })()}
 
                 {/* Lista de Productos de este Caserío */}
                 <div className="space-y-3">
