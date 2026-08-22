@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { User, MapPin, Phone, FileText, Pencil, CheckCircle2, X } from 'lucide-react';
 import { ImageSelector } from '@/components/ImageSelector';
+import { LocationSelector } from '@/components/LocationSelector';
 import { updateProfile } from '@/app/actions/profile';
 import type { Profile } from '@/types/database';
 import { useRouter } from 'next/navigation';
@@ -38,6 +39,7 @@ export function ProfileEditor({ initialProfile }: ProfileEditorProps) {
         ...prev,
         full_name: (formData.get('full_name') as string) || prev.full_name,
         town: (formData.get('town') as string) || prev.town,
+        postal_code: (formData.get('postal_code') as string) || prev.postal_code,
         phone: (formData.get('phone') as string) || null,
         address: (formData.get('address') as string) || null,
         bio: (formData.get('bio') as string) || null,
@@ -100,7 +102,13 @@ export function ProfileEditor({ initialProfile }: ProfileEditorProps) {
               <MapPin className="w-3.5 h-3.5 text-stone-600" /> Pueblo / Municipio
             </span>
             <p className="text-sm font-bold text-stone-900">
-              {profile.town || <span className="text-stone-400 font-normal">Sin especificar</span>}
+              {profile.town ? (
+                <>
+                  {profile.town} {profile.postal_code ? <span className="text-stone-500 font-normal">({profile.postal_code})</span> : ''}
+                </>
+              ) : (
+                <span className="text-stone-400 font-normal">Sin especificar</span>
+              )}
             </p>
           </div>
 
@@ -164,18 +172,14 @@ export function ProfileEditor({ initialProfile }: ProfileEditorProps) {
             />
           </div>
 
-          <div>
-            <label className="text-xs font-black text-stone-900 mb-1 flex items-center gap-1.5 uppercase tracking-wider">
-              <MapPin className="w-3.5 h-3.5 text-stone-600" /> Pueblo / Municipio *
-            </label>
-            <input
-              name="town"
-              type="text"
-              defaultValue={profile.town || ''}
-              required
-              className="w-full px-3.5 py-2.5 border-2 border-stone-300 rounded-xl text-sm font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-            />
-          </div>
+          <LocationSelector
+            defaultProvince="Bizkaia"
+            defaultTown={profile.town || ''}
+            defaultPostalCode={profile.postal_code || ''}
+            showProvince={true}
+            showPostalCode={true}
+            required={true}
+          />
 
           <div>
             <label className="text-xs font-black text-stone-900 mb-1 flex items-center gap-1.5 uppercase tracking-wider">

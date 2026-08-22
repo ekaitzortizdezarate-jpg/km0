@@ -30,6 +30,7 @@ export interface Profile {
   phone: string | null;
   address: string | null;
   town: string;
+  postal_code?: string | null;
   avatar_url: string | null;
   bio: string | null;
   seller_status: SellerStatus;

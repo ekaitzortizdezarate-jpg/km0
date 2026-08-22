@@ -19,6 +19,7 @@ import {
   toggleHomeDeliveryService,
 } from '@/app/actions/delivery-points';
 import { ImageSelector } from '@/components/ImageSelector';
+import { LocationSelector } from '@/components/LocationSelector';
 
 interface DeliveryPointsManagerProps {
   initialPoints: DeliveryPoint[];
@@ -262,37 +263,23 @@ export function DeliveryPointsManager({ initialPoints }: DeliveryPointsManagerPr
                 />
               </div>
 
-              {/* Pueblo y Código Postal */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-xs font-bold text-stone-700 mb-1">
-                    Pueblo / Municipio *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={town}
-                    onChange={(e) => setTown(e.target.value)}
-                    placeholder="Ej. Gernika, Bermeo..."
-                    className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-stone-700 mb-1">
-                    Código Postal (CP) *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    maxLength={5}
-                    value={postalCode}
-                    onChange={(e) => setPostalCode(e.target.value)}
-                    placeholder="Ej. 48300"
-                    className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-                  />
-                </div>
-              </div>
+              {/* Pueblo y Código Postal con selector y autocompletado */}
+              <LocationSelector
+                key={`${editingPointId || 'new'}_${town}_${postalCode}`}
+                defaultProvince="Bizkaia"
+                defaultTown={town}
+                defaultPostalCode={postalCode}
+                showProvince={false}
+                showPostalCode={true}
+                required={true}
+                compact={true}
+                labelTown="Pueblo / Municipio *"
+                labelPostalCode="Código Postal *"
+                onChange={({ town: newTown, postalCode: newCp }) => {
+                  setTown(newTown);
+                  setPostalCode(newCp);
+                }}
+              />
 
               {/* Dirección / Indicaciones */}
               <div>

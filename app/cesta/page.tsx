@@ -28,6 +28,7 @@ import { createCartOrders, CartCheckoutSellerGroup } from '@/app/actions/orders'
 import { createClient } from '@/lib/supabase/client';
 import { saveBuyerAddresses } from '@/app/actions/profile';
 import { DeliveryMethodsBadges } from '@/components/DeliveryMethodsBadges';
+import { LocationSelector } from '@/components/LocationSelector';
 import type { DeliveryPoint } from '@/types/database';
 import {
   getCaserioEstimate,
@@ -1307,56 +1308,25 @@ export default function CartPage() {
                               </div>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                              <div>
-                                <label className="block text-[10px] font-black text-stone-700 uppercase mb-1">
-                                  Código Postal *
-                                </label>
-                                <input
-                                  type="text"
-                                  required
-                                  maxLength={5}
-                                  value={currentDetails.codigoPostal}
-                                  onChange={(e) =>
-                                    handleShippingFieldChange(sellerId, 'codigoPostal', e.target.value)
-                                  }
-                                  placeholder="48001"
-                                  className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-                                />
-                              </div>
-
-                              <div>
-                                <label className="block text-[10px] font-black text-stone-700 uppercase mb-1">
-                                  Población *
-                                </label>
-                                <input
-                                  type="text"
-                                  required
-                                  value={currentDetails.poblacion}
-                                  onChange={(e) =>
-                                    handleShippingFieldChange(sellerId, 'poblacion', e.target.value)
-                                  }
-                                  placeholder="Bilbao"
-                                  className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-                                />
-                              </div>
-
-                              <div>
-                                <label className="block text-[10px] font-black text-stone-700 uppercase mb-1">
-                                  Provincia *
-                                </label>
-                                <input
-                                  type="text"
-                                  required
-                                  value={currentDetails.provincia}
-                                  onChange={(e) =>
-                                    handleShippingFieldChange(sellerId, 'provincia', e.target.value)
-                                  }
-                                  placeholder="Bizkaia"
-                                  className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-                                />
-                              </div>
-                            </div>
+                            {/* Selector de Provincia, Población y Código Postal con autocompletado */}
+                            <LocationSelector
+                              key={`${sellerId}_${currentDetails.provincia}_${currentDetails.poblacion}_${currentDetails.codigoPostal}`}
+                              defaultProvince={currentDetails.provincia || 'Bizkaia'}
+                              defaultTown={currentDetails.poblacion || ''}
+                              defaultPostalCode={currentDetails.codigoPostal || ''}
+                              showProvince={true}
+                              showPostalCode={true}
+                              required={true}
+                              compact={true}
+                              labelTown="Población *"
+                              labelPostalCode="Código Postal *"
+                              labelProvince="Provincia *"
+                              onChange={({ province: prov, town: pob, postalCode: cp }) => {
+                                handleShippingFieldChange(sellerId, 'provincia', prov);
+                                handleShippingFieldChange(sellerId, 'poblacion', pob);
+                                handleShippingFieldChange(sellerId, 'codigoPostal', cp);
+                              }}
+                            />
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                               <div>

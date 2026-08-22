@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { signup } from '@/app/actions/auth';
 import { UserPlus, AlertCircle, ShoppingBag, Sprout } from 'lucide-react';
+import { LocationSelector } from '@/components/LocationSelector';
 
 export default function RegisterPage() {
   const [role, setRole] = useState<'comprador' | 'vendedor'>('comprador');
@@ -85,18 +86,14 @@ export default function RegisterPage() {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-stone-700 mb-1">
-              Pueblo / Municipio
-            </label>
-            <input
-              name="town"
-              type="text"
-              required
-              className="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent text-stone-900 bg-white"
-              placeholder="Ej. Gernika, Bermeo, Durango..."
-            />
-          </div>
+          <LocationSelector
+            defaultProvince="Bizkaia"
+            showProvince={true}
+            showPostalCode={false}
+            required={true}
+            labelTown="Pueblo / Municipio *"
+            labelProvince="Provincia"
+          />
 
           <div>
             <label className="block text-sm font-medium text-stone-700 mb-1">

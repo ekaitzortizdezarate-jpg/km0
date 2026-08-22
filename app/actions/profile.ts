@@ -11,6 +11,7 @@ export async function updateProfile(formData: FormData) {
 
   const full_name = formData.get('full_name') as string;
   const town = formData.get('town') as string;
+  const postal_code = (formData.get('postal_code') as string) || null;
   const role = (formData.get('role') as string) || undefined;
   const phone = (formData.get('phone') as string) || null;
   const address = (formData.get('address') as string) || null;
@@ -20,6 +21,7 @@ export async function updateProfile(formData: FormData) {
   const updateData: Record<string, any> = {
     full_name,
     town,
+    postal_code,
     phone,
     address,
     bio,
