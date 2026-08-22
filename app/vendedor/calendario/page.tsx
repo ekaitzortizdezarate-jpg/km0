@@ -95,7 +95,7 @@ export default async function SellerCalendarPage() {
         deliveryType: ord.delivery_point_id ? 'sitio_fisico' : 'envio',
         deliveryLocation: ord.delivery_points
           ? `${ord.delivery_points.name} (${ord.delivery_points.address_details})`
-          : ord.shipping_address || 'Entrega acordada',
+          : (ord.shipping_address || 'Entrega acordada').replace(/^Para:\s*/i, ''),
         items: itemNames,
         orderProducts,
         chatUserId: ord.profiles?.id,

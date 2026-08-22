@@ -175,7 +175,7 @@ export default async function SellerOrdersPage() {
                             <Truck className="w-4 h-4 text-emerald-800 shrink-0 mt-0.5" />
                             <div className="space-y-0.5">
                               <strong className="text-stone-900 block">Envío:</strong>
-                              <p className="text-stone-800 font-semibold">{order.shipping_address}</p>
+                              <p className="text-stone-800 font-semibold">{order.shipping_address.replace(/^Para:\s*/i, '')}</p>
                             </div>
                           </>
                         ) : (

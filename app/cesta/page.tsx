@@ -99,7 +99,7 @@ function formatFullAddress(details: SellerShippingDetails): string {
   const fullName = [details.nombre.trim(), details.apellidos.trim()].filter(Boolean).join(' ');
   if (fullName) {
     const phonePart = details.telefono.trim() ? ` (${details.telefono.trim()})` : '';
-    parts.push(`Para: ${fullName}${phonePart}`);
+    parts.push(`${fullName}${phonePart}`);
   }
   const streetPart = [
     details.calle.trim(),
