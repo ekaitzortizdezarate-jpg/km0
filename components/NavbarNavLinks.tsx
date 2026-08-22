@@ -106,24 +106,28 @@ export function NavbarNavLinks({
     <div className="flex items-center justify-between w-full gap-1 sm:gap-2">
       {/* 1. Lado Izquierdo: Mercado, Cesta, Pedidos, Fechas, y si es Vendedor: Sitios */}
       <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
-        {/* 1. MERCADO */}
+        {/* 1. MERCADO / km0 */}
         <Link
           href="/"
           title="Mercado y Catálogo - km0"
-          className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-xl transition-all ${
+          className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl transition-all ${
             isCatalogueActive
-              ? 'bg-emerald-800 text-white font-black shadow-sm'
-              : 'text-stone-700 hover:text-emerald-800 hover:bg-stone-100 font-bold'
+              ? 'bg-emerald-800 text-white font-black shadow-sm border-2 border-emerald-800'
+              : 'border-2 border-emerald-600/90 hover:border-emerald-700 bg-transparent hover:bg-emerald-50 text-emerald-900 hover:text-emerald-950 font-black shadow-2xs'
           }`}
         >
           <span
             className={`font-black text-xs sm:text-sm leading-none tracking-tight ${
-              isCatalogueActive ? 'text-white' : 'text-emerald-700'
+              isCatalogueActive ? 'text-white' : 'text-emerald-800'
             }`}
           >
             km0
           </span>
-          <span className="text-[8px] sm:text-[10px] font-black uppercase leading-tight tracking-wider text-center sm:text-left max-w-[46px] sm:max-w-none truncate">
+          <span
+            className={`text-[8px] sm:text-[10px] font-black uppercase leading-tight tracking-wider text-center sm:text-left max-w-[46px] sm:max-w-none truncate ${
+              isCatalogueActive ? 'text-white' : 'text-emerald-950'
+            }`}
+          >
             MERCADO
           </span>
         </Link>
