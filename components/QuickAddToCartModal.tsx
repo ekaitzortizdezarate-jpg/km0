@@ -83,6 +83,9 @@ export function QuickAddToCartModal({
     setQuantity(initialQty);
     setQuantityInput(String(initialQty));
     setAdded(false);
+    if (availableMethods.length > 0) {
+      setDeliveryMethod(availableMethods[0]);
+    }
     setIsOpen(true);
   };
 
@@ -304,13 +307,26 @@ export function QuickAddToCartModal({
                 )}
               </div>
 
-              {/* Modalidades de Entrega seleccionadas por el Vendedor */}
+              {/* Modalidades de Entrega seleccionadas por el Vendedor para este producto */}
               <div className="space-y-2">
-                <label className="block text-xs font-black text-stone-900 uppercase tracking-wider">
-                  Modalidad de Entrega:
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-black text-stone-900 uppercase tracking-wider">
+                    {availableMethods.length === 1
+                      ? 'Modalidad de entrega disponible:'
+                      : 'Elige la modalidad de entrega:'}
+                  </label>
+                  <span className="text-[10px] font-bold text-stone-500">
+                    {availableMethods.length} {availableMethods.length === 1 ? 'opción' : 'opciones'}
+                  </span>
+                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div className={`grid gap-2 ${
+                  availableMethods.length === 1
+                    ? 'grid-cols-1'
+                    : availableMethods.length === 2
+                    ? 'grid-cols-2'
+                    : 'grid-cols-1 sm:grid-cols-3'
+                }`}>
                   {availableMethods.includes('caserio') && (
                     <button
                       type="button"
@@ -367,9 +383,14 @@ export function QuickAddToCartModal({
                 </div>
 
                 {deliveryMethod === 'caserio' && (
-                  <p className="text-[11px] font-semibold text-stone-600 bg-stone-50 p-2.5 rounded-xl border border-stone-200">
-                    🏡 Recogida en las instalaciones del caserío en {item.sellerTown}.
-                  </p>
+                  <div className="text-[11px] font-semibold text-stone-700 bg-stone-50 p-2.5 rounded-xl border border-stone-200 space-y-1">
+                    <p>🏡 Recogida directa en las instalaciones del caserío en {item.sellerTown}.</p>
+                    {item.caserioSchedule && (
+                      <p className="text-[10px] text-emerald-900 font-bold">
+                        🕒 Horario: {item.caserioSchedule}
+                      </p>
+                    )}
+                  </div>
                 )}
 
                 {deliveryMethod === 'punto_entrega' && (

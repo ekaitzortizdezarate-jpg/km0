@@ -348,14 +348,21 @@ export function CatalogViewContainer({
           )}
         </div>
 
-        {/* Botón de Publicar Cosecha para Vendedores */}
+        {/* Botón de Publicar Cosecha para Vendedores (Doble de alto, texto en dos líneas) */}
         {isSeller && (
           <Link
             href="/vendedor/productos/nuevo"
-            className="w-full sm:w-auto px-5 py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white font-black text-xs sm:text-sm rounded-2xl shadow-sm transition-all flex items-center justify-center gap-2 shrink-0"
+            className="w-full sm:w-auto px-6 py-3.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-2xl shadow-md transition-all flex items-center justify-center gap-2.5 shrink-0 border border-emerald-950 hover:scale-[1.02] active:scale-[0.98]"
           >
-            <PlusCircle className="w-4 h-4" />
-            <span>Publicar Cosecha</span>
+            <PlusCircle className="w-5 h-5 text-emerald-300 shrink-0" />
+            <div className="flex flex-col items-center sm:items-start leading-tight">
+              <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-emerald-200">
+                PUBLICAR
+              </span>
+              <span className="text-xs sm:text-sm font-black uppercase tracking-wide text-white">
+                COSECHA
+              </span>
+            </div>
           </Link>
         )}
       </div>
@@ -796,6 +803,26 @@ export function CatalogViewContainer({
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Botón inferior idéntico para Publicar Cosecha (siempre debajo del último producto y vendedor) */}
+      {isSeller && (
+        <div className="pt-6 pb-2 flex justify-center w-full border-t border-stone-200">
+          <Link
+            href="/vendedor/productos/nuevo"
+            className="w-full sm:w-auto px-8 py-3.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-2xl shadow-lg transition-all flex items-center justify-center gap-3 border border-emerald-950 hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <PlusCircle className="w-5 h-5 text-emerald-300 shrink-0" />
+            <div className="flex flex-col items-center sm:items-start leading-tight">
+              <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-emerald-200">
+                PUBLICAR
+              </span>
+              <span className="text-xs sm:text-sm font-black uppercase tracking-wide text-white">
+                COSECHA
+              </span>
+            </div>
+          </Link>
         </div>
       )}
     </div>

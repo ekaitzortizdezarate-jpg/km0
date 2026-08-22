@@ -33,9 +33,9 @@ export function NavbarNavLinks({
   const pathname = usePathname();
 
   const isCatalogueActive = pathname === '/';
-  const isChatActive = pathname.startsWith('/chat');
-  const isCalendarActive = pathname.includes('/calendario');
   const isOrdersActive = pathname.includes('/pedidos');
+  const isCalendarActive = pathname.includes('/calendario');
+  const isChatActive = pathname.startsWith('/chat');
   const isAdminActive = pathname.startsWith('/admin');
   const isProfileActive = pathname.startsWith('/perfil');
 
@@ -86,9 +86,9 @@ export function NavbarNavLinks({
 
   return (
     <div className="flex items-center justify-between w-full gap-1 sm:gap-2">
-      {/* 1. Lado Izquierdo: Pestañas de Navegación y Mercado */}
+      {/* 1. Lado Izquierdo: Pestañas de Navegación en orden solicitado: Mercado, Cesta, Pedidos, Fechas, Chat, Perfil */}
       <div className="flex items-center gap-1 sm:gap-1.5">
-        {/* km0 y Mercado unificados */}
+        {/* 1. MERCADO */}
         <Link
           href="/"
           title="Mercado y Catálogo - km0"
@@ -106,56 +106,12 @@ export function NavbarNavLinks({
           </span>
         </Link>
 
-        {/* Cesta (solo compradores/visitantes) */}
+        {/* 2. CESTA (solo compradores/visitantes) */}
         {profile?.role !== 'vendedor' && <CartNavButton />}
 
         {user && profile && (
           <>
-            {/* Chat (Pestaña Naranja si hay mensaje nuevo) */}
-            <Link
-              href="/chat"
-              title={localUnread > 0 ? `${localUnread} mensajes nuevos sin leer` : 'Mis conversaciones y chat'}
-              className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-xl transition-all ${
-                isChatActive
-                  ? 'bg-emerald-800 text-white font-black shadow-sm'
-                  : localUnread > 0
-                  ? 'bg-amber-500 hover:bg-amber-600 text-stone-950 font-black shadow-md border-2 border-amber-600 animate-pulse'
-                  : 'text-stone-700 hover:text-emerald-800 hover:bg-stone-100 font-bold'
-              }`}
-            >
-              <MessageCircle
-                className={`w-4 h-4 shrink-0 ${
-                  isChatActive
-                    ? 'text-white'
-                    : localUnread > 0
-                    ? 'text-stone-950'
-                    : 'text-emerald-700'
-                }`}
-              />
-              <span className="text-[8px] sm:text-[10px] font-black uppercase leading-tight tracking-wider text-center max-w-[44px] sm:max-w-none truncate">
-                CHAT
-              </span>
-            </Link>
-
-            {/* Fechas (Calendario) */}
-            <Link
-              href={calendarHref}
-              title="Fechas y calendario de entregas"
-              className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-xl transition-all ${
-                isCalendarActive
-                  ? 'bg-emerald-800 text-white font-black shadow-sm'
-                  : 'text-stone-700 hover:text-emerald-800 hover:bg-stone-100 font-bold'
-              }`}
-            >
-              <Calendar
-                className={`w-4 h-4 shrink-0 ${isCalendarActive ? 'text-white' : 'text-emerald-700'}`}
-              />
-              <span className="text-[8px] sm:text-[10px] font-black uppercase leading-tight tracking-wider text-center max-w-[46px] sm:max-w-none truncate">
-                FECHAS
-              </span>
-            </Link>
-
-            {/* Pedidos (Pestaña Naranja si hay aviso de pedido) */}
+            {/* 3. PEDIDOS (Pestaña Naranja si hay aviso de pedido) */}
             <Link
               href={ordersHref}
               title={
@@ -185,7 +141,67 @@ export function NavbarNavLinks({
               </span>
             </Link>
 
-            {/* Admin (si aplica) */}
+            {/* 4. FECHAS (Calendario) */}
+            <Link
+              href={calendarHref}
+              title="Fechas y calendario de entregas"
+              className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-xl transition-all ${
+                isCalendarActive
+                  ? 'bg-emerald-800 text-white font-black shadow-sm'
+                  : 'text-stone-700 hover:text-emerald-800 hover:bg-stone-100 font-bold'
+              }`}
+            >
+              <Calendar
+                className={`w-4 h-4 shrink-0 ${isCalendarActive ? 'text-white' : 'text-emerald-700'}`}
+              />
+              <span className="text-[8px] sm:text-[10px] font-black uppercase leading-tight tracking-wider text-center max-w-[46px] sm:max-w-none truncate">
+                FECHAS
+              </span>
+            </Link>
+
+            {/* 5. CHAT (Pestaña Naranja si hay mensaje nuevo) */}
+            <Link
+              href="/chat"
+              title={localUnread > 0 ? `${localUnread} mensajes nuevos sin leer` : 'Mis conversaciones y chat'}
+              className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-xl transition-all ${
+                isChatActive
+                  ? 'bg-emerald-800 text-white font-black shadow-sm'
+                  : localUnread > 0
+                  ? 'bg-amber-500 hover:bg-amber-600 text-stone-950 font-black shadow-md border-2 border-amber-600 animate-pulse'
+                  : 'text-stone-700 hover:text-emerald-800 hover:bg-stone-100 font-bold'
+              }`}
+            >
+              <MessageCircle
+                className={`w-4 h-4 shrink-0 ${
+                  isChatActive
+                    ? 'text-white'
+                    : localUnread > 0
+                    ? 'text-stone-950'
+                    : 'text-emerald-700'
+                }`}
+              />
+              <span className="text-[8px] sm:text-[10px] font-black uppercase leading-tight tracking-wider text-center max-w-[44px] sm:max-w-none truncate">
+                CHAT
+              </span>
+            </Link>
+
+            {/* 6. PERFIL / CASERÍO */}
+            <Link
+              href="/perfil"
+              title={profile.role === 'vendedor' ? 'Mi Caserío' : 'Mi Perfil'}
+              className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-xl transition-all ${
+                isProfileActive
+                  ? 'bg-emerald-800 text-white font-black shadow-sm'
+                  : 'text-stone-700 hover:text-emerald-800 hover:bg-stone-100 font-bold'
+              }`}
+            >
+              <User className={`w-4 h-4 shrink-0 ${isProfileActive ? 'text-white' : 'text-emerald-700'}`} />
+              <span className="text-[8px] sm:text-[10px] font-black uppercase leading-tight tracking-wider text-center max-w-[46px] sm:max-w-none truncate">
+                {profile.role === 'vendedor' ? 'CASERÍO' : 'PERFIL'}
+              </span>
+            </Link>
+
+            {/* 7. ADMIN (si aplica) */}
             {profile.role === 'admin' && (
               <Link
                 href="/admin"
@@ -202,22 +218,6 @@ export function NavbarNavLinks({
                 </span>
               </Link>
             )}
-
-            {/* Perfil / Mi Caserío */}
-            <Link
-              href="/perfil"
-              title={profile.role === 'vendedor' ? 'Mi Caserío' : 'Mi Perfil'}
-              className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-xl transition-all ${
-                isProfileActive
-                  ? 'bg-emerald-800 text-white font-black shadow-sm'
-                  : 'text-stone-700 hover:text-emerald-800 hover:bg-stone-100 font-bold'
-              }`}
-            >
-              <User className={`w-4 h-4 shrink-0 ${isProfileActive ? 'text-white' : 'text-emerald-700'}`} />
-              <span className="text-[8px] sm:text-[10px] font-black uppercase leading-tight tracking-wider text-center max-w-[46px] sm:max-w-none truncate">
-                {profile.role === 'vendedor' ? 'CASERÍO' : 'PERFIL'}
-              </span>
-            </Link>
           </>
         )}
       </div>
