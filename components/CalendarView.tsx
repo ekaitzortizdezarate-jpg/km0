@@ -9,11 +9,7 @@ import {
   Store,
   MapPin,
   Truck,
-  User,
-  MessageCircle,
   CalendarDays,
-  Sprout,
-  ArrowUpRight,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -108,6 +104,23 @@ function formatDateHeader(dateStr: string): string {
   return `${capitalizedDay} ${dayNum} ${capitalizedMonth}${relSuffix}`;
 }
 
+function cleanDeliveryAddress(rawLocation?: string, customerName?: string): string {
+  if (!rawLocation) return '';
+  let clean = rawLocation
+    .replace(/^Punto:\s*/i, '')
+    .replace(/^Envío:\s*/i, '')
+    .replace(/^Para:\s*/i, '')
+    .trim();
+
+  if (customerName && clean.toLowerCase().startsWith(customerName.toLowerCase())) {
+    clean = clean.substring(customerName.length).trim();
+    // Eliminar teléfono si está al inicio e.g. (666111222)
+    clean = clean.replace(/^\s*\([^)]*\)\s*/, '');
+    clean = clean.replace(/^[,\s-]+/, '').trim();
+  }
+  return clean;
+}
+
 export function CalendarView({ events, role }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [selectedDateStr, setSelectedDateStr] = useState<string>(() => {
@@ -162,16 +175,6 @@ export function CalendarView({ events, role }: CalendarViewProps) {
 
   const selectedDateEvents = eventsByDate[selectedDateStr] || [];
 
-  const handleJumpToEvent = (dateStr: string) => {
-    setSelectedDateStr(dateStr);
-    const evDate = new Date(dateStr + 'T00:00:00');
-    setCurrentDate(new Date(evDate.getFullYear(), evDate.getMonth(), 1));
-    const calendarEl = document.getElementById('calendario-grid-section');
-    if (calendarEl) {
-      calendarEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
-
   return (
     <div className="space-y-8">
       {/* 1. SECCIÓN SUPERIOR: PRÓXIMAS FECHAS */}
@@ -215,13 +218,32 @@ export function CalendarView({ events, role }: CalendarViewProps) {
                           ? product.unitPrice * product.quantity
                           : null;
 
+                        const personName = role === 'vendedor'
+                          ? ev.customerName || 'Cliente'
+                          : ev.sellerName || 'Caserío';
+
+                        const addressText = cleanDeliveryAddress(ev.deliveryLocation, ev.customerName);
+
                         return (
                           <div
                             key={`${ev.id}-${pIdx}`}
                             className="flex items-center gap-3.5 sm:gap-5 p-3.5 sm:p-4 rounded-2xl border-2 border-stone-200 bg-stone-50/70 hover:bg-stone-50 hover:border-emerald-400 transition-all shadow-2xs"
                           >
-                            {/* A LA IZQUIERDA: DIBUJO DEL PRODUCTO Y NOMBRE JUSTO DEBAJO */}
-                            <div className="w-20 sm:w-24 shrink-0 flex flex-col items-center text-center">
+                            {/* A LA IZQUIERDA: ESTADO DEL PEDIDO ARRIBA, DIBUJO DEL PRODUCTO Y NOMBRE DEBAJO */}
+                            <div className="w-24 sm:w-28 shrink-0 flex flex-col items-center text-center space-y-1.5">
+                              {/* Estado del pedido encima de la imagen */}
+                              {stStyle ? (
+                                <span
+                                  className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md border tracking-wide w-full truncate ${stStyle.bg} ${stStyle.text} ${stStyle.border}`}
+                                >
+                                  {stStyle.label}
+                                </span>
+                              ) : (
+                                <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-stone-100 text-stone-800 border border-stone-300 tracking-wide w-full truncate">
+                                  Pedido
+                                </span>
+                              )}
+
                               {product.imageUrl ? (
                                 <img
                                   src={product.imageUrl}
@@ -233,14 +255,15 @@ export function CalendarView({ events, role }: CalendarViewProps) {
                                   🌿
                                 </div>
                               )}
-                              <span className="font-black text-stone-900 text-xs sm:text-sm mt-1.5 line-clamp-2 leading-tight">
+
+                              <span className="font-black text-stone-900 text-xs sm:text-sm line-clamp-2 leading-tight">
                                 {product.name}
                               </span>
                             </div>
 
                             {/* A SU DERECHA: LAS 3 LÍNEAS */}
                             <div className="flex-1 min-w-0 space-y-1.5">
-                              {/* 1. PRIMERA LÍNEA: Cantidad x Precio unidad = Precio total (sin nada más) */}
+                              {/* 1. PRIMERA LÍNEA: Cantidad x Precio unidad = Precio total */}
                               <div className="text-xs sm:text-sm font-black text-stone-900">
                                 {product.quantity} {product.format === 'granel' ? 'kg' : 'uds'}
                                 {product.unitPrice ? (
@@ -255,7 +278,7 @@ export function CalendarView({ events, role }: CalendarViewProps) {
                                 ) : null}
                               </div>
 
-                              {/* 2. SEGUNDA LÍNEA: Modalidad de envío y horario (si lo tiene definido), y SEGUIDO el estado del pedido */}
+                              {/* 2. SEGUNDA LÍNEA: Modalidad de envío y horario (si lo tiene definido) */}
                               <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-stone-700">
                                 <div className="flex items-center gap-1.5">
                                   {ev.deliveryType === 'sitio_fisico' ? (
@@ -280,77 +303,18 @@ export function CalendarView({ events, role }: CalendarViewProps) {
                                     </span>
                                   )}
                                 </div>
-
-                                <span className="text-stone-400 font-black">•</span>
-
-                                {/* Seguido el estado del pedido */}
-                                {stStyle ? (
-                                  <span
-                                    className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md border ${stStyle.bg} ${stStyle.text} ${stStyle.border}`}
-                                  >
-                                    {stStyle.label}
-                                  </span>
-                                ) : (
-                                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-stone-100 text-stone-800 border border-stone-300">
-                                    Pedido
-                                  </span>
-                                )}
                               </div>
 
-                              {/* 3. TERCERA LÍNEA (Abajo del todo): Nombre y apellido del comprador, seguido de dirección de entrega (si no se recoge en caserío) */}
-                              <div className="flex items-center justify-between gap-2 pt-0.5 text-xs">
-                                <div className="flex flex-wrap items-center gap-1 text-stone-800 font-bold min-w-0">
-                                  {role === 'vendedor' ? (
-                                    <>
-                                      <User className="w-3.5 h-3.5 text-stone-500 shrink-0" />
-                                      <span>
-                                        Comprador: <strong className="text-stone-900 font-black">{ev.customerName || 'Cliente'}</strong>
-                                      </span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Store className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                                      <span>
-                                        Vendedor: <strong className="text-stone-900 font-black">{ev.sellerName || 'Caserío'}</strong>
-                                      </span>
-                                    </>
-                                  )}
+                              {/* 3. TERCERA LÍNEA (Abajo del todo): Nombre y apellido, seguido de dirección de entrega si no es caserío */}
+                              <div className="text-xs font-bold text-stone-900 pt-0.5">
+                                <span>{personName}</span>
 
-                                  {/* Si no se recoge en caserío: seguido de dirección de entrega */}
-                                  {ev.deliveryType !== 'caserio' && ev.deliveryLocation && (
-                                    <>
-                                      <span className="text-stone-400 font-black mx-0.5">•</span>
-                                      <span className="text-stone-700 font-semibold truncate max-w-[280px] sm:max-w-md">
-                                        {ev.deliveryType === 'sitio_fisico'
-                                          ? `Dirección: ${ev.deliveryLocation.replace(/^Punto:\s*/i, '')}`
-                                          : `Dirección: ${ev.deliveryLocation.replace(/^Envío:\s*/i, '')}`}
-                                      </span>
-                                    </>
-                                  )}
-                                </div>
-
-                                {/* Acciones: Ver día en calendario & Chat */}
-                                <div className="flex items-center gap-1.5 shrink-0">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleJumpToEvent(ev.date)}
-                                    title="Ver día en el calendario"
-                                    className="px-2.5 py-1 bg-white hover:bg-stone-100 border border-stone-300 text-stone-800 rounded-xl text-[11px] font-black transition-colors flex items-center gap-1 shadow-2xs"
-                                  >
-                                    <CalendarIcon className="w-3 h-3 text-emerald-700" />
-                                    <span className="hidden sm:inline">Ver día</span>
-                                  </button>
-
-                                  {ev.chatUserId && (
-                                    <Link
-                                      href={`/chat/${ev.chatUserId}`}
-                                      title="Chatear"
-                                      className="p-1.5 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 text-emerald-900 rounded-xl transition-colors shadow-2xs"
-                                    >
-                                      <MessageCircle className="w-3.5 h-3.5" />
-                                    </Link>
-                                  )}
-                                </div>
+                                {/* Si no se recoge en caserío: seguido de dirección sin nombre ni apellidos */}
+                                {ev.deliveryType !== 'caserio' && addressText && (
+                                  <span className="text-stone-700 font-semibold ml-1.5">
+                                    • {addressText}
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -364,8 +328,12 @@ export function CalendarView({ events, role }: CalendarViewProps) {
                         key={ev.id}
                         className="flex items-center gap-3.5 sm:gap-5 p-3.5 sm:p-4 rounded-2xl border-2 border-amber-200 bg-amber-50/60 hover:bg-amber-50 hover:border-amber-400 transition-all shadow-2xs"
                       >
-                        {/* A LA IZQUIERDA: DIBUJO DEL PRODUCTO Y NOMBRE JUSTO DEBAJO */}
-                        <div className="w-20 sm:w-24 shrink-0 flex flex-col items-center text-center">
+                        {/* A LA IZQUIERDA: COSECHA ARRIBA, DIBUJO DEL PRODUCTO Y NOMBRE DEBAJO */}
+                        <div className="w-24 sm:w-28 shrink-0 flex flex-col items-center text-center space-y-1.5">
+                          <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-amber-600 text-white border border-amber-700 tracking-wide w-full truncate">
+                            Cosecha
+                          </span>
+
                           {ev.productImageUrl ? (
                             <img
                               src={ev.productImageUrl}
@@ -377,12 +345,12 @@ export function CalendarView({ events, role }: CalendarViewProps) {
                               🌾
                             </div>
                           )}
-                          <span className="font-black text-stone-900 text-xs sm:text-sm mt-1.5 line-clamp-2 leading-tight">
+                          <span className="font-black text-stone-900 text-xs sm:text-sm line-clamp-2 leading-tight">
                             {ev.title.replace(/^Cosecha lista:\s*/i, '')}
                           </span>
                         </div>
 
-                        {/* A SU DERECHA: LAS 3 LÍNEAS */}
+                        {/* A SU DERECHA: LAS LÍNEAS DE INFORMACIÓN */}
                         <div className="flex-1 min-w-0 space-y-1.5">
                           {/* 1. PRIMERA LÍNEA: Cantidad y Precio */}
                           <div className="text-xs sm:text-sm font-black text-stone-900">
@@ -398,38 +366,10 @@ export function CalendarView({ events, role }: CalendarViewProps) {
                             )}
                           </div>
 
-                          {/* 2. SEGUNDA LÍNEA: Modalidad y Estado Cosecha */}
-                          <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-stone-700">
-                            <div className="flex items-center gap-1.5">
-                              <Store className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-                              <span>En instalaciones del caserío</span>
-                            </div>
-
-                            <span className="text-stone-400 font-black">•</span>
-
-                            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-amber-600 text-white border border-amber-700">
-                              Cosecha
-                            </span>
-                          </div>
-
-                          {/* 3. TERCERA LÍNEA (Abajo del todo): Nombre del Caserío */}
-                          <div className="flex items-center justify-between gap-2 pt-0.5 text-xs">
-                            <div className="flex items-center gap-1.5 text-stone-800 font-bold">
-                              <Store className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-                              <span>
-                                Caserío: <strong className="text-stone-900 font-black">{ev.sellerName || 'Tu caserío'}</strong>
-                              </span>
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={() => handleJumpToEvent(ev.date)}
-                              title="Ver día en el calendario"
-                              className="px-2.5 py-1 bg-white hover:bg-stone-100 border border-stone-300 text-stone-800 rounded-xl text-[11px] font-black transition-colors flex items-center gap-1 shadow-2xs"
-                            >
-                              <CalendarIcon className="w-3 h-3 text-emerald-700" />
-                              <span className="hidden sm:inline">Ver día</span>
-                            </button>
+                          {/* 2. SEGUNDA LÍNEA: Modalidad */}
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-stone-700">
+                            <Store className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                            <span>En instalaciones del caserío</span>
                           </div>
                         </div>
                       </div>
@@ -681,30 +621,13 @@ export function CalendarView({ events, role }: CalendarViewProps) {
 
                   {ev.customerName && (
                     <div className="text-xs font-bold text-stone-800 flex items-center gap-2">
-                      {ev.customerAvatarUrl ? (
-                        <img
-                          src={ev.customerAvatarUrl}
-                          alt={ev.customerName}
-                          className="w-5 h-5 rounded-full object-cover border border-stone-300 shrink-0"
-                        />
-                      ) : (
-                        <User className="w-3.5 h-3.5 text-stone-600 shrink-0" />
-                      )}
                       <span>{ev.customerName}</span>
                     </div>
                   )}
 
                   {ev.sellerName && (
                     <div className="text-xs font-bold text-stone-800 flex items-center gap-2">
-                      {ev.sellerAvatarUrl ? (
-                        <img
-                          src={ev.sellerAvatarUrl}
-                          alt={ev.sellerName}
-                          className="w-5 h-5 rounded-full object-cover border border-stone-300 shrink-0"
-                        />
-                      ) : (
-                        <Store className="w-3.5 h-3.5 text-stone-600 shrink-0" />
-                      )}
+                      <Store className="w-3.5 h-3.5 text-stone-600 shrink-0" />
                       <span>{ev.sellerName}</span>
                     </div>
                   )}
