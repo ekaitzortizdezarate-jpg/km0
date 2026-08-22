@@ -373,7 +373,7 @@ export function CalendarView({ events, role }: CalendarViewProps) {
                           {/* 2. SEGUNDA LÍNEA: Modalidad */}
                           <div className="flex items-center gap-1.5 text-xs font-bold text-stone-700">
                             <Store className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-                            <span>En instalaciones del caserío</span>
+                            <span>En caserío</span>
                           </div>
                         </div>
                       </div>
