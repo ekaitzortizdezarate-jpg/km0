@@ -9,12 +9,10 @@ import { Product, ProductFormat, AvailabilityType, ProductCategory, DeliveryPoin
 import {
   Sprout,
   AlertCircle,
-  Clock,
   Layers,
   Scale,
   Package,
   Check,
-  Calendar,
   History,
   Store,
   Truck,
@@ -93,13 +91,23 @@ export function ProductForm({
     product?.weight_kg ? 'peso' : 'unidad'
   );
 
-  // Values for price, weight, stock
-  const [price, setPrice] = useState<number>(product?.price || 0);
-  const [pricePerKilo, setPricePerKilo] = useState<number>(
-    product?.price_per_kilo || (product?.format === 'granel' ? product?.price || 0 : 0)
+  // Values for price, weight, stock allowing empty string when user clears input
+  const [price, setPrice] = useState<number | ''>(
+    product?.price !== undefined && product?.price !== null ? product.price : ''
   );
-  const [weightKg, setWeightKg] = useState<number>(product?.weight_kg || 1);
-  const [stock, setStock] = useState<number>(product?.stock || 10);
+  const [pricePerKilo, setPricePerKilo] = useState<number | ''>(
+    product?.price_per_kilo !== undefined && product?.price_per_kilo !== null
+      ? product.price_per_kilo
+      : product?.format === 'granel' && product?.price
+      ? product.price
+      : ''
+  );
+  const [weightKg, setWeightKg] = useState<number | ''>(
+    product?.weight_kg !== undefined && product?.weight_kg !== null ? product.weight_kg : 1
+  );
+  const [stock, setStock] = useState<number | ''>(
+    product?.stock !== undefined && product?.stock !== null ? product.stock : 10
+  );
   const [isUnlimitedStock, setIsUnlimitedStock] = useState<boolean>(
     Boolean(product?.is_unlimited_stock)
   );
@@ -135,10 +143,9 @@ export function ProductForm({
   const hasPuntosEntrega = deliveryPoints.some((p) => p.type === 'sitio_fisico');
   const hasEnvioDomicilio = deliveryPoints.some((p) => p.type === 'envio');
 
+  // Sin selección por defecto: el vendedor elige conscientemente
   const [deliveryMethods, setDeliveryMethods] = useState<string[]>(
-    product?.delivery_methods && product.delivery_methods.length > 0
-      ? product.delivery_methods
-      : ['caserio', 'punto_entrega', 'domicilio']
+    product?.delivery_methods || []
   );
 
   // Configuración de Caserío (Días y Horarios para este producto)
@@ -167,6 +174,10 @@ export function ProductForm({
   );
 
   const toggleDeliveryMethod = (method: string) => {
+    if (method === 'caserio' && !hasCaserioPoints) return;
+    if (method === 'punto_entrega' && !hasPuntosEntrega) return;
+    if (method === 'domicilio' && !hasEnvioDomicilio) return;
+
     setDeliveryMethods((prev) =>
       prev.includes(method) ? prev.filter((m) => m !== method) : [...prev, method]
     );
@@ -209,29 +220,35 @@ export function ProductForm({
     }
   };
 
-  // Auto calculate for Suelto format with peso mode
-  const handlePriceChange = (val: number) => {
+  // Safe numeric changes that allow empty strings
+  const handlePriceChange = (val: number | '') => {
     setPrice(val);
-    if (format === 'suelto' && sueltoMode === 'peso' && weightKg > 0) {
+    if (val === '') return;
+    if (format === 'suelto' && sueltoMode === 'peso' && typeof weightKg === 'number' && weightKg > 0) {
       setPricePerKilo(Number((val / weightKg).toFixed(2)));
     }
   };
 
-  const handlePricePerKiloChange = (val: number) => {
+  const handlePricePerKiloChange = (val: number | '') => {
     setPricePerKilo(val);
-    if (format === 'suelto' && sueltoMode === 'peso' && weightKg > 0) {
+    if (val === '') {
+      if (format === 'granel') setPrice('');
+      return;
+    }
+    if (format === 'suelto' && sueltoMode === 'peso' && typeof weightKg === 'number' && weightKg > 0) {
       setPrice(Number((val * weightKg).toFixed(2)));
     } else if (format === 'granel') {
       setPrice(val);
     }
   };
 
-  const handleWeightKgChange = (val: number) => {
+  const handleWeightKgChange = (val: number | '') => {
     setWeightKg(val);
+    if (val === '') return;
     if (format === 'suelto' && sueltoMode === 'peso') {
-      if (pricePerKilo > 0) {
+      if (typeof pricePerKilo === 'number' && pricePerKilo > 0) {
         setPrice(Number((pricePerKilo * val).toFixed(2)));
-      } else if (price > 0 && val > 0) {
+      } else if (typeof price === 'number' && price > 0 && val > 0) {
         setPricePerKilo(Number((price / val).toFixed(2)));
       }
     }
@@ -242,24 +259,29 @@ export function ProductForm({
     setLoading(true);
     setError(null);
 
+    const finalPrice = typeof price === 'number' ? price : 0;
+    const finalPricePerKilo = typeof pricePerKilo === 'number' ? pricePerKilo : null;
+    const finalWeightKg = typeof weightKg === 'number' ? weightKg : null;
+    const finalStock = typeof stock === 'number' ? stock : 0;
+
     const formData = new FormData(event.currentTarget);
     formData.set('name', name);
     formData.set('category', category);
     formData.set('format', format);
-    formData.set('price', (format === 'granel' ? (pricePerKilo || price) : price).toString());
+    formData.set('price', (format === 'granel' ? (finalPricePerKilo || finalPrice) : finalPrice).toString());
     formData.set(
       'price_per_kilo',
       format === 'granel'
-        ? (pricePerKilo || price).toString()
-        : format === 'suelto' && sueltoMode === 'peso' && pricePerKilo
-        ? pricePerKilo.toString()
+        ? (finalPricePerKilo || finalPrice).toString()
+        : format === 'suelto' && sueltoMode === 'peso' && finalPricePerKilo
+        ? finalPricePerKilo.toString()
         : ''
     );
     formData.set(
       'weight_kg',
-      format === 'suelto' && sueltoMode === 'peso' && weightKg ? weightKg.toString() : ''
+      format === 'suelto' && sueltoMode === 'peso' && finalWeightKg ? finalWeightKg.toString() : ''
     );
-    formData.set('stock', stock.toString());
+    formData.set('stock', finalStock.toString());
     if (isUnlimitedStock) {
       formData.set('is_unlimited_stock', 'on');
     }
@@ -336,7 +358,7 @@ export function ProductForm({
             type="button"
             onClick={() => {
               setFormat('granel');
-              if (pricePerKilo > 0) setPrice(pricePerKilo);
+              if (typeof pricePerKilo === 'number' && pricePerKilo > 0) setPrice(pricePerKilo);
             }}
             className={`p-3.5 rounded-xl border-2 flex flex-col items-start gap-1 text-left transition-all ${
               format === 'granel'
@@ -483,8 +505,11 @@ export function ProductForm({
                   step="0.01"
                   min="0.01"
                   required
-                  value={pricePerKilo || ''}
-                  onChange={(e) => handlePricePerKiloChange(parseFloat(e.target.value) || 0)}
+                  value={pricePerKilo}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    handlePricePerKiloChange(val === '' ? '' : parseFloat(val));
+                  }}
                   placeholder="Ej. 3.50"
                   className="w-36 px-3.5 py-2 border-2 border-stone-300 rounded-xl text-base font-black text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
                 />
@@ -504,7 +529,10 @@ export function ProductForm({
                     min="0"
                     disabled={isUnlimitedStock}
                     value={isUnlimitedStock ? '' : stock}
-                    onChange={(e) => setStock(parseFloat(e.target.value) || 0)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setStock(val === '' ? '' : parseFloat(val));
+                    }}
                     placeholder="Ej. 50"
                     className="w-36 px-3.5 py-2 border-2 border-stone-300 rounded-xl text-base font-black text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none disabled:bg-stone-100 disabled:text-stone-400"
                   />
@@ -563,8 +591,11 @@ export function ProductForm({
                     step="0.01"
                     min="0.01"
                     required
-                    value={price || ''}
-                    onChange={(e) => handlePriceChange(parseFloat(e.target.value) || 0)}
+                    value={price}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      handlePriceChange(val === '' ? '' : parseFloat(val));
+                    }}
                     placeholder="Ej. 2.00"
                     className="w-36 px-3.5 py-2 border-2 border-stone-300 rounded-xl text-base font-black text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
                   />
@@ -582,8 +613,11 @@ export function ProductForm({
                       type="number"
                       step="0.01"
                       min="0.01"
-                      value={weightKg || ''}
-                      onChange={(e) => handleWeightKgChange(parseFloat(e.target.value) || 0)}
+                      value={weightKg}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        handleWeightKgChange(val === '' ? '' : parseFloat(val));
+                      }}
                       placeholder="Ej. 1.2"
                       className="w-36 px-3.5 py-2 border-2 border-stone-300 rounded-xl text-base font-black text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
                     />
@@ -604,7 +638,10 @@ export function ProductForm({
                     min="0"
                     disabled={isUnlimitedStock}
                     value={isUnlimitedStock ? '' : stock}
-                    onChange={(e) => setStock(parseInt(e.target.value, 10) || 0)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setStock(val === '' ? '' : parseInt(val, 10));
+                    }}
                     placeholder="Ej. 25"
                     className="w-36 px-3.5 py-2 border-2 border-stone-300 rounded-xl text-base font-black text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none disabled:bg-stone-100 disabled:text-stone-400"
                   />
@@ -653,8 +690,11 @@ export function ProductForm({
                     step="0.01"
                     min="0.01"
                     required
-                    value={price || ''}
-                    onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
+                    value={price}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      handlePriceChange(val === '' ? '' : parseFloat(val));
+                    }}
                     placeholder="Ej. 15.00"
                     className="w-36 px-3.5 py-2 border-2 border-stone-300 rounded-xl text-base font-black text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
                   />
@@ -672,7 +712,10 @@ export function ProductForm({
                     min="0"
                     disabled={isUnlimitedStock}
                     value={isUnlimitedStock ? '' : stock}
-                    onChange={(e) => setStock(parseInt(e.target.value, 10) || 0)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setStock(val === '' ? '' : parseInt(val, 10));
+                    }}
                     placeholder="Ej. 10"
                     className="w-36 px-3.5 py-2 border-2 border-stone-300 rounded-xl text-base font-black text-stone-900 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none disabled:bg-stone-100 disabled:text-stone-400"
                   />
@@ -748,14 +791,14 @@ export function ProductForm({
           )}
         </div>
 
-        {/* PASO 2: OPCIONES DE ENTREGA Y HORARIOS POR TIPO (CONFIGURACIÓN DESPLEGADA DEBAJO DE CADA OPCIÓN) */}
+        {/* PASO 2: OPCIONES DE ENTREGA Y HORARIOS POR TIPO */}
         <div className="space-y-4 pt-3 border-t border-stone-200">
           <div>
             <label className="block text-xs font-black text-stone-900 uppercase tracking-wider">
               2. Opciones de entrega disponibles para este producto: *
             </label>
             <p className="text-[11px] font-semibold text-stone-500 mt-0.5">
-              Habilita las modalidades de entrega y define los días y horarios correspondientes a cada una.
+              Habilita las modalidades de entrega deseadas y define los días y horarios correspondientes a cada una.
             </p>
           </div>
 

@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { Calendar as CalendarIcon, ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { CalendarView, CalendarEvent } from '@/components/CalendarView';
 import { Order } from '@/types/database';
@@ -21,6 +21,7 @@ interface OrderWithSellerAndItems extends Order {
     quantity: number;
     products?: {
       name: string;
+      image_url?: string | null;
     } | null;
   }[];
 }
@@ -33,14 +34,14 @@ export default async function BuyerCalendarPage() {
 
   if (!user) redirect('/login');
 
-  // Obtener pedidos del comprador
+  // Obtener pedidos del comprador con productos y fotos
   const { data: rawOrders } = await supabase
     .from('orders')
     .select(`
       *,
       profiles!orders_seller_id_fkey(id, full_name, town, avatar_url),
       delivery_points(name, address_details),
-      order_items(*, products(name))
+      order_items(*, products(name, image_url))
     `)
     .eq('buyer_id', user.id);
 
@@ -58,6 +59,12 @@ export default async function BuyerCalendarPage() {
         ?.map((it) => `${it.products?.name} (x${it.quantity})`)
         .join(', ');
 
+      const orderProducts = ord.order_items?.map((it) => ({
+        name: it.products?.name || 'Producto',
+        quantity: it.quantity,
+        imageUrl: it.products?.image_url || null,
+      }));
+
       events.push({
         id: `ord-${ord.id}`,
         type: 'order',
@@ -72,6 +79,7 @@ export default async function BuyerCalendarPage() {
           ? `Recogida en: ${ord.delivery_points.name} (${ord.delivery_points.address_details})`
           : `Envío a domicilio: ${ord.shipping_address || 'Dirección acordada'}`,
         items: itemNames,
+        orderProducts,
         chatUserId: ord.profiles?.id,
       });
     });

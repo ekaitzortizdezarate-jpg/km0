@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { Store, MessageCircle, Calendar, Phone, Truck } from 'lucide-react';
+import { Store, MessageCircle, Calendar, Phone, Truck, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { ConfirmOrderForm } from '@/components/ConfirmOrderForm';
 import { SellerActiveOrderCard } from '@/components/SellerActiveOrderCard';
@@ -84,9 +84,9 @@ export default async function SellerOrdersPage() {
                   key={order.id}
                   className="bg-amber-50/80 rounded-3xl border-2 border-amber-300 p-5 sm:p-6 shadow-sm space-y-4"
                 >
-                  {/* 1. Foto (ocupando dos líneas) + Nombre y población (arriba) + Teléfono y Chat (abajo) */}
-                  <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-amber-200">
-                    <div className="flex items-center gap-3">
+                  {/* 1. Foto (ocupando dos líneas) + Nombre y población (arriba) + Teléfono y Chat (abajo) + ESTADO (derecha, 2 alturas) */}
+                  <div className="flex items-center justify-between gap-3 pb-3 border-b border-amber-200">
+                    <div className="flex items-center gap-3 min-w-0">
                       {order.profiles?.avatar_url ? (
                         <img
                           src={order.profiles.avatar_url}
@@ -98,13 +98,13 @@ export default async function SellerOrdersPage() {
                           {order.profiles?.full_name?.charAt(0) || 'U'}
                         </div>
                       )}
-                      <div className="flex flex-col justify-center">
+                      <div className="flex flex-col justify-center min-w-0">
                         {/* Línea arriba: Nombre y población */}
-                        <span className="text-sm sm:text-base font-black text-stone-900 leading-tight">
+                        <span className="text-sm sm:text-base font-black text-stone-900 leading-tight truncate">
                           {order.profiles?.full_name} ({order.profiles?.town})
                         </span>
                         {/* Línea abajo: Teléfono y Chat */}
-                        <div className="flex items-center gap-3 mt-1 text-xs font-bold text-stone-700">
+                        <div className="flex items-center gap-2.5 mt-1 text-xs font-bold text-stone-700">
                           {order.profiles?.phone ? (
                             <a
                               href={`tel:${order.profiles.phone}`}
@@ -125,23 +125,21 @@ export default async function SellerOrdersPage() {
                         </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* 2. Estado del Pedido: Centrado y en MAYÚSCULAS */}
-                  <div className="flex justify-center py-0.5">
-                    <span className="text-xs sm:text-sm font-black px-5 py-1.5 rounded-full border border-amber-300 bg-amber-100 text-amber-950 shadow-sm uppercase tracking-wider text-center">
+                    {/* Estado a la derecha ocupando dos alturas */}
+                    <div className="h-12 px-3 sm:px-4 flex items-center justify-center rounded-2xl border border-amber-300 bg-amber-100 text-amber-950 shadow-sm text-xs sm:text-sm font-black uppercase tracking-wider text-center shrink-0">
                       POR VALIDAR
-                    </span>
+                    </div>
                   </div>
 
-                  {/* 3, 5, 6: Información estructurada de Pedido realizado y Entrega */}
+                  {/* 2, 3: Información estructurada de Pedido realizado y Recuadro de Entrega */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs font-bold text-stone-800 bg-white p-3.5 rounded-2xl border border-amber-200 shadow-inner">
-                    {/* 3. Pedido realizado: con día de la semana */}
+                    {/* Pedido realizado: con día de la semana */}
                     <div className="flex items-center gap-2 sm:col-span-2">
-                      <Calendar className="w-4 h-4 text-stone-500 shrink-0" />
+                      <Clock className="w-4 h-4 text-stone-500 shrink-0" />
                       <span>
                         <strong className="text-stone-900">Pedido realizado:</strong>{' '}
-                        <span className="capitalize">
+                        <span className="capitalize font-semibold text-stone-800">
                           {new Date(order.created_at).toLocaleDateString('es-ES', {
                             weekday: 'long',
                             day: 'numeric',
@@ -154,47 +152,49 @@ export default async function SellerOrdersPage() {
                       </span>
                     </div>
 
-                    {/* 6. Entrega: Recogida caserío / Punto de entrega / Envío a domicilio */}
-                    <div className="flex items-start gap-2 sm:col-span-2 pt-1 border-t border-stone-100">
-                      {order.delivery_points ? (
-                        <>
-                          <Store className="w-4 h-4 text-emerald-800 shrink-0 mt-0.5" />
-                          <div className="space-y-0.5">
-                            <strong className="text-stone-900 block">Punto de entrega:</strong>
-                            <p className="text-stone-700 font-semibold">
-                              {order.delivery_points.name} — {order.delivery_points.address_details} ({order.delivery_points.town})
-                            </p>
-                            {(order.delivery_points.opening_time || order.delivery_points.schedule_notes) && (
-                              <p className="text-[11px] text-emerald-900 font-bold">
-                                🕒 Horario:{' '}
-                                {order.delivery_points.opening_time && order.delivery_points.closing_time
-                                  ? `de ${order.delivery_points.opening_time} a ${order.delivery_points.closing_time}`
-                                  : order.delivery_points.schedule_notes}
+                    {/* RECUADRO DE ENTREGA / ENVÍO */}
+                    <div className="sm:col-span-2 bg-emerald-100/70 p-3.5 rounded-2xl border border-emerald-300 space-y-2 text-emerald-950">
+                      <div className="flex items-start gap-2">
+                        {order.delivery_points ? (
+                          <>
+                            <Store className="w-4 h-4 text-emerald-800 shrink-0 mt-0.5" />
+                            <div className="space-y-0.5">
+                              <strong className="text-stone-900 block">Punto de entrega:</strong>
+                              <p className="text-stone-800 font-semibold">
+                                {order.delivery_points.name} — {order.delivery_points.address_details} ({order.delivery_points.town})
                               </p>
-                            )}
-                          </div>
-                        </>
-                      ) : order.shipping_address ? (
-                        <>
-                          <Truck className="w-4 h-4 text-emerald-800 shrink-0 mt-0.5" />
-                          <div className="space-y-0.5">
-                            <strong className="text-stone-900 block">Envío a domicilio:</strong>
-                            <p className="text-stone-700 font-semibold">{order.shipping_address}</p>
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <Store className="w-4 h-4 text-emerald-800 shrink-0 mt-0.5" />
-                          <div className="space-y-0.5">
-                            <strong className="text-stone-900 block">Recogida caserío:</strong>
-                            <p className="text-stone-700 font-semibold">En las instalaciones de tu caserío</p>
-                          </div>
-                        </>
-                      )}
+                              {(order.delivery_points.opening_time || order.delivery_points.schedule_notes) && (
+                                <p className="text-[11px] text-emerald-900 font-bold">
+                                  🕒 Horario:{' '}
+                                  {order.delivery_points.opening_time && order.delivery_points.closing_time
+                                    ? `de ${order.delivery_points.opening_time} a ${order.delivery_points.closing_time}`
+                                    : order.delivery_points.schedule_notes}
+                                </p>
+                              )}
+                            </div>
+                          </>
+                        ) : order.shipping_address ? (
+                          <>
+                            <Truck className="w-4 h-4 text-emerald-800 shrink-0 mt-0.5" />
+                            <div className="space-y-0.5">
+                              <strong className="text-stone-900 block">Envío a domicilio:</strong>
+                              <p className="text-stone-800 font-semibold">{order.shipping_address}</p>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <Store className="w-4 h-4 text-emerald-800 shrink-0 mt-0.5" />
+                            <div className="space-y-0.5">
+                              <strong className="text-stone-900 block">Recogida caserío:</strong>
+                              <p className="text-stone-800 font-semibold">En las instalaciones de tu caserío</p>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
 
-                  {/* 7. Los productos y total de productos */}
+                  {/* 4. Los productos y total de productos */}
                   <div className="space-y-2 bg-white p-3.5 rounded-2xl border border-amber-200 shadow-inner">
                     <span className="text-[11px] font-black text-stone-500 uppercase tracking-wider block">
                       Productos ({totalProductItems} {totalProductItems === 1 ? 'producto' : 'productos'}):
@@ -238,16 +238,16 @@ export default async function SellerOrdersPage() {
                         Total de productos: {totalProductQty} {order.order_items?.some((i: any) => i.products?.format === 'granel') ? 'uds/kg' : 'uds'}
                       </span>
                       <span className="text-base font-black text-emerald-900">
-                        Total Cobro: {Number(order.total_amount).toFixed(2)} €
+                        {Number(order.total_amount).toFixed(2)} €
                       </span>
                     </div>
                   </div>
 
-                  {/* Formulario de Validación y Confirmación de Fecha */}
+                  {/* Formulario de Confirmación y Fecha de Entrega */}
                   <ConfirmOrderForm
                     orderId={order.id}
                     defaultDateStr={defaultDateStr}
-                    buyerName={order.profiles?.full_name || 'el cliente'}
+                    buyerName={order.profiles?.full_name}
                   />
                 </div>
               );
@@ -256,10 +256,10 @@ export default async function SellerOrdersPage() {
         </div>
       )}
 
-      {/* SECCIÓN 2: HISTORIAL Y PEDIDOS CONFIRMADOS / EN CURSO */}
+      {/* SECCIÓN 2: PEDIDOS ACTIVOS Y VALIDADOS */}
       <div className="space-y-4">
         <h2 className="text-lg font-black text-stone-900">
-          Pedidos Activos e Histórico ({activeOrders.length})
+          Pedidos Validados y en Curso ({activeOrders.length})
         </h2>
 
         {activeOrders.length > 0 ? (
@@ -269,8 +269,11 @@ export default async function SellerOrdersPage() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-12 bg-white rounded-3xl border-2 border-stone-200 text-sm font-bold text-stone-600 p-6 space-y-2">
-            <p>No tienes pedidos en curso ni históricos.</p>
+          <div className="bg-white rounded-3xl border-2 border-stone-200 p-8 text-center space-y-2">
+            <Store className="w-8 h-8 text-stone-300 mx-auto" />
+            <p className="text-xs font-bold text-stone-600">
+              No tienes pedidos activos en curso.
+            </p>
           </div>
         )}
       </div>

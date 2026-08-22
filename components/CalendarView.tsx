@@ -12,6 +12,12 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 
+export interface CalendarProductItem {
+  name: string;
+  quantity: number;
+  imageUrl?: string | null;
+}
+
 export interface CalendarEvent {
   id: string;
   type: 'order' | 'product_available';
@@ -20,6 +26,8 @@ export interface CalendarEvent {
   subtitle?: string;
   status?: string;
   amount?: number;
+  productImageUrl?: string | null;
+  orderProducts?: CalendarProductItem[];
   customerName?: string;
   customerAvatarUrl?: string | null;
   sellerName?: string;
@@ -240,33 +248,77 @@ export function CalendarView({ events, role }: CalendarViewProps) {
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <span
-                        className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
-                          ev.type === 'order'
-                            ? 'bg-emerald-700 text-white'
-                            : 'bg-amber-600 text-white'
-                        }`}
-                      >
-                        {ev.type === 'order' ? 'Pedido Programado' : 'Cosecha Disponible'}
-                      </span>
-                      <h4 className="font-extrabold text-stone-900 text-sm mt-1">
-                        {ev.title}
-                      </h4>
+                    <div className="flex items-start gap-3 min-w-0">
+                      {ev.type === 'product_available' && ev.productImageUrl ? (
+                        <img
+                          src={ev.productImageUrl}
+                          alt={ev.title}
+                          className="w-14 h-14 rounded-2xl object-cover border border-amber-300 shrink-0 shadow-sm"
+                        />
+                      ) : null}
+                      <div className="min-w-0">
+                        <span
+                          className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
+                            ev.type === 'order'
+                              ? 'bg-emerald-700 text-white'
+                              : 'bg-amber-600 text-white'
+                          }`}
+                        >
+                          {ev.type === 'order' ? 'Pedido Programado' : 'Cosecha Disponible'}
+                        </span>
+                        <h4 className="font-extrabold text-stone-900 text-sm mt-1">
+                          {ev.title}
+                        </h4>
+                        {ev.subtitle && (
+                          <p className="text-xs font-semibold text-stone-600 mt-0.5">
+                            {ev.subtitle}
+                          </p>
+                        )}
+                      </div>
                     </div>
 
                     {ev.amount !== undefined && (
-                      <span className="font-black text-stone-900 text-sm">
+                      <span className="font-black text-stone-900 text-sm shrink-0">
                         {ev.amount.toFixed(2)} €
                       </span>
                     )}
                   </div>
 
-                  {ev.items && (
+                  {/* Lista de productos con foto si es pedido */}
+                  {ev.orderProducts && ev.orderProducts.length > 0 ? (
+                    <div className="space-y-1.5 pt-1">
+                      <span className="text-[11px] font-black text-stone-600 block">
+                        Productos ({ev.orderProducts.length}):
+                      </span>
+                      <div className="flex flex-wrap gap-2">
+                        {ev.orderProducts.map((p, pIdx) => (
+                          <div
+                            key={pIdx}
+                            className="flex items-center gap-2 bg-white px-2.5 py-1.5 rounded-xl border border-stone-200 shadow-sm"
+                          >
+                            {p.imageUrl ? (
+                              <img
+                                src={p.imageUrl}
+                                alt={p.name}
+                                className="w-8 h-8 rounded-lg object-cover border border-stone-200 shrink-0"
+                              />
+                            ) : (
+                              <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-800 font-bold text-xs flex items-center justify-center border border-emerald-200 shrink-0">
+                                🌿
+                              </div>
+                            )}
+                            <span className="text-xs font-bold text-stone-800">
+                              {p.name} <strong className="text-emerald-800 font-black">(x{p.quantity})</strong>
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : ev.items ? (
                     <p className="text-xs font-semibold text-stone-700">
                       Productos: {ev.items}
                     </p>
-                  )}
+                  ) : null}
 
                   {ev.customerName && (
                     <div className="text-xs font-bold text-stone-800 flex items-center gap-2">

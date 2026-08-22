@@ -1,9 +1,10 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { Calendar as CalendarIcon, ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { CalendarView, CalendarEvent } from '@/components/CalendarView';
 import { Order, Product } from '@/types/database';
+import { getOrCreateUserProfile } from '@/lib/profile-utils';
 
 interface OrderWithBuyerAndItems extends Order {
   profiles?: {
@@ -21,11 +22,10 @@ interface OrderWithBuyerAndItems extends Order {
     quantity: number;
     products?: {
       name: string;
+      image_url?: string | null;
     } | null;
   }[];
 }
-
-import { getOrCreateUserProfile } from '@/lib/profile-utils';
 
 export default async function SellerCalendarPage() {
   const supabase = await createClient();
@@ -41,14 +41,14 @@ export default async function SellerCalendarPage() {
     redirect('/');
   }
 
-  // 1. Obtener pedidos asignados al vendedor
+  // 1. Obtener pedidos asignados al vendedor con fotos de producto
   const { data: rawOrders } = await supabase
     .from('orders')
     .select(`
       *,
       profiles!orders_buyer_id_fkey(id, full_name, town, avatar_url),
       delivery_points(name, address_details),
-      order_items(*, products(name))
+      order_items(*, products(name, image_url))
     `)
     .eq('seller_id', user.id);
 
@@ -77,6 +77,12 @@ export default async function SellerCalendarPage() {
         ?.map((it) => `${it.products?.name} (x${it.quantity})`)
         .join(', ');
 
+      const orderProducts = ord.order_items?.map((it) => ({
+        name: it.products?.name || 'Producto',
+        quantity: it.quantity,
+        imageUrl: it.products?.image_url || null,
+      }));
+
       events.push({
         id: `ord-${ord.id}`,
         type: 'order',
@@ -91,6 +97,7 @@ export default async function SellerCalendarPage() {
           ? `${ord.delivery_points.name} (${ord.delivery_points.address_details})`
           : ord.shipping_address || 'Entrega acordada',
         items: itemNames,
+        orderProducts,
         chatUserId: ord.profiles?.id,
       });
     });
@@ -107,6 +114,7 @@ export default async function SellerCalendarPage() {
           title: `Cosecha lista: ${prod.name}`,
           subtitle: `${prod.stock} ${prod.format === 'granel' ? 'kg' : 'uds'} disponibles`,
           amount: Number(prod.price),
+          productImageUrl: prod.image_url,
         });
       }
     });
