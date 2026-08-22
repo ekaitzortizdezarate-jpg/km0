@@ -25,6 +25,7 @@ import { useCart, CartItem } from '@/context/CartContext';
 import { createCartOrders, CartCheckoutSellerGroup } from '@/app/actions/orders';
 import { createClient } from '@/lib/supabase/client';
 import { saveBuyerAddresses } from '@/app/actions/profile';
+import { DeliveryMethodsBadges } from '@/components/DeliveryMethodsBadges';
 import type { DeliveryPoint } from '@/types/database';
 import {
   getCaserioEstimate,
@@ -795,7 +796,10 @@ export default function CartPage() {
                           )}
 
                           <div>
-                            <h3 className="text-xs font-black text-stone-900">{item.name}</h3>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <h3 className="text-xs font-black text-stone-900">{item.name}</h3>
+                              <DeliveryMethodsBadges deliveryMethods={item.deliveryMethods} />
+                            </div>
                             <p className="text-[11px] font-semibold text-stone-600">
                               {item.unitPrice.toFixed(2)} € /{' '}
                               {item.format === 'granel'

@@ -1110,7 +1110,7 @@ export function CatalogViewContainer({
                             {/* Título, Badges de entrega y Precio */}
                             <div className="p-4 space-y-2">
                               <div className="flex items-start justify-between gap-2">
-                                <div className="min-w-0 flex-1 space-y-1">
+                                <div className="min-w-0 flex-1 flex flex-wrap items-center gap-1.5">
                                   <h3 className="font-black text-sm text-stone-900 line-clamp-1">
                                     {product.name}
                                   </h3>
@@ -1188,7 +1188,7 @@ export function CatalogViewContainer({
                             {/* Título, Badges de entrega y Precio */}
                             <div className="p-4 space-y-2">
                               <div className="flex items-start justify-between gap-2">
-                                <div className="min-w-0 flex-1 space-y-1">
+                                <div className="min-w-0 flex-1 flex flex-wrap items-center gap-1.5">
                                   <h3 className="font-black text-sm text-stone-900 group-hover:text-emerald-800 transition-colors line-clamp-1">
                                     {product.name}
                                   </h3>

@@ -312,17 +312,16 @@ export function SellerActiveOrderCard({ order }: SellerActiveOrderCardProps) {
                   )}
                 </div>
 
-                {/* Entre el nombre del producto y el precio: Nombre, 3 iconos, cantidad y formato */}
+                {/* Nombre del producto con los 3 iconos a la derecha */}
                 <div className="min-w-0 flex-1 space-y-1">
-                  {/* 1. Nombre */}
-                  <span className="font-black text-stone-900 block truncate text-xs sm:text-sm leading-tight">
-                    {item.products?.name || 'Producto'}
-                  </span>
+                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                    <span className="font-black text-stone-900 text-xs sm:text-sm leading-tight">
+                      {item.products?.name || 'Producto'}
+                    </span>
+                    <DeliveryMethodsBadges deliveryMethods={item.products?.delivery_methods} />
+                  </div>
 
-                  {/* 2. Los 3 Iconos de opciones de entrega */}
-                  <DeliveryMethodsBadges deliveryMethods={item.products?.delivery_methods} />
-
-                  {/* 3. Cantidad y precio unitario */}
+                  {/* Cantidad y precio unitario */}
                   <span className="text-[11px] font-bold text-stone-500 block">
                     {item.quantity} {item.products?.format === 'granel' ? 'kg' : 'ud(s)'} x {Number(item.unit_price).toFixed(2)} €
                   </span>
