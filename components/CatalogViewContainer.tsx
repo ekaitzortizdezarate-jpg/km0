@@ -283,29 +283,7 @@ export function CatalogViewContainer({
                 </span>
               </button>
 
-              {/* 2. Caseríos y vendedores */}
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab('vendedores');
-                  setSelectedSellerId(null);
-                }}
-                className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 ${
-                  activeTab === 'vendedores'
-                    ? 'bg-emerald-800 text-white shadow-md'
-                    : 'text-stone-700 hover:text-stone-900 font-bold'
-                }`}
-              >
-                <Store className="w-4 h-4" />
-                <span>Caseríos y Vendedores</span>
-                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${
-                  activeTab === 'vendedores' ? 'bg-emerald-950 text-white' : 'bg-stone-300 text-stone-700'
-                }`}>
-                  {allSellersList.length}
-                </span>
-              </button>
-
-              {/* 3. Mis Favoritos */}
+              {/* 2. Mis Favoritos */}
               <button
                 type="button"
                 onClick={() => {
@@ -325,6 +303,28 @@ export function CatalogViewContainer({
                     {favProducts.size + favSellers.size}
                   </span>
                 )}
+              </button>
+
+              {/* 3. Caseríos y vendedores */}
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('vendedores');
+                  setSelectedSellerId(null);
+                }}
+                className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 ${
+                  activeTab === 'vendedores'
+                    ? 'bg-emerald-800 text-white shadow-md'
+                    : 'text-stone-700 hover:text-stone-900 font-bold'
+                }`}
+              >
+                <Store className="w-4 h-4" />
+                <span>Caseríos y Vendedores</span>
+                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${
+                  activeTab === 'vendedores' ? 'bg-emerald-950 text-white' : 'bg-stone-300 text-stone-700'
+                }`}>
+                  {allSellersList.length}
+                </span>
               </button>
             </>
           )}
