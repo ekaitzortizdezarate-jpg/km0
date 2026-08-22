@@ -6,6 +6,11 @@ import { ShoppingCart, X, Store, Truck, Clock, Check, Plus, Minus, MapPin } from
 import { useCart, CartItem } from '@/context/CartContext';
 import { createClient } from '@/lib/supabase/client';
 import type { DeliveryPoint } from '@/types/database';
+import {
+  getCaserioEstimate,
+  getPuntoEntregaEstimate,
+  getDomicilioEstimate,
+} from '@/lib/delivery';
 
 interface QuickAddToCartModalProps {
   item: CartItem & {
@@ -127,11 +132,16 @@ export function QuickAddToCartModal({
     setQuantityInput(String(nextVal).replace('.', ','));
   };
 
+  const selectedPoint = deliveryPoints.find((p) => p.id === selectedPointId) || deliveryPoints[0];
+
+  const caserioEst = getCaserioEstimate(item);
+  const puntoEst = getPuntoEntregaEstimate(item, selectedPoint);
+  const domicilioEst = getDomicilioEstimate(item);
+
   const handleConfirmAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
-    const selectedPoint = deliveryPoints.find((p) => p.id === selectedPointId) || deliveryPoints[0];
     const pointId = deliveryMethod === 'punto_entrega' ? selectedPoint?.id || null : null;
     const pointName = deliveryMethod === 'punto_entrega' ? selectedPoint?.name || null : null;
     const cartItemId = `${item.productId}_${deliveryMethod}_${pointId || 'none'}`;
@@ -182,7 +192,7 @@ export function QuickAddToCartModal({
             onClick={handleClose}
           >
             <div
-              className="bg-white w-full max-w-md rounded-3xl p-6 sm:p-7 space-y-5 shadow-2xl border-2 border-stone-200 text-stone-900 relative max-h-[90vh] overflow-y-auto"
+              className="bg-white w-full max-w-lg rounded-3xl p-6 sm:p-7 space-y-5 shadow-2xl border-2 border-stone-200 text-stone-900 relative max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Botón cerrar */}
@@ -242,19 +252,6 @@ export function QuickAddToCartModal({
                   </div>
                 </div>
               </div>
-
-              {/* Plazo de Entrega en 2 filas */}
-              {item.deliveryBadgeDetail && (
-                <div className="p-3 bg-emerald-50/90 rounded-2xl border border-emerald-200 text-xs font-bold text-emerald-950 space-y-0.5">
-                  <div className="flex items-center gap-1.5 text-emerald-800 text-[10px] uppercase font-black">
-                    <Clock className="w-3.5 h-3.5 shrink-0" />
-                    <span>Entrega prevista por el caserío:</span>
-                  </div>
-                  <p className="text-stone-800 font-semibold leading-tight">
-                    {item.deliveryBadgeDetail}
-                  </p>
-                </div>
-              )}
 
               {/* Selector de Cantidad con soporte de decimales (kg) */}
               <div className="space-y-2">
@@ -330,8 +327,8 @@ export function QuickAddToCartModal({
                 )}
               </div>
 
-              {/* Modalidades de Entrega seleccionadas por el Vendedor para este producto */}
-              <div className="space-y-2">
+              {/* Modalidades de Entrega y Entrega Prevista por cada modalidad */}
+              <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-black text-stone-900 uppercase tracking-wider">
                     {availableMethods.length === 1
@@ -343,122 +340,160 @@ export function QuickAddToCartModal({
                   </span>
                 </div>
 
-                <div className={`grid gap-2 ${
-                  availableMethods.length === 1
-                    ? 'grid-cols-1'
-                    : availableMethods.length === 2
-                    ? 'grid-cols-2'
-                    : 'grid-cols-1 sm:grid-cols-3'
-                }`}>
+                <div className="space-y-3">
+                  {/* 1. Opción: En Caserío */}
                   {availableMethods.includes('caserio') && (
-                    <button
-                      type="button"
+                    <div
                       onClick={() => setDeliveryMethod('caserio')}
-                      className={`p-3 rounded-2xl border-2 text-left transition-all flex flex-col justify-between gap-1 ${
+                      className={`p-3.5 rounded-2xl border-2 transition-all cursor-pointer space-y-2 ${
                         deliveryMethod === 'caserio'
-                          ? 'border-emerald-700 bg-emerald-50 text-emerald-950 font-bold shadow-sm'
-                          : 'border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100'
+                          ? 'border-emerald-700 bg-emerald-50/60 ring-2 ring-emerald-600 shadow-sm'
+                          : 'border-stone-200 bg-stone-50/50 hover:bg-stone-100/70'
                       }`}
                     >
-                      <span className="flex items-center gap-1.5 text-xs font-black">
-                        <Store className="w-4 h-4 text-emerald-800" />
-                        <span>En Caserío</span>
-                      </span>
-                      <span className="text-[10px] font-semibold text-stone-500">Recogida directa</span>
-                    </button>
-                  )}
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-2 text-xs font-black text-stone-900">
+                          <Store className="w-4 h-4 text-emerald-800" />
+                          <span>Recogida en Caserío</span>
+                        </span>
+                        <input
+                          type="radio"
+                          name="quick_modal_delivery_choice"
+                          checked={deliveryMethod === 'caserio'}
+                          onChange={() => setDeliveryMethod('caserio')}
+                          className="w-4 h-4 text-emerald-700"
+                        />
+                      </div>
 
-                  {availableMethods.includes('punto_entrega') && (
-                    <button
-                      type="button"
-                      onClick={() => setDeliveryMethod('punto_entrega')}
-                      className={`p-3 rounded-2xl border-2 text-left transition-all flex flex-col justify-between gap-1 ${
-                        deliveryMethod === 'punto_entrega'
-                          ? 'border-emerald-700 bg-emerald-50 text-emerald-950 font-bold shadow-sm'
-                          : 'border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100'
-                      }`}
-                    >
-                      <span className="flex items-center gap-1.5 text-xs font-black">
-                        <MapPin className="w-4 h-4 text-emerald-800" />
-                        <span>Punto Entrega</span>
-                      </span>
-                      <span className="text-[10px] font-semibold text-stone-500">Mercado / Plaza</span>
-                    </button>
-                  )}
-
-                  {availableMethods.includes('domicilio') && (
-                    <button
-                      type="button"
-                      onClick={() => setDeliveryMethod('domicilio')}
-                      className={`p-3 rounded-2xl border-2 text-left transition-all flex flex-col justify-between gap-1 ${
-                        deliveryMethod === 'domicilio'
-                          ? 'border-emerald-700 bg-emerald-50 text-emerald-950 font-bold shadow-sm'
-                          : 'border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100'
-                      }`}
-                    >
-                      <span className="flex items-center gap-1.5 text-xs font-black">
-                        <Truck className="w-4 h-4 text-emerald-800" />
-                        <span>Envío</span>
-                      </span>
-                      <span className="text-[10px] font-semibold text-stone-500">A Domicilio</span>
-                    </button>
-                  )}
-                </div>
-
-                {deliveryMethod === 'caserio' && (
-                  <div className="text-[11px] font-semibold text-stone-700 bg-stone-50 p-2.5 rounded-xl border border-stone-200 space-y-1">
-                    <p>🏡 Recogida directa en las instalaciones del caserío en {item.sellerTown}.</p>
-                    {item.caserioSchedule && (
-                      <p className="text-[10px] text-emerald-900 font-bold">
-                        🕒 Horario: {item.caserioSchedule}
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {deliveryMethod === 'punto_entrega' && (
-                  <div className="space-y-1.5 pt-1">
-                    {deliveryPoints.length > 1 ? (
-                      <>
-                        <label className="block text-[11px] font-bold text-stone-700">
-                          Punto de entrega a elegir:
-                        </label>
-                        <select
-                          value={selectedPointId || deliveryPoints[0]?.id}
-                          onChange={(e) => setSelectedPointId(e.target.value)}
-                          className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-                        >
-                          {deliveryPoints.map((pt) => (
-                            <option key={pt.id} value={pt.id}>
-                              {pt.name} - {pt.town} ({pt.address_details})
-                            </option>
-                          ))}
-                        </select>
-                      </>
-                    ) : deliveryPoints.length === 1 ? (
-                      <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs font-semibold text-stone-800 space-y-0.5">
-                        <p className="text-[10px] font-black uppercase text-emerald-800 tracking-wider">
-                          Punto de entrega:
+                      {/* Entrega Prevista específica para Caserío */}
+                      <div className="p-2.5 bg-white rounded-xl border border-emerald-200 text-xs text-stone-800 space-y-0.5 shadow-sm">
+                        <div className="flex items-center gap-1.5 text-emerald-800 text-[10px] uppercase font-black">
+                          <Clock className="w-3 h-3 shrink-0" />
+                          <span>Entrega Prevista:</span>
+                        </div>
+                        <p className="text-stone-900 font-extrabold capitalize text-xs">
+                          {caserioEst.dateStr}
                         </p>
-                        <p className="font-bold text-stone-900">
-                          {deliveryPoints[0].name} ({deliveryPoints[0].town})
+                        <p className="text-stone-600 font-semibold text-[11px]">
+                          🏡 Instalaciones del caserío en {item.sellerTown}.
                         </p>
-                        <p className="text-[11px] text-stone-600">
-                          {deliveryPoints[0].address_details}
-                        </p>
-                        {deliveryPoints[0].schedule_notes && (
-                          <p className="text-[10px] text-amber-800 font-medium pt-0.5">
-                            🕒 {deliveryPoints[0].schedule_notes}
+                        {item.caserioSchedule && (
+                          <p className="text-emerald-950 font-bold text-[10px] pt-0.5">
+                            🕒 Horario habitual: {item.caserioSchedule}
                           </p>
                         )}
                       </div>
-                    ) : (
-                      <p className="text-xs text-stone-500 italic bg-stone-50 p-2.5 rounded-xl border border-stone-200">
-                        Punto físico acordado con el caserío.
-                      </p>
-                    )}
-                  </div>
-                )}
+                    </div>
+                  )}
+
+                  {/* 2. Opción: Punto de Entrega */}
+                  {availableMethods.includes('punto_entrega') && (
+                    <div
+                      onClick={() => setDeliveryMethod('punto_entrega')}
+                      className={`p-3.5 rounded-2xl border-2 transition-all cursor-pointer space-y-2 ${
+                        deliveryMethod === 'punto_entrega'
+                          ? 'border-emerald-700 bg-emerald-50/60 ring-2 ring-emerald-600 shadow-sm'
+                          : 'border-stone-200 bg-stone-50/50 hover:bg-stone-100/70'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-2 text-xs font-black text-stone-900">
+                          <MapPin className="w-4 h-4 text-emerald-800" />
+                          <span>Punto de Entrega (Mercado / Plaza)</span>
+                        </span>
+                        <input
+                          type="radio"
+                          name="quick_modal_delivery_choice"
+                          checked={deliveryMethod === 'punto_entrega'}
+                          onChange={() => setDeliveryMethod('punto_entrega')}
+                          className="w-4 h-4 text-emerald-700"
+                        />
+                      </div>
+
+                      {/* Entrega Prevista específica para Punto de Entrega */}
+                      <div className="p-2.5 bg-white rounded-xl border border-emerald-200 text-xs text-stone-800 space-y-1.5 shadow-sm">
+                        <div className="flex items-center gap-1.5 text-emerald-800 text-[10px] uppercase font-black">
+                          <Clock className="w-3 h-3 shrink-0" />
+                          <span>Entrega Prevista:</span>
+                        </div>
+                        <p className="text-stone-900 font-extrabold capitalize text-xs">
+                          {puntoEst.dateStr}
+                        </p>
+
+                        {deliveryPoints.length > 1 ? (
+                          <div className="pt-1" onClick={(e) => e.stopPropagation()}>
+                            <label className="block text-[10px] font-bold text-stone-700 mb-1">
+                              Selecciona el punto de entrega:
+                            </label>
+                            <select
+                              value={selectedPointId || deliveryPoints[0]?.id}
+                              onChange={(e) => setSelectedPointId(e.target.value)}
+                              className="w-full px-3 py-1.5 border border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                            >
+                              {deliveryPoints.map((pt) => (
+                                <option key={pt.id} value={pt.id}>
+                                  {pt.name} - {pt.town} ({pt.address_details})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        ) : deliveryPoints.length === 1 ? (
+                          <div className="text-[11px] text-stone-600 space-y-0.5 pt-0.5">
+                            <p className="font-bold text-stone-900">{deliveryPoints[0].name} ({deliveryPoints[0].town})</p>
+                            <p>{deliveryPoints[0].address_details}</p>
+                            {deliveryPoints[0].schedule_notes && (
+                              <p className="text-[10px] text-amber-900 font-bold">🕒 {deliveryPoints[0].schedule_notes}</p>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-[11px] text-stone-600">Punto físico acordado con el caserío.</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 3. Opción: Envío a Domicilio */}
+                  {availableMethods.includes('domicilio') && (
+                    <div
+                      onClick={() => setDeliveryMethod('domicilio')}
+                      className={`p-3.5 rounded-2xl border-2 transition-all cursor-pointer space-y-2 ${
+                        deliveryMethod === 'domicilio'
+                          ? 'border-emerald-700 bg-emerald-50/60 ring-2 ring-emerald-600 shadow-sm'
+                          : 'border-stone-200 bg-stone-50/50 hover:bg-stone-100/70'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-2 text-xs font-black text-stone-900">
+                          <Truck className="w-4 h-4 text-emerald-800" />
+                          <span>Envío a Domicilio</span>
+                        </span>
+                        <input
+                          type="radio"
+                          name="quick_modal_delivery_choice"
+                          checked={deliveryMethod === 'domicilio'}
+                          onChange={() => setDeliveryMethod('domicilio')}
+                          className="w-4 h-4 text-emerald-700"
+                        />
+                      </div>
+
+                      {/* Entrega Prevista específica para Envío a Domicilio */}
+                      <div className="p-2.5 bg-white rounded-xl border border-emerald-200 text-xs text-stone-800 space-y-0.5 shadow-sm">
+                        <div className="flex items-center gap-1.5 text-emerald-800 text-[10px] uppercase font-black">
+                          <Clock className="w-3 h-3 shrink-0" />
+                          <span>Entrega Prevista:</span>
+                        </div>
+                        <p className="text-stone-900 font-extrabold capitalize text-xs">
+                          {domicilioEst.dateStr}
+                        </p>
+                        {domicilioEst.detailLead && (
+                          <p className="text-stone-600 font-semibold text-[11px]">
+                            🚚 Reparto directo ({domicilioEst.detailLead})
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Botón de Confirmación con Subtotal */}
