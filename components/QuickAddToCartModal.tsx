@@ -360,7 +360,7 @@ export function QuickAddToCartModal({
                       <div className="flex items-center justify-between">
                         <span className="flex items-center gap-2 text-xs font-black text-stone-900">
                           <MapPin className="w-4 h-4 text-emerald-800" />
-                          <span>Punto de Entrega (Mercado / Plaza)</span>
+                          <span>Punto de Entrega</span>
                         </span>
                         <input
                           type="radio"

@@ -34,8 +34,22 @@ import {
 interface SavedAddress {
   id: string;
   label: string;
-  address: string;
+  recipientName?: string;
+  recipientPhone?: string;
+  street?: string;
   town?: string;
+  postalCode?: string;
+  deliveryNotes?: string;
+  address: string;
+}
+
+export interface SellerShippingDetails {
+  recipientName: string;
+  recipientPhone: string;
+  street: string;
+  town: string;
+  postalCode: string;
+  deliveryNotes: string;
 }
 
 interface SellerDeliveryConfig {
@@ -43,6 +57,25 @@ interface SellerDeliveryConfig {
   deliveryPointId: string | null;
   shippingAddress: string;
   groupMode: 'junto_tardio' | 'individual';
+}
+
+function formatFullAddress(details: SellerShippingDetails): string {
+  const parts: string[] = [];
+  if (details.recipientName?.trim()) {
+    const phonePart = details.recipientPhone?.trim() ? ` (${details.recipientPhone.trim()})` : '';
+    parts.push(`Para: ${details.recipientName.trim()}${phonePart}`);
+  }
+  if (details.street?.trim()) {
+    parts.push(details.street.trim());
+  }
+  const townCp = [details.postalCode?.trim(), details.town?.trim()].filter(Boolean).join(' ');
+  if (townCp) {
+    parts.push(townCp);
+  }
+  if (details.deliveryNotes?.trim()) {
+    parts.push(`[Instrucciones: ${details.deliveryNotes.trim()}]`);
+  }
+  return parts.join(', ');
 }
 
 export default function CartPage() {
@@ -61,7 +94,21 @@ export default function CartPage() {
     Record<string, SellerDeliveryConfig>
   >({});
 
-  // Direcciones guardadas del comprador (hasta 3)
+  // Formulario estructurado de envío a domicilio por cada vendedor
+  const [shippingForms, setShippingForms] = useState<
+    Record<string, SellerShippingDetails>
+  >({});
+
+  const [defaultShippingDetails, setDefaultShippingDetails] = useState<SellerShippingDetails>({
+    recipientName: '',
+    recipientPhone: '',
+    street: '',
+    town: '',
+    postalCode: '',
+    deliveryNotes: '',
+  });
+
+  // Direcciones guardadas del comprador (hasta 5)
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
   const [newAddressLabel, setNewAddressLabel] = useState('Casa');
 
@@ -83,25 +130,50 @@ export default function CartPage() {
       if (user) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('address, town, saved_addresses')
+          .select('full_name, phone, address, town, postal_code, saved_addresses')
           .eq('id', user.id)
           .single();
 
         if (profile) {
+          const userDefaults: SellerShippingDetails = {
+            recipientName: profile.full_name || '',
+            recipientPhone: profile.phone || '',
+            street: profile.address || '',
+            town: profile.town || '',
+            postalCode: profile.postal_code || '',
+            deliveryNotes: '',
+          };
+          setDefaultShippingDetails(userDefaults);
+
           let list: SavedAddress[] = [];
           if (Array.isArray(profile.saved_addresses) && profile.saved_addresses.length > 0) {
-            list = profile.saved_addresses;
+            list = profile.saved_addresses.map((a: any, idx: number) => ({
+              id: a.id || String(idx),
+              label: a.label || 'Favorita',
+              recipientName: a.recipientName || userDefaults.recipientName,
+              recipientPhone: a.recipientPhone || userDefaults.recipientPhone,
+              street: a.street || a.address || '',
+              town: a.town || '',
+              postalCode: a.postalCode || a.postal_code || '',
+              deliveryNotes: a.deliveryNotes || a.delivery_notes || '',
+              address: a.address || `${a.street || ''} ${a.town || ''}`.trim(),
+            }));
           } else if (profile.address) {
             list = [
               {
                 id: 'default',
-                label: 'Principal',
-                address: profile.address,
+                label: 'Casa',
+                recipientName: profile.full_name || '',
+                recipientPhone: profile.phone || '',
+                street: profile.address,
                 town: profile.town || '',
+                postalCode: profile.postal_code || '',
+                deliveryNotes: '',
+                address: `${profile.address}, ${profile.postal_code || ''} ${profile.town || ''}`.trim(),
               },
             ];
           }
-          setSavedAddresses(list.slice(0, 3));
+          setSavedAddresses(list.slice(0, 5));
         }
       }
     }
@@ -255,20 +327,67 @@ export default function CartPage() {
     }));
   };
 
-  const handleSaveCurrentAddress = async (sellerId: string) => {
-    const addr = deliveryConfigs[sellerId]?.shippingAddress;
-    if (!addr || !addr.trim()) return;
-
-    const newObj: SavedAddress = {
-      id: String(Date.now()),
-      label: newAddressLabel,
-      address: addr.trim(),
-      town: '',
+  const handleShippingFieldChange = (
+    sellerId: string,
+    field: keyof SellerShippingDetails,
+    value: string
+  ) => {
+    const current = shippingForms[sellerId] || { ...defaultShippingDetails };
+    const updated = {
+      ...current,
+      [field]: value,
     };
 
-    const updated = [...savedAddresses.filter((a) => a.address !== addr.trim()), newObj].slice(0, 3);
+    setShippingForms((prev) => ({
+      ...prev,
+      [sellerId]: updated,
+    }));
+
+    handleAddressChange(sellerId, formatFullAddress(updated));
+  };
+
+  const handleApplySavedAddress = (sellerId: string, sa: SavedAddress) => {
+    const details: SellerShippingDetails = {
+      recipientName: sa.recipientName || defaultShippingDetails.recipientName || '',
+      recipientPhone: sa.recipientPhone || defaultShippingDetails.recipientPhone || '',
+      street: sa.street || sa.address,
+      town: sa.town || '',
+      postalCode: sa.postalCode || '',
+      deliveryNotes: sa.deliveryNotes || '',
+    };
+
+    setShippingForms((prev) => ({
+      ...prev,
+      [sellerId]: details,
+    }));
+
+    handleAddressChange(sellerId, formatFullAddress(details));
+  };
+
+  const handleSaveFavoriteAddress = async (sellerId: string) => {
+    const details = shippingForms[sellerId] || defaultShippingDetails;
+    if (!details.street.trim()) {
+      setError('Por favor, introduce al menos la calle, número y piso antes de guardar en favoritas.');
+      return;
+    }
+
+    const fullStr = formatFullAddress(details);
+    const newObj: SavedAddress = {
+      id: String(Date.now()),
+      label: newAddressLabel.trim() || 'Favorita',
+      recipientName: details.recipientName.trim(),
+      recipientPhone: details.recipientPhone.trim(),
+      street: details.street.trim(),
+      town: details.town.trim(),
+      postalCode: details.postalCode.trim(),
+      deliveryNotes: details.deliveryNotes.trim(),
+      address: fullStr,
+    };
+
+    const updated = [...savedAddresses.filter((a) => a.address !== fullStr), newObj].slice(0, 5);
     setSavedAddresses(updated);
     await saveBuyerAddresses(updated);
+    setNewAddressLabel('Casa');
   };
 
   const getSellerConfig = (sellerId: string): SellerDeliveryConfig => {
@@ -334,10 +453,16 @@ export default function CartPage() {
         ? itemSelectedPointId
         : physicalPoints[0]?.id || null;
 
+    const currentDetails = shippingForms[sellerId] || defaultShippingDetails;
+    const computedShippingAddress =
+      currentConfig?.shippingAddress && currentConfig.shippingAddress.trim()
+        ? currentConfig.shippingAddress
+        : formatFullAddress(currentDetails) || savedAddresses[0]?.address || '';
+
     return {
       deliveryType: effectiveDeliveryType,
       deliveryPointId: effectiveDeliveryPointId,
-      shippingAddress: currentConfig?.shippingAddress || savedAddresses[0]?.address || '',
+      shippingAddress: computedShippingAddress,
       groupMode: currentConfig?.groupMode || 'junto_tardio',
     };
   };
@@ -348,9 +473,12 @@ export default function CartPage() {
       const group = groupedBySeller[sellerId];
       const config = getSellerConfig(sellerId);
 
-      if (config.deliveryType === 'envio' && !config.shippingAddress.trim()) {
-        setError(`Por favor, introduce la dirección de envío para el caserío ${group.sellerName}.`);
-        return;
+      if (config.deliveryType === 'envio') {
+        const details = shippingForms[sellerId] || defaultShippingDetails;
+        if (!details.street?.trim() || !details.town?.trim()) {
+          setError(`Por favor, completa los datos de envío a domicilio (calle y municipio) para el caserío ${group.sellerName}.`);
+          return;
+        }
       }
     }
     setShowSummaryModal(true);
@@ -837,7 +965,7 @@ export default function CartPage() {
                             <div className="flex items-center justify-between">
                               <span className="flex items-center gap-2 text-xs font-black text-stone-900">
                                 <MapPin className="w-4 h-4 text-emerald-800" />
-                                <span>Punto de Entrega (Mercado / Plaza)</span>
+                                <span>Punto de Entrega</span>
                               </span>
                               <input
                                 type="radio"
@@ -938,57 +1066,180 @@ export default function CartPage() {
                                 </p>
                               )}
 
-                              {/* Formulario de Dirección si Envío a Domicilio está seleccionado */}
-                              {config.deliveryType === 'envio' && (
-                                <div className="space-y-2 pt-1 border-t border-emerald-200/60" onClick={(e) => e.stopPropagation()}>
-                                  {savedAddresses.length > 0 && (
-                                    <div className="space-y-1">
-                                      <label className="text-[11px] font-black text-stone-700 flex items-center gap-1">
-                                        <Bookmark className="w-3.5 h-3.5 text-emerald-700" />
-                                        <span>Direcciones guardadas:</span>
-                                      </label>
-                                      <div className="flex flex-wrap gap-1.5">
-                                        {savedAddresses.map((sa) => (
-                                          <button
-                                            type="button"
-                                            key={sa.id}
-                                            onClick={() => handleAddressChange(sellerId, sa.address)}
-                                            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all border ${
-                                              config.shippingAddress === sa.address
-                                                ? 'bg-emerald-800 text-white border-emerald-900 shadow-sm'
-                                                : 'bg-white text-stone-700 border-stone-300 hover:bg-stone-50'
-                                            }`}
-                                          >
-                                            🏠 {sa.label}: {sa.address}
-                                          </button>
-                                        ))}
+                              {/* Formulario Completo de Dirección y Mis Direcciones Favoritas si Envío a Domicilio está seleccionado */}
+                              {config.deliveryType === 'envio' && (() => {
+                                const currentDetails = shippingForms[sellerId] || defaultShippingDetails;
+
+                                return (
+                                  <div className="space-y-3 pt-2 border-t border-emerald-200/70" onClick={(e) => e.stopPropagation()}>
+                                    {/* 1. Selector de Mis Direcciones Favoritas */}
+                                    {savedAddresses.length > 0 && (
+                                      <div className="space-y-1.5 p-3 bg-white rounded-2xl border border-emerald-200 shadow-sm">
+                                        <label className="text-[11px] font-black text-stone-800 flex items-center gap-1.5 uppercase tracking-wider">
+                                          <Bookmark className="w-3.5 h-3.5 text-emerald-700" />
+                                          <span>⭐ Mis Direcciones Favoritas:</span>
+                                        </label>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                          {savedAddresses.map((sa) => {
+                                            const isSelected =
+                                              (currentDetails.street && sa.street === currentDetails.street) ||
+                                              sa.address === config.shippingAddress;
+                                            return (
+                                              <button
+                                                type="button"
+                                                key={sa.id}
+                                                onClick={() => handleApplySavedAddress(sellerId, sa)}
+                                                className={`p-2.5 rounded-xl text-left text-xs transition-all border flex flex-col justify-between gap-0.5 ${
+                                                  isSelected
+                                                    ? 'bg-emerald-800 text-white border-emerald-900 shadow-sm'
+                                                    : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
+                                                }`}
+                                              >
+                                                <span className="font-black flex items-center gap-1">
+                                                  <span>🏠 {sa.label}</span>
+                                                  {isSelected && (
+                                                    <span className="text-[10px] ml-auto bg-white/20 px-1.5 py-0.5 rounded font-bold">
+                                                      Activa
+                                                    </span>
+                                                  )}
+                                                </span>
+                                                <span className={`text-[11px] truncate ${isSelected ? 'text-emerald-100' : 'text-stone-600'}`}>
+                                                  {sa.street || sa.address} {sa.town ? `(${sa.town})` : ''}
+                                                </span>
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* 2. Todos los campos a introducir para el envío a domicilio */}
+                                    <div className="p-3.5 bg-white rounded-2xl border border-stone-200 space-y-3 shadow-sm">
+                                      <div className="text-xs font-black text-stone-900 flex items-center gap-1.5">
+                                        <Truck className="w-4 h-4 text-emerald-700" />
+                                        <span>Datos para el Envío a Domicilio:</span>
+                                      </div>
+
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                        {/* Nombre Destinatario */}
+                                        <div>
+                                          <label className="block text-[10px] font-black text-stone-700 uppercase mb-1">
+                                            Nombre y Apellidos del Destinatario *
+                                          </label>
+                                          <input
+                                            type="text"
+                                            required
+                                            value={currentDetails.recipientName}
+                                            onChange={(e) => handleShippingFieldChange(sellerId, 'recipientName', e.target.value)}
+                                            placeholder="Ej. Miren Arregi"
+                                            className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                                          />
+                                        </div>
+
+                                        {/* Teléfono de Contacto */}
+                                        <div>
+                                          <label className="block text-[10px] font-black text-stone-700 uppercase mb-1">
+                                            Teléfono de Contacto (para el repartidor) *
+                                          </label>
+                                          <input
+                                            type="tel"
+                                            required
+                                            value={currentDetails.recipientPhone}
+                                            onChange={(e) => handleShippingFieldChange(sellerId, 'recipientPhone', e.target.value)}
+                                            placeholder="Ej. 600 123 456"
+                                            className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                                          />
+                                        </div>
+                                      </div>
+
+                                      {/* Dirección: Calle, número, portal, piso */}
+                                      <div>
+                                        <label className="block text-[10px] font-black text-stone-700 uppercase mb-1">
+                                          Dirección Completa (Calle, Número, Portal, Piso, Puerta) *
+                                        </label>
+                                        <input
+                                          type="text"
+                                          required
+                                          value={currentDetails.street}
+                                          onChange={(e) => handleShippingFieldChange(sellerId, 'street', e.target.value)}
+                                          placeholder="Ej. Calle Mayor 14, 2º Izq"
+                                          className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                                        />
+                                      </div>
+
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                        {/* Municipio */}
+                                        <div>
+                                          <label className="block text-[10px] font-black text-stone-700 uppercase mb-1">
+                                            Municipio / Población *
+                                          </label>
+                                          <input
+                                            type="text"
+                                            required
+                                            value={currentDetails.town}
+                                            onChange={(e) => handleShippingFieldChange(sellerId, 'town', e.target.value)}
+                                            placeholder="Ej. Durango, Bilbao..."
+                                            className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                                          />
+                                        </div>
+
+                                        {/* Código Postal */}
+                                        <div>
+                                          <label className="block text-[10px] font-black text-stone-700 uppercase mb-1">
+                                            Código Postal (CP) *
+                                          </label>
+                                          <input
+                                            type="text"
+                                            required
+                                            value={currentDetails.postalCode}
+                                            onChange={(e) => handleShippingFieldChange(sellerId, 'postalCode', e.target.value)}
+                                            placeholder="Ej. 48200"
+                                            className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                                          />
+                                        </div>
+                                      </div>
+
+                                      {/* Instrucciones de entrega */}
+                                      <div>
+                                        <label className="block text-[10px] font-black text-stone-700 uppercase mb-1">
+                                          Instrucciones o notas para el repartidor (Opcional)
+                                        </label>
+                                        <input
+                                          type="text"
+                                          value={currentDetails.deliveryNotes}
+                                          onChange={(e) => handleShippingFieldChange(sellerId, 'deliveryNotes', e.target.value)}
+                                          placeholder="Ej. Llamar al timbre 2B, dejar en conserjería..."
+                                          className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                                        />
+                                      </div>
+
+                                      {/* Guardar en mis direcciones favoritas */}
+                                      <div className="pt-2 border-t border-stone-100 flex flex-wrap items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-[11px] font-bold text-stone-700">Guardar como favorita:</span>
+                                          <input
+                                            type="text"
+                                            value={newAddressLabel}
+                                            onChange={(e) => setNewAddressLabel(e.target.value)}
+                                            placeholder="Etiqueta (ej. Casa, Trabajo)"
+                                            className="w-36 px-2.5 py-1 border border-stone-300 rounded-lg text-xs font-bold bg-stone-50 text-stone-900 focus:outline-none focus:ring-1 focus:ring-emerald-600"
+                                          />
+                                        </div>
+
+                                        <button
+                                          type="button"
+                                          onClick={() => handleSaveFavoriteAddress(sellerId)}
+                                          disabled={!currentDetails.street.trim()}
+                                          className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40 text-white text-xs font-black rounded-xl transition-colors flex items-center gap-1.5 shadow-sm"
+                                        >
+                                          <Bookmark className="w-3.5 h-3.5" />
+                                          <span>Guardar en Favoritas</span>
+                                        </button>
                                       </div>
                                     </div>
-                                  )}
-
-                                  <div className="flex items-center gap-2">
-                                    <input
-                                      type="text"
-                                      required
-                                      value={config.shippingAddress}
-                                      onChange={(e) => handleAddressChange(sellerId, e.target.value)}
-                                      placeholder="Introduce tu dirección completa (calle, portal, piso, municipio, CP)..."
-                                      className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-                                    />
-
-                                    {config.shippingAddress.trim() && (
-                                      <button
-                                        type="button"
-                                        onClick={() => handleSaveCurrentAddress(sellerId)}
-                                        title="Guardar en mis direcciones habituales"
-                                        className="shrink-0 bg-stone-200 hover:bg-stone-300 text-stone-900 text-xs font-bold px-3 py-2 rounded-xl transition-colors"
-                                      >
-                                        Guardar
-                                      </button>
-                                    )}
                                   </div>
-                                </div>
-                              )}
+                                );
+                              })()}
                             </div>
                           </div>
                         )}
