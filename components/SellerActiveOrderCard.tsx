@@ -65,15 +65,28 @@ export function SellerActiveOrderCard({ order }: SellerActiveOrderCardProps) {
     <div className="bg-white rounded-3xl border-2 border-stone-200 p-5 sm:p-6 shadow-sm space-y-4">
       {/* Cabecera */}
       <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-stone-100">
-        <div>
-          <h3 className="text-base font-black text-stone-900">
-            Cliente: {order.profiles?.full_name} ({order.profiles?.town})
-          </h3>
-          {order.profiles?.phone && (
-            <p className="text-xs font-bold text-stone-600 flex items-center gap-1 mt-0.5">
-              <Phone className="w-3.5 h-3.5 text-stone-500" /> {order.profiles?.phone}
-            </p>
+        <div className="flex items-center gap-3">
+          {order.profiles?.avatar_url ? (
+            <img
+              src={order.profiles.avatar_url}
+              alt={order.profiles.full_name || 'Cliente'}
+              className="w-10 h-10 rounded-full object-cover border border-stone-200 shrink-0"
+            />
+          ) : (
+            <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-800 font-black text-xs flex items-center justify-center border border-emerald-300 shrink-0">
+              {order.profiles?.full_name?.charAt(0) || 'U'}
+            </div>
           )}
+          <div>
+            <h3 className="text-base font-black text-stone-900">
+              Cliente: {order.profiles?.full_name} ({order.profiles?.town})
+            </h3>
+            {order.profiles?.phone && (
+              <p className="text-xs font-bold text-stone-600 flex items-center gap-1 mt-0.5">
+                <Phone className="w-3.5 h-3.5 text-stone-500" /> {order.profiles?.phone}
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center gap-2">

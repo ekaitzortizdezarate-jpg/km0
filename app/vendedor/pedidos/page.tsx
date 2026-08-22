@@ -17,7 +17,7 @@ export default async function SellerOrdersPage() {
     .from('orders')
     .select(`
       *,
-      profiles!orders_buyer_id_fkey(id, full_name, town, phone),
+      profiles!orders_buyer_id_fkey(id, full_name, town, phone, avatar_url),
       delivery_points(name, address_details),
       order_items(*, products(id, name, format, image_url))
     `)
@@ -78,18 +78,31 @@ export default async function SellerOrdersPage() {
                   className="bg-amber-50/80 rounded-3xl border-2 border-amber-300 p-5 sm:p-6 shadow-sm space-y-4"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-amber-200">
-                    <div>
-                      <span className="text-[10px] font-black uppercase bg-amber-200 text-amber-950 px-2 py-0.5 rounded-md">
-                        Requiere tu confirmación
-                      </span>
-                      <h3 className="text-base font-black text-stone-900 mt-1">
-                        Cliente: {order.profiles?.full_name} ({order.profiles?.town})
-                      </h3>
-                      {order.profiles?.phone && (
-                        <p className="text-xs font-bold text-stone-700 flex items-center gap-1 mt-0.5">
-                          <Phone className="w-3.5 h-3.5 text-stone-500" /> {order.profiles?.phone}
-                        </p>
+                    <div className="flex items-center gap-3">
+                      {order.profiles?.avatar_url ? (
+                        <img
+                          src={order.profiles.avatar_url}
+                          alt={order.profiles.full_name || 'Cliente'}
+                          className="w-10 h-10 rounded-full object-cover border border-amber-300 shrink-0"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-amber-200 text-amber-950 font-black text-xs flex items-center justify-center border border-amber-300 shrink-0">
+                          {order.profiles?.full_name?.charAt(0) || 'U'}
+                        </div>
                       )}
+                      <div>
+                        <span className="text-[10px] font-black uppercase bg-amber-200 text-amber-950 px-2 py-0.5 rounded-md inline-block">
+                          Requiere tu confirmación
+                        </span>
+                        <h3 className="text-base font-black text-stone-900 mt-0.5">
+                          Cliente: {order.profiles?.full_name} ({order.profiles?.town})
+                        </h3>
+                        {order.profiles?.phone && (
+                          <p className="text-xs font-bold text-stone-700 flex items-center gap-1 mt-0.5">
+                            <Phone className="w-3.5 h-3.5 text-stone-500" /> {order.profiles?.phone}
+                          </p>
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-2">

@@ -484,9 +484,17 @@ export function CatalogViewContainer({
                     {/* Cabecera del Caserío */}
                     <div className="flex items-start justify-between gap-3 pb-3 border-b border-stone-100">
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-900 font-black text-lg flex items-center justify-center border border-emerald-300 shrink-0">
-                          {profile.full_name?.charAt(0) || 'C'}
-                        </div>
+                        {profile.avatar_url ? (
+                          <img
+                            src={profile.avatar_url}
+                            alt={profile.full_name || 'Vendedor'}
+                            className="w-12 h-12 rounded-2xl object-cover border border-stone-200 shrink-0"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-900 font-black text-lg flex items-center justify-center border border-emerald-300 shrink-0">
+                            {profile.full_name?.charAt(0) || 'C'}
+                          </div>
+                        )}
                         <div>
                           <h3 className="text-base font-black text-stone-900 leading-tight">
                             {profile.full_name}
@@ -726,15 +734,28 @@ export function CatalogViewContainer({
                             setSelectedSellerId(product.seller_id);
                             setActiveTab('todos_productos');
                           }}
-                          className="text-left flex-1 group"
+                          className="text-left flex-1 group flex items-center gap-2 min-w-0"
                           title={`Ver todos los productos de ${product.profiles?.full_name}`}
                         >
-                          <span className="text-xs font-black text-stone-800 group-hover:text-emerald-800 block truncate">
-                            {product.profiles?.full_name}
-                          </span>
-                          <span className="text-[11px] font-semibold text-stone-500 block truncate">
-                            {product.profiles?.town}
-                          </span>
+                          {product.profiles?.avatar_url ? (
+                            <img
+                              src={product.profiles.avatar_url}
+                              alt={product.profiles.full_name || 'Vendedor'}
+                              className="w-8 h-8 rounded-full object-cover border border-stone-200 shrink-0"
+                            />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 font-black text-xs flex items-center justify-center border border-emerald-300 shrink-0">
+                              {product.profiles?.full_name?.charAt(0) || 'C'}
+                            </div>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <span className="text-xs font-black text-stone-800 group-hover:text-emerald-800 block truncate">
+                              {product.profiles?.full_name}
+                            </span>
+                            <span className="text-[11px] font-semibold text-stone-500 block truncate">
+                              {product.profiles?.town}
+                            </span>
+                          </div>
                         </button>
 
                         <div className="flex items-center gap-1 shrink-0">

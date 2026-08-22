@@ -17,7 +17,7 @@ export default async function BuyerOrdersPage() {
     .from('orders')
     .select(`
       *,
-      profiles!orders_seller_id_fkey(id, full_name, town, phone),
+      profiles!orders_seller_id_fkey(id, full_name, town, phone, avatar_url),
       delivery_points(name, town, address_details),
       order_items(*, products(id, name, format, image_url))
     `)
@@ -68,13 +68,26 @@ export default async function BuyerOrdersPage() {
               className="bg-white rounded-3xl border-2 border-stone-200 p-5 sm:p-6 shadow-sm space-y-4"
             >
               <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-stone-100">
-                <div>
-                  <span className="text-sm font-black text-stone-900">
-                    Caserío: {order.profiles?.full_name} ({order.profiles?.town})
-                  </span>
-                  <p className="text-xs font-semibold text-stone-600">
-                    Pedido realizado el {new Date(order.created_at).toLocaleDateString('es-ES')}
-                  </p>
+                <div className="flex items-center gap-3">
+                  {order.profiles?.avatar_url ? (
+                    <img
+                      src={order.profiles.avatar_url}
+                      alt={order.profiles.full_name || 'Vendedor'}
+                      className="w-10 h-10 rounded-full object-cover border border-stone-200 shrink-0"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-800 font-black text-xs flex items-center justify-center border border-emerald-300 shrink-0">
+                      {order.profiles?.full_name?.charAt(0) || 'C'}
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-sm font-black text-stone-900 block">
+                      Caserío: {order.profiles?.full_name} ({order.profiles?.town})
+                    </span>
+                    <p className="text-xs font-semibold text-stone-600">
+                      Pedido realizado el {new Date(order.created_at).toLocaleDateString('es-ES')}
+                    </p>
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-2">
