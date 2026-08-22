@@ -15,12 +15,16 @@ import {
   Edit2,
   Trash2,
   Package,
-  ArrowUpDown,
   MapPin,
+  ArrowUpDown,
+  LayoutGrid,
+  Grid2X2,
+  List,
 } from 'lucide-react';
 import { ProductCategory, ProductWithSeller, Profile } from '@/types/database';
 import { QuickAddToCartModal } from '@/components/QuickAddToCartModal';
 import { FavoriteButton } from '@/components/FavoriteButton';
+import { DeliveryMethodsBadges } from '@/components/DeliveryMethodsBadges';
 import { getDeliveryEstimate } from '@/lib/delivery';
 import { deleteProduct } from '@/app/actions/products';
 
@@ -108,6 +112,7 @@ export function CatalogViewContainer({
   const [selectedSellerId, setSelectedSellerId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>('nombre_asc');
+  const [viewMode, setViewMode] = useState<'grande' | 'mediano' | 'lista'>('mediano');
 
   const handleDeleteProduct = async (productId: string, productName: string) => {
     const confirmDelete = window.confirm(`¿Estás seguro de que deseas eliminar permanentemente "${productName}"?`);
@@ -616,30 +621,78 @@ export function CatalogViewContainer({
         </div>
       )}
 
-      {/* Selector de Ordenación (para productos) */}
+      {/* Selector de Ordenación y Selector de Modo de Vista (para productos) */}
       {activeTab !== 'vendedores' && (
         <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
           <span className="text-xs font-bold text-stone-500">
             {sortedProducts.length} {sortedProducts.length === 1 ? 'producto' : 'productos'}
           </span>
 
-          <div className="flex items-center gap-2">
-            <ArrowUpDown className="w-4 h-4 text-stone-500 shrink-0" />
-            <label className="text-xs font-bold text-stone-700 shrink-0">Ordenar por:</label>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as SortOption)}
-              className="px-3 py-1.5 bg-white border-2 border-stone-300 rounded-xl text-xs font-bold text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none shadow-sm cursor-pointer"
-            >
-              <option value="nombre_asc">Nombre (A - Z)</option>
-              <option value="nombre_desc">Nombre (Z - A)</option>
-              <option value="precio_asc">Precio: Menor a Mayor</option>
-              <option value="precio_desc">Precio: Mayor a Menor</option>
-              <option value="fecha_asc">Fecha entrega: Más próxima</option>
-              <option value="fecha_desc">Fecha entrega: Más lejana</option>
-              <option value="stock_desc">Cantidad disponible: Mayor a Menor</option>
-              <option value="stock_asc">Cantidad disponible: Menor a Mayor</option>
-            </select>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            {/* Selector de Vista: Grande, Mediano, Lista */}
+            <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-2xl border border-stone-200 shadow-2xs">
+              <button
+                type="button"
+                onClick={() => setViewMode('grande')}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-black transition-all ${
+                  viewMode === 'grande'
+                    ? 'bg-emerald-800 text-white shadow-sm'
+                    : 'text-stone-700 hover:text-stone-900 hover:bg-stone-200'
+                }`}
+                title="Vista de imágenes grandes"
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                <span className="text-[11px] hidden sm:inline">Grande</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setViewMode('mediano')}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-black transition-all ${
+                  viewMode === 'mediano'
+                    ? 'bg-emerald-800 text-white shadow-sm'
+                    : 'text-stone-700 hover:text-stone-900 hover:bg-stone-200'
+                }`}
+                title="Vista estándar mediana"
+              >
+                <Grid2X2 className="w-3.5 h-3.5" />
+                <span className="text-[11px] hidden sm:inline">Mediano</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setViewMode('lista')}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-black transition-all ${
+                  viewMode === 'lista'
+                    ? 'bg-emerald-800 text-white shadow-sm'
+                    : 'text-stone-700 hover:text-stone-900 hover:bg-stone-200'
+                }`}
+                title="Vista compacta en lista"
+              >
+                <List className="w-3.5 h-3.5" />
+                <span className="text-[11px] hidden sm:inline">Lista</span>
+              </button>
+            </div>
+
+            {/* Ordenar por */}
+            <div className="flex items-center gap-1.5">
+              <ArrowUpDown className="w-4 h-4 text-stone-500 shrink-0" />
+              <label className="text-xs font-bold text-stone-700 shrink-0 hidden sm:inline">Ordenar:</label>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortOption)}
+                className="px-2.5 sm:px-3 py-1.5 bg-white border-2 border-stone-300 rounded-xl text-xs font-bold text-stone-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none shadow-sm cursor-pointer"
+              >
+                <option value="nombre_asc">Nombre (A - Z)</option>
+                <option value="nombre_desc">Nombre (Z - A)</option>
+                <option value="precio_asc">Precio: Menor a Mayor</option>
+                <option value="precio_desc">Precio: Mayor a Menor</option>
+                <option value="fecha_asc">Fecha entrega: Más próxima</option>
+                <option value="fecha_desc">Fecha entrega: Más lejana</option>
+                <option value="stock_desc">Cantidad disponible: Mayor a Menor</option>
+                <option value="stock_asc">Cantidad disponible: Menor a Mayor</option>
+              </select>
+            </div>
           </div>
         </div>
       )}
@@ -778,313 +831,501 @@ export function CatalogViewContainer({
       {activeTab !== 'vendedores' && (
         <div className="space-y-6">
           {sortedProducts.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-              {sortedProducts.map((product) => {
-                const isMyProduct = userProfile?.id === product.seller_id;
-                const stockQty = Number(product.stock) || 0;
-                const isOutOfStock = !product.is_unlimited_stock && stockQty <= 0;
+            viewMode === 'lista' ? (
+              /* MODO LISTA COMPACTA */
+              <div className="flex flex-col space-y-3">
+                {sortedProducts.map((product) => {
+                  const isMyProduct = userProfile?.id === product.seller_id;
+                  const stockQty = Number(product.stock) || 0;
+                  const isOutOfStock = !product.is_unlimited_stock && stockQty <= 0;
 
-                // Cálculo de entrega estimada
-                const estimate = getDeliveryEstimate(
-                  product.availability_type,
-                  product.availability_days,
-                  product.availability_weekdays,
-                  product.available_from_date
-                );
+                  const estimate = getDeliveryEstimate(
+                    product.availability_type,
+                    product.availability_days,
+                    product.availability_weekdays,
+                    product.available_from_date
+                  );
 
-                const itemPayload = {
-                  productId: product.id,
-                  sellerId: product.seller_id,
-                  sellerName: product.profiles?.full_name || 'Caserío',
-                  sellerTown: product.profiles?.town || '',
-                  sellerAvatarUrl: product.profiles?.avatar_url || null,
-                  name: product.name,
-                  category: product.category,
-                  format: product.format,
-                  price: product.price,
-                  unitPrice: product.format === 'granel' ? (product.price_per_kilo || product.price) : product.price,
-                  weightKg: product.weight_kg,
-                  imageUrl: product.image_url,
-                  quantity: 1,
-                  packItems: product.pack_items,
-                  availabilityType: product.availability_type,
-                  availabilityDays: product.availability_days,
-                  availabilityWeekdays: product.availability_weekdays,
-                  availableFromDate: product.available_from_date,
-                  estimatedDeliveryDate: estimate.estimatedDate.toISOString(),
-                  deliveryBadge: estimate.badgeText,
-                  deliveryBadgeDetail: estimate.detailText,
-                  deliveryMethods: product.delivery_methods,
-                  caserioSchedule: product.caserio_schedule,
-                  isOrganic: product.is_organic,
-                  stock: stockQty,
-                  isUnlimitedStock: product.is_unlimited_stock,
-                };
+                  const itemPayload = {
+                    productId: product.id,
+                    sellerId: product.seller_id,
+                    sellerName: product.profiles?.full_name || 'Caserío',
+                    sellerTown: product.profiles?.town || '',
+                    sellerAvatarUrl: product.profiles?.avatar_url || null,
+                    name: product.name,
+                    category: product.category,
+                    format: product.format,
+                    price: product.price,
+                    unitPrice: product.format === 'granel' ? (product.price_per_kilo || product.price) : product.price,
+                    weightKg: product.weight_kg,
+                    imageUrl: product.image_url,
+                    quantity: 1,
+                    packItems: product.pack_items,
+                    availabilityType: product.availability_type,
+                    availabilityDays: product.availability_days,
+                    availabilityWeekdays: product.availability_weekdays,
+                    availableFromDate: product.available_from_date,
+                    estimatedDeliveryDate: estimate.estimatedDate.toISOString(),
+                    deliveryBadge: estimate.badgeText,
+                    deliveryBadgeDetail: estimate.detailText,
+                    deliveryMethods: product.delivery_methods,
+                    caserioSchedule: product.caserio_schedule,
+                    isOrganic: product.is_organic,
+                    stock: stockQty,
+                    isUnlimitedStock: product.is_unlimited_stock,
+                  };
 
-                return (
-                  <div
-                    key={product.id}
-                    className="bg-white rounded-3xl border-2 border-stone-200 overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative"
-                  >
-                    {/* Botón Favorito arriba a la derecha */}
-                    {!isMyProduct && (
-                      <div className="absolute top-2.5 right-2.5 z-20">
-                        <FavoriteButton
-                          id={product.id}
-                          type="product"
-                          className="bg-white/95 backdrop-blur-sm shadow-sm hover:bg-white p-2 rounded-xl border border-stone-200"
-                        />
-                      </div>
-                    )}
-
-                    {/* Parte Superior: Imagen y Detalles (Si es vendedor -> sin modal de añadir; Si es comprador -> modal rápido) */}
-                    <div className="relative">
-                      {isSeller ? (
-                        <div className="w-full text-left">
-                          <div className="aspect-square bg-stone-100 relative overflow-hidden group cursor-default">
-                            {product.image_url ? (
-                              <img
-                                src={product.image_url}
-                                alt={product.name}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex flex-col items-center justify-center text-stone-400 p-4">
-                                <Sprout className="w-12 h-12 text-emerald-800 mb-2" />
-                                <span className="text-xs font-bold text-stone-500">Caserío km0</span>
-                              </div>
-                            )}
-
-                            {/* Disponibilidad / Stock */}
-                            <div className="absolute top-2.5 left-2.5 z-10">
-                              {product.is_unlimited_stock ? (
-                                <span className="bg-emerald-900/90 backdrop-blur-sm text-emerald-100 text-[10px] font-black px-2 py-0.5 rounded-lg border border-emerald-700 shadow-sm">
-                                  Disponibilidad Continua
-                                </span>
-                              ) : isOutOfStock ? (
-                                <span className="bg-red-700 text-white text-[10px] font-black px-2 py-0.5 rounded-lg shadow-sm">
-                                  Agotado
-                                </span>
-                              ) : (
-                                <span className="bg-stone-900/90 backdrop-blur-sm text-white text-[10px] font-black px-2 py-0.5 rounded-lg shadow-sm">
-                                  {stockQty} {product.format === 'granel' ? 'kg' : 'uds'} disponibles
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Título y Precio */}
-                          <div className="p-4 space-y-2">
-                            <div className="flex items-start justify-between gap-2">
-                              <h3 className="font-black text-sm text-stone-900 line-clamp-1">
-                                {product.name}
-                              </h3>
-                              <span className="font-black text-sm text-emerald-950 shrink-0">
-                                {product.format === 'granel'
-                                  ? `${Number(product.price_per_kilo || product.price).toFixed(2)} €/kg`
-                                  : `${Number(product.price).toFixed(2)} €`}
-                              </span>
-                            </div>
-
-                            {/* Disponibilidad de Stock */}
-                            <div className="flex items-center justify-between text-[11px] font-bold text-stone-600 bg-stone-50 px-2.5 py-1 rounded-lg border border-stone-200">
-                              <span>Disponibilidad:</span>
-                              <span className={isOutOfStock ? 'text-red-700 font-black' : 'text-emerald-950 font-black'}>
-                                {product.is_unlimited_stock
-                                  ? 'Ilimitada'
-                                  : isOutOfStock
-                                  ? 'Agotado'
-                                  : `${stockQty} ${product.format === 'granel' ? 'kg' : 'uds'} disponibles`}
-                              </span>
-                            </div>
-
-                            {/* Plazo de Entrega en 2 filas */}
-                            <div className="p-2 bg-emerald-50/90 rounded-xl border border-emerald-200 text-[11px] font-bold text-emerald-950 space-y-0.5">
-                              <div className="flex items-center gap-1 text-emerald-800 text-[10px] uppercase font-black">
-                                <Clock className="w-3 h-3 shrink-0" />
-                                <span>Entrega prevista:</span>
-                              </div>
-                              <p className="text-stone-800 font-semibold leading-tight">
-                                {estimate.detailText}
-                              </p>
-                            </div>
-                          </div>
+                  return (
+                    <div
+                      key={product.id}
+                      className="bg-white rounded-3xl border-2 border-stone-200 overflow-hidden shadow-sm hover:shadow-md transition-all p-3.5 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 relative"
+                    >
+                      {/* Botón Favorito */}
+                      {!isMyProduct && (
+                        <div className="absolute top-3 right-3 sm:static sm:order-last z-20 shrink-0">
+                          <FavoriteButton
+                            id={product.id}
+                            type="product"
+                            className="bg-white/95 backdrop-blur-sm shadow-sm hover:bg-stone-100 p-2 rounded-xl border border-stone-200"
+                          />
                         </div>
-                      ) : (
-                        <QuickAddToCartModal
-                          item={itemPayload}
-                          isCardOverlay={true}
-                          className="w-full text-left"
-                        >
-                          <div className="aspect-square bg-stone-100 relative overflow-hidden group cursor-pointer">
-                            {product.image_url ? (
-                              <img
-                                src={product.image_url}
-                                alt={product.name}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex flex-col items-center justify-center text-stone-400 p-4">
-                                <Sprout className="w-12 h-12 text-emerald-800 mb-2" />
-                                <span className="text-xs font-bold text-stone-500">Caserío km0</span>
-                              </div>
-                            )}
-
-                            {/* Disponibilidad / Stock */}
-                            <div className="absolute top-2.5 left-2.5 z-10">
-                              {product.is_unlimited_stock ? (
-                                <span className="bg-emerald-900/90 backdrop-blur-sm text-emerald-100 text-[10px] font-black px-2 py-0.5 rounded-lg border border-emerald-700 shadow-sm">
-                                  Disponibilidad Continua
-                                </span>
-                              ) : isOutOfStock ? (
-                                <span className="bg-red-700 text-white text-[10px] font-black px-2 py-0.5 rounded-lg shadow-sm">
-                                  Agotado
-                                </span>
-                              ) : (
-                                <span className="bg-stone-900/90 backdrop-blur-sm text-white text-[10px] font-black px-2 py-0.5 rounded-lg shadow-sm">
-                                  {stockQty} {product.format === 'granel' ? 'kg' : 'uds'} disponibles
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Título y Precio */}
-                          <div className="p-4 space-y-2">
-                            <div className="flex items-start justify-between gap-2">
-                              <h3 className="font-black text-sm text-stone-900 group-hover:text-emerald-800 transition-colors line-clamp-1">
-                                {product.name}
-                              </h3>
-                              <span className="font-black text-sm text-emerald-950 shrink-0">
-                                {product.format === 'granel'
-                                  ? `${Number(product.price_per_kilo || product.price).toFixed(2)} €/kg`
-                                  : `${Number(product.price).toFixed(2)} €`}
-                              </span>
-                            </div>
-
-                            {/* Disponibilidad de Stock */}
-                            <div className="flex items-center justify-between text-[11px] font-bold text-stone-600 bg-stone-50 px-2.5 py-1 rounded-lg border border-stone-200">
-                              <span>Disponibilidad:</span>
-                              <span className={isOutOfStock ? 'text-red-700 font-black' : 'text-emerald-950 font-black'}>
-                                {product.is_unlimited_stock
-                                  ? 'Ilimitada'
-                                  : isOutOfStock
-                                  ? 'Agotado'
-                                  : `${stockQty} ${product.format === 'granel' ? 'kg' : 'uds'} disponibles`}
-                              </span>
-                            </div>
-
-                            {/* Plazo de Entrega en 2 filas */}
-                            <div className="p-2 bg-emerald-50/90 rounded-xl border border-emerald-200 text-[11px] font-bold text-emerald-950 space-y-0.5">
-                              <div className="flex items-center gap-1 text-emerald-800 text-[10px] uppercase font-black">
-                                <Clock className="w-3 h-3 shrink-0" />
-                                <span>Entrega prevista:</span>
-                              </div>
-                              <p className="text-stone-800 font-semibold leading-tight">
-                                {estimate.detailText}
-                              </p>
-                            </div>
-                          </div>
-                        </QuickAddToCartModal>
                       )}
-                    </div>
 
-                    {/* Parte Inferior: Caserío, Acciones y Añadir / Editar */}
-                    <div className="px-4 pb-4 pt-0 space-y-3">
-                      <div className="pt-2 border-t border-stone-100 flex items-center justify-between gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedSellerId(product.seller_id);
-                            setActiveTab('todos_productos');
-                          }}
-                          className="text-left flex-1 group flex items-center gap-2 min-w-0"
-                          title={`Ver todos los productos de ${product.profiles?.full_name}`}
-                        >
-                          {product.profiles?.avatar_url ? (
-                            <img
-                              src={product.profiles.avatar_url}
-                              alt={product.profiles.full_name || 'Vendedor'}
-                              className="w-8 h-8 rounded-full object-cover border border-stone-200 shrink-0"
-                            />
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 font-black text-xs flex items-center justify-center border border-emerald-300 shrink-0">
-                              {product.profiles?.full_name?.charAt(0) || 'C'}
-                            </div>
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <span className="text-xs font-black text-stone-800 group-hover:text-emerald-800 block truncate">
-                              {product.profiles?.full_name}
-                            </span>
-                            <span className="text-[11px] font-semibold text-stone-500 block truncate">
-                              {product.profiles?.town}
-                            </span>
+                      {/* Imagen */}
+                      <div className="w-full sm:w-28 h-28 rounded-2xl overflow-hidden relative shrink-0 bg-stone-100 border border-stone-200">
+                        {product.image_url ? (
+                          <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center text-stone-400 p-2">
+                            <Sprout className="w-8 h-8 text-emerald-800" />
+                            <span className="text-[10px] font-bold text-stone-500">km0</span>
                           </div>
-                        </button>
-
-                        {/* Botones de acción del vendedor en la misma fila del caserío */}
-                        {isMyProduct ? (
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <Link
-                              href={`/vendedor/productos/${product.id}/editar`}
-                              className="py-1.5 px-2.5 bg-stone-100 hover:bg-stone-200 text-stone-900 text-xs font-black rounded-xl transition-all border border-stone-300 flex items-center justify-center gap-1 shadow-sm"
-                              title="Editar este producto"
-                            >
-                              <Edit2 className="w-3.5 h-3.5 text-stone-700 shrink-0" />
-                              <span>Editar</span>
-                            </Link>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteProduct(product.id, product.name)}
-                              disabled={deletingId === product.id}
-                              className="py-1.5 px-2.5 bg-red-50 hover:bg-red-100 text-red-700 hover:text-red-800 text-xs font-black rounded-xl transition-all border border-red-200 flex items-center justify-center gap-1 shadow-sm disabled:opacity-50"
-                              title="Borrar este producto"
-                            >
-                              <Trash2 className="w-3.5 h-3.5 text-red-600 shrink-0" />
-                              <span>{deletingId === product.id ? '...' : 'Borrar'}</span>
-                            </button>
-                          </div>
-                        ) : isSeller ? (
-                          <Link
-                            href={`/chat/${product.seller_id}`}
-                            className="p-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-lg transition-colors border border-stone-200 shrink-0"
-                            title="Chatear con el caserío"
-                          >
-                            <MessageCircle className="w-3.5 h-3.5 text-emerald-800" />
-                          </Link>
+                        )}
+                        {product.is_unlimited_stock ? (
+                          <span className="absolute top-1.5 left-1.5 bg-emerald-900/90 text-emerald-100 text-[9px] font-black px-1.5 py-0.5 rounded shadow-sm">
+                            Continuo
+                          </span>
+                        ) : isOutOfStock ? (
+                          <span className="absolute top-1.5 left-1.5 bg-red-700 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-sm">
+                            Agotado
+                          </span>
                         ) : null}
                       </div>
 
-                      {/* Botón inferior: Solo para compradores -> Añadir a la Cesta; o para otros vendedores -> Contactar */}
-                      {!isMyProduct && (
-                        isSeller ? (
-                          <Link
-                            href={`/chat/${product.seller_id}`}
-                            className="w-full py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-900 text-xs font-black rounded-xl transition-all border border-stone-300 flex items-center justify-center gap-1.5"
+                      {/* Centro: Info del producto, badges y Caserío */}
+                      <div className="min-w-0 flex-1 space-y-1 w-full">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="font-black text-sm sm:text-base text-stone-900 leading-tight">
+                            {product.name}
+                          </h3>
+                          <DeliveryMethodsBadges deliveryMethods={product.delivery_methods} />
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2 text-xs">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedSellerId(product.seller_id);
+                              setActiveTab('todos_productos');
+                            }}
+                            className="flex items-center gap-1.5 text-left font-bold text-emerald-900 hover:text-emerald-950"
                           >
-                            <MessageCircle className="w-4 h-4 text-emerald-800" />
-                            <span>Contactar con el Caserío</span>
-                          </Link>
+                            <Store className="w-3.5 h-3.5 text-emerald-800 shrink-0" />
+                            <span>{product.profiles?.full_name} ({product.profiles?.town})</span>
+                          </button>
+
+                          <span className="text-stone-300 hidden sm:inline">•</span>
+
+                          <span className="text-[11px] font-semibold text-stone-600">
+                            {estimate.detailText}
+                          </span>
+                        </div>
+
+                        {product.description && (
+                          <p className="text-xs text-stone-500 line-clamp-1">{product.description}</p>
+                        )}
+                      </div>
+
+                      {/* Derecha: Precio y Botón */}
+                      <div className="flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-stone-100">
+                        <div className="text-left sm:text-right">
+                          <span className="text-base sm:text-lg font-black text-emerald-950 block">
+                            {product.format === 'granel'
+                              ? `${Number(product.price_per_kilo || product.price).toFixed(2)} €/kg`
+                              : `${Number(product.price).toFixed(2)} €`}
+                          </span>
+                          <span className="text-[10px] font-bold text-stone-500">
+                            {isOutOfStock ? 'Sin stock' : `${stockQty} ${product.format === 'granel' ? 'kg' : 'uds'} disp.`}
+                          </span>
+                        </div>
+
+                        <div className="shrink-0">
+                          {isMyProduct ? (
+                            <div className="flex items-center gap-1.5">
+                              <Link
+                                href={`/vendedor/productos/${product.id}/editar`}
+                                className="py-1.5 px-3 bg-stone-100 hover:bg-stone-200 text-stone-900 text-xs font-black rounded-xl border border-stone-300 flex items-center gap-1 shadow-sm"
+                              >
+                                <Edit2 className="w-3.5 h-3.5 text-stone-700 shrink-0" />
+                                <span>Editar</span>
+                              </Link>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteProduct(product.id, product.name)}
+                                disabled={deletingId === product.id}
+                                className="py-1.5 px-2.5 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-black rounded-xl border border-red-200 flex items-center gap-1 shadow-sm"
+                              >
+                                <Trash2 className="w-3.5 h-3.5 text-red-600 shrink-0" />
+                              </button>
+                            </div>
+                          ) : isSeller ? (
+                            <Link
+                              href={`/chat/${product.seller_id}`}
+                              className="py-1.5 px-3 bg-stone-100 hover:bg-stone-200 text-stone-900 text-xs font-black rounded-xl border border-stone-300 flex items-center gap-1"
+                            >
+                              <MessageCircle className="w-3.5 h-3.5 text-emerald-800" />
+                              <span>Chat</span>
+                            </Link>
+                          ) : (
+                            <QuickAddToCartModal item={itemPayload} isCardOverlay={false}>
+                              <button
+                                type="button"
+                                disabled={isOutOfStock}
+                                className="py-2 px-4 bg-emerald-800 hover:bg-emerald-900 disabled:opacity-50 text-white text-xs font-black rounded-xl shadow-sm flex items-center gap-1.5"
+                              >
+                                <PlusCircle className="w-4 h-4 text-emerald-300" />
+                                <span>{isOutOfStock ? 'Agotado' : 'Añadir'}</span>
+                              </button>
+                            </QuickAddToCartModal>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              /* MODO GRID: GRANDE (3 columnas) o MEDIANO (4 columnas) */
+              <div
+                className={
+                  viewMode === 'grande'
+                    ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6'
+                    : 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5'
+                }
+              >
+                {sortedProducts.map((product) => {
+                  const isMyProduct = userProfile?.id === product.seller_id;
+                  const stockQty = Number(product.stock) || 0;
+                  const isOutOfStock = !product.is_unlimited_stock && stockQty <= 0;
+
+                  // Cálculo de entrega estimada
+                  const estimate = getDeliveryEstimate(
+                    product.availability_type,
+                    product.availability_days,
+                    product.availability_weekdays,
+                    product.available_from_date
+                  );
+
+                  const itemPayload = {
+                    productId: product.id,
+                    sellerId: product.seller_id,
+                    sellerName: product.profiles?.full_name || 'Caserío',
+                    sellerTown: product.profiles?.town || '',
+                    sellerAvatarUrl: product.profiles?.avatar_url || null,
+                    name: product.name,
+                    category: product.category,
+                    format: product.format,
+                    price: product.price,
+                    unitPrice: product.format === 'granel' ? (product.price_per_kilo || product.price) : product.price,
+                    weightKg: product.weight_kg,
+                    imageUrl: product.image_url,
+                    quantity: 1,
+                    packItems: product.pack_items,
+                    availabilityType: product.availability_type,
+                    availabilityDays: product.availability_days,
+                    availabilityWeekdays: product.availability_weekdays,
+                    availableFromDate: product.available_from_date,
+                    estimatedDeliveryDate: estimate.estimatedDate.toISOString(),
+                    deliveryBadge: estimate.badgeText,
+                    deliveryBadgeDetail: estimate.detailText,
+                    deliveryMethods: product.delivery_methods,
+                    caserioSchedule: product.caserio_schedule,
+                    isOrganic: product.is_organic,
+                    stock: stockQty,
+                    isUnlimitedStock: product.is_unlimited_stock,
+                  };
+
+                  return (
+                    <div
+                      key={product.id}
+                      className="bg-white rounded-3xl border-2 border-stone-200 overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative"
+                    >
+                      {/* Botón Favorito arriba a la derecha */}
+                      {!isMyProduct && (
+                        <div className="absolute top-2.5 right-2.5 z-20">
+                          <FavoriteButton
+                            id={product.id}
+                            type="product"
+                            className="bg-white/95 backdrop-blur-sm shadow-sm hover:bg-white p-2 rounded-xl border border-stone-200"
+                          />
+                        </div>
+                      )}
+
+                      {/* Parte Superior: Imagen y Detalles */}
+                      <div className="relative">
+                        {isSeller ? (
+                          <div className="w-full text-left">
+                            <div className={`bg-stone-100 relative overflow-hidden group cursor-default ${viewMode === 'grande' ? 'aspect-[4/3]' : 'aspect-square'}`}>
+                              {product.image_url ? (
+                                <img
+                                  src={product.image_url}
+                                  alt={product.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex flex-col items-center justify-center text-stone-400 p-4">
+                                  <Sprout className="w-12 h-12 text-emerald-800 mb-2" />
+                                  <span className="text-xs font-bold text-stone-500">Caserío km0</span>
+                                </div>
+                              )}
+
+                              {/* Disponibilidad / Stock */}
+                              <div className="absolute top-2.5 left-2.5 z-10">
+                                {product.is_unlimited_stock ? (
+                                  <span className="bg-emerald-900/90 backdrop-blur-sm text-emerald-100 text-[10px] font-black px-2 py-0.5 rounded-lg border border-emerald-700 shadow-sm">
+                                    Disponibilidad Continua
+                                  </span>
+                                ) : isOutOfStock ? (
+                                  <span className="bg-red-700 text-white text-[10px] font-black px-2 py-0.5 rounded-lg shadow-sm">
+                                    Agotado
+                                  </span>
+                                ) : (
+                                  <span className="bg-stone-900/90 backdrop-blur-sm text-white text-[10px] font-black px-2 py-0.5 rounded-lg shadow-sm">
+                                    {stockQty} {product.format === 'granel' ? 'kg' : 'uds'} disponibles
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Título, Badges de entrega y Precio */}
+                            <div className="p-4 space-y-2">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0 flex-1 space-y-1">
+                                  <h3 className="font-black text-sm text-stone-900 line-clamp-1">
+                                    {product.name}
+                                  </h3>
+                                  <DeliveryMethodsBadges deliveryMethods={product.delivery_methods} />
+                                </div>
+                                <span className="font-black text-sm text-emerald-950 shrink-0">
+                                  {product.format === 'granel'
+                                    ? `${Number(product.price_per_kilo || product.price).toFixed(2)} €/kg`
+                                    : `${Number(product.price).toFixed(2)} €`}
+                                </span>
+                              </div>
+
+                              {/* Disponibilidad de Stock */}
+                              <div className="flex items-center justify-between text-[11px] font-bold text-stone-600 bg-stone-50 px-2.5 py-1 rounded-lg border border-stone-200">
+                                <span>Disponibilidad:</span>
+                                <span className={isOutOfStock ? 'text-red-700 font-black' : 'text-emerald-950 font-black'}>
+                                  {product.is_unlimited_stock
+                                    ? 'Ilimitada'
+                                    : isOutOfStock
+                                    ? 'Agotado'
+                                    : `${stockQty} ${product.format === 'granel' ? 'kg' : 'uds'} disponibles`}
+                                </span>
+                              </div>
+
+                              {/* Plazo de Entrega en 2 filas */}
+                              <div className="p-2 bg-emerald-50/90 rounded-xl border border-emerald-200 text-[11px] font-bold text-emerald-950 space-y-0.5">
+                                <div className="flex items-center gap-1 text-emerald-800 text-[10px] uppercase font-black">
+                                  <Clock className="w-3 h-3 shrink-0" />
+                                  <span>Entrega prevista:</span>
+                                </div>
+                                <p className="text-stone-800 font-semibold leading-tight">
+                                  {estimate.detailText}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
                         ) : (
                           <QuickAddToCartModal
                             item={itemPayload}
-                            isCardOverlay={false}
-                            className="w-full"
+                            isCardOverlay={true}
+                            className="w-full text-left"
                           >
-                            <button
-                              type="button"
-                              disabled={isOutOfStock}
-                              className="w-full py-2.5 bg-emerald-800 hover:bg-emerald-900 disabled:opacity-50 text-white text-xs font-black rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5"
-                            >
-                              {isOutOfStock ? 'Agotado' : 'Añadir a la Cesta'}
-                            </button>
+                            <div className={`bg-stone-100 relative overflow-hidden group cursor-pointer ${viewMode === 'grande' ? 'aspect-[4/3]' : 'aspect-square'}`}>
+                              {product.image_url ? (
+                                <img
+                                  src={product.image_url}
+                                  alt={product.name}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex flex-col items-center justify-center text-stone-400 p-4">
+                                  <Sprout className="w-12 h-12 text-emerald-800 mb-2" />
+                                  <span className="text-xs font-bold text-stone-500">Caserío km0</span>
+                                </div>
+                              )}
+
+                              {/* Disponibilidad / Stock */}
+                              <div className="absolute top-2.5 left-2.5 z-10">
+                                {product.is_unlimited_stock ? (
+                                  <span className="bg-emerald-900/90 backdrop-blur-sm text-emerald-100 text-[10px] font-black px-2 py-0.5 rounded-lg border border-emerald-700 shadow-sm">
+                                    Disponibilidad Continua
+                                  </span>
+                                ) : isOutOfStock ? (
+                                  <span className="bg-red-700 text-white text-[10px] font-black px-2 py-0.5 rounded-lg shadow-sm">
+                                    Agotado
+                                  </span>
+                                ) : (
+                                  <span className="bg-stone-900/90 backdrop-blur-sm text-white text-[10px] font-black px-2 py-0.5 rounded-lg shadow-sm">
+                                    {stockQty} {product.format === 'granel' ? 'kg' : 'uds'} disponibles
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Título, Badges de entrega y Precio */}
+                            <div className="p-4 space-y-2">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0 flex-1 space-y-1">
+                                  <h3 className="font-black text-sm text-stone-900 group-hover:text-emerald-800 transition-colors line-clamp-1">
+                                    {product.name}
+                                  </h3>
+                                  <DeliveryMethodsBadges deliveryMethods={product.delivery_methods} />
+                                </div>
+                                <span className="font-black text-sm text-emerald-950 shrink-0">
+                                  {product.format === 'granel'
+                                    ? `${Number(product.price_per_kilo || product.price).toFixed(2)} €/kg`
+                                    : `${Number(product.price).toFixed(2)} €`}
+                                </span>
+                              </div>
+
+                              {/* Disponibilidad de Stock */}
+                              <div className="flex items-center justify-between text-[11px] font-bold text-stone-600 bg-stone-50 px-2.5 py-1 rounded-lg border border-stone-200">
+                                <span>Disponibilidad:</span>
+                                <span className={isOutOfStock ? 'text-red-700 font-black' : 'text-emerald-950 font-black'}>
+                                  {product.is_unlimited_stock
+                                    ? 'Ilimitada'
+                                    : isOutOfStock
+                                    ? 'Agotado'
+                                    : `${stockQty} ${product.format === 'granel' ? 'kg' : 'uds'} disponibles`}
+                                </span>
+                              </div>
+
+                              {/* Plazo de Entrega en 2 filas */}
+                              <div className="p-2 bg-emerald-50/90 rounded-xl border border-emerald-200 text-[11px] font-bold text-emerald-950 space-y-0.5">
+                                <div className="flex items-center gap-1 text-emerald-800 text-[10px] uppercase font-black">
+                                  <Clock className="w-3 h-3 shrink-0" />
+                                  <span>Entrega prevista:</span>
+                                </div>
+                                <p className="text-stone-800 font-semibold leading-tight">
+                                  {estimate.detailText}
+                                </p>
+                              </div>
+                            </div>
                           </QuickAddToCartModal>
-                        )
-                      )}
+                        )}
+                      </div>
+
+                      {/* Parte Inferior: Caserío, Acciones y Añadir / Editar */}
+                      <div className="px-4 pb-4 pt-0 space-y-3">
+                        <div className="pt-2 border-t border-stone-100 flex items-center justify-between gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedSellerId(product.seller_id);
+                              setActiveTab('todos_productos');
+                            }}
+                            className="text-left flex-1 group flex items-center gap-2 min-w-0"
+                            title={`Ver todos los productos de ${product.profiles?.full_name}`}
+                          >
+                            {product.profiles?.avatar_url ? (
+                              <img
+                                src={product.profiles.avatar_url}
+                                alt={product.profiles.full_name || 'Vendedor'}
+                                className="w-8 h-8 rounded-full object-cover border border-stone-200 shrink-0"
+                              />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 font-black text-xs flex items-center justify-center border border-emerald-300 shrink-0">
+                                {product.profiles?.full_name?.charAt(0) || 'C'}
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <span className="text-xs font-black text-stone-800 group-hover:text-emerald-800 block truncate">
+                                {product.profiles?.full_name}
+                              </span>
+                              <span className="text-[11px] font-semibold text-stone-500 block truncate">
+                                {product.profiles?.town}
+                              </span>
+                            </div>
+                          </button>
+
+                          {/* Botones de acción del vendedor en la misma fila del caserío */}
+                          {isMyProduct ? (
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <Link
+                                href={`/vendedor/productos/${product.id}/editar`}
+                                className="py-1.5 px-2.5 bg-stone-100 hover:bg-stone-200 text-stone-900 text-xs font-black rounded-xl transition-all border border-stone-300 flex items-center justify-center gap-1 shadow-sm"
+                                title="Editar este producto"
+                              >
+                                <Edit2 className="w-3.5 h-3.5 text-stone-700 shrink-0" />
+                                <span>Editar</span>
+                              </Link>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteProduct(product.id, product.name)}
+                                disabled={deletingId === product.id}
+                                className="py-1.5 px-2.5 bg-red-50 hover:bg-red-100 text-red-700 hover:text-red-800 text-xs font-black rounded-xl transition-all border border-red-200 flex items-center justify-center gap-1 shadow-sm disabled:opacity-50"
+                                title="Borrar este producto"
+                              >
+                                <Trash2 className="w-3.5 h-3.5 text-red-600 shrink-0" />
+                                <span>{deletingId === product.id ? '...' : 'Borrar'}</span>
+                              </button>
+                            </div>
+                          ) : isSeller ? (
+                            <Link
+                              href={`/chat/${product.seller_id}`}
+                              className="p-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-lg transition-colors border border-stone-200 shrink-0"
+                              title="Chatear con el caserío"
+                            >
+                              <MessageCircle className="w-3.5 h-3.5 text-emerald-800" />
+                            </Link>
+                          ) : null}
+                        </div>
+
+                        {/* Botón inferior: Solo para compradores -> Añadir a la Cesta; o para otros vendedores -> Contactar */}
+                        {!isMyProduct && (
+                          isSeller ? (
+                            <Link
+                              href={`/chat/${product.seller_id}`}
+                              className="w-full py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-900 text-xs font-black rounded-xl transition-all border border-stone-300 flex items-center justify-center gap-1.5"
+                            >
+                              <MessageCircle className="w-4 h-4 text-emerald-800" />
+                              <span>Contactar con el Caserío</span>
+                            </Link>
+                          ) : (
+                            <QuickAddToCartModal
+                              item={itemPayload}
+                              isCardOverlay={false}
+                              className="w-full"
+                            >
+                              <button
+                                type="button"
+                                disabled={isOutOfStock}
+                                className="w-full py-2.5 bg-emerald-800 hover:bg-emerald-900 disabled:opacity-50 text-white text-xs font-black rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5"
+                              >
+                                {isOutOfStock ? 'Agotado' : 'Añadir a la Cesta'}
+                              </button>
+                            </QuickAddToCartModal>
+                          )
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )
           ) : (
             <div className="bg-white rounded-3xl border-2 border-stone-200 p-10 text-center space-y-3 shadow-sm">
               <Sparkles className="w-12 h-12 text-stone-400 mx-auto" />

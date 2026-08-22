@@ -18,11 +18,10 @@ import {
 import { updateOrderStatus, cancelActiveOrderWithReason } from '@/app/actions/order-status';
 import type { OrderStatus } from '@/types/database';
 import ReviewForm from '@/components/ReviewForm';
-import { OrderProductItemsList, ProductViewMode } from '@/components/OrderProductItemsList';
+import { DeliveryMethodsBadges } from '@/components/DeliveryMethodsBadges';
 
 interface SellerActiveOrderCardProps {
   order: any;
-  viewMode?: ProductViewMode;
 }
 
 const statusLabels: Record<string, string> = {
@@ -43,10 +42,7 @@ const statusColors: Record<string, string> = {
   cancelado: 'bg-red-100 text-red-950 border-red-300',
 };
 
-export function SellerActiveOrderCard({
-  order,
-  viewMode,
-}: SellerActiveOrderCardProps) {
+export function SellerActiveOrderCard({ order }: SellerActiveOrderCardProps) {
   const [currentStatus, setCurrentStatus] = useState<OrderStatus>(order.status);
   const [loading, setLoading] = useState(false);
   const [statusUpdated, setStatusUpdated] = useState(false);
@@ -162,15 +158,15 @@ export function SellerActiveOrderCard({
           </div>
           {order.is_recurring && (
             <span className="flex items-center gap-1 text-[9px] font-black bg-emerald-100 text-emerald-950 border border-emerald-300 px-2 py-0.5 rounded-full">
-              <RefreshCw className="w-2.5 h-2.5" /> Periódico ({order.recurrence_interval_days}d)
+              <RefreshCw className="w-2.5 h-2.5" /> Recurrente ({order.recurrence_interval_days}d)
             </span>
           )}
         </div>
       </div>
 
-      {/* 2, 3, 4: Información estructurada de Pedido realizado, validado, y recuadro verde con Fecha de Entrega + Tipo de Envío */}
+      {/* 2. Información estructurada de Pedido realizado, validado, y recuadro verde con Fecha de Entrega + Tipo de Envío */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs font-bold text-stone-800 bg-stone-50 p-3.5 rounded-2xl border border-stone-200">
-        {/* Pedido realizado: fecha y hora con día de la semana */}
+        {/* Pedido realizado */}
         <div className="flex items-center gap-2">
           <Clock className="w-4 h-4 text-stone-500 shrink-0" />
           <span>
@@ -188,7 +184,7 @@ export function SellerActiveOrderCard({
           </span>
         </div>
 
-        {/* Pedido validado: fecha y hora con día de la semana (si ya lo está) */}
+        {/* Pedido validado */}
         {isValidated ? (
           <div className="flex items-center gap-2 text-emerald-950">
             <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
@@ -288,15 +284,60 @@ export function SellerActiveOrderCard({
         </div>
       </div>
 
-      {/* 5. Los productos y total de productos */}
+      {/* 3. Los productos y total de productos con los 3 iconos de entrega entre el nombre y el precio */}
       <div className="space-y-2.5 bg-stone-50 p-4 rounded-2xl border border-stone-200">
         <span className="text-[11px] font-black text-stone-500 uppercase tracking-wider block">
           Productos ({totalProductItems} {totalProductItems === 1 ? 'línea' : 'líneas'}, {totalProductQty} uds/kg):
         </span>
-        <OrderProductItemsList
-          items={order.order_items || []}
-          viewMode={viewMode}
-        />
+
+        <div className="space-y-2">
+          {order.order_items?.map((item: any) => (
+            <div
+              key={item.id}
+              className="flex items-center justify-between text-xs bg-white p-3 rounded-2xl border border-stone-200 shadow-2xs gap-3"
+            >
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                {/* Imagen */}
+                <div className="shrink-0">
+                  {item.products?.image_url ? (
+                    <img
+                      src={item.products.image_url}
+                      alt={item.products?.name || 'Producto'}
+                      className="w-14 h-14 rounded-xl object-cover border border-stone-200 shrink-0 shadow-2xs"
+                    />
+                  ) : (
+                    <div className="w-14 h-14 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center border border-emerald-200 font-bold shrink-0 text-base">
+                      🌿
+                    </div>
+                  )}
+                </div>
+
+                {/* Entre el nombre del producto y el precio: Nombre, 3 iconos, cantidad y formato */}
+                <div className="min-w-0 flex-1 space-y-1">
+                  {/* 1. Nombre */}
+                  <span className="font-black text-stone-900 block truncate text-xs sm:text-sm leading-tight">
+                    {item.products?.name || 'Producto'}
+                  </span>
+
+                  {/* 2. Los 3 Iconos de opciones de entrega */}
+                  <DeliveryMethodsBadges deliveryMethods={item.products?.delivery_methods} />
+
+                  {/* 3. Cantidad y precio unitario */}
+                  <span className="text-[11px] font-bold text-stone-500 block">
+                    {item.quantity} {item.products?.format === 'granel' ? 'kg' : 'ud(s)'} x {Number(item.unit_price).toFixed(2)} €
+                  </span>
+                </div>
+              </div>
+
+              {/* Subtotal del producto */}
+              <div className="text-right shrink-0">
+                <span className="font-black text-stone-900 text-sm block">
+                  {Number(item.subtotal ?? item.quantity * item.unit_price).toFixed(2)} €
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
 
         <div className="flex justify-between items-center pt-2 border-t border-stone-200 text-sm font-black text-stone-900">
           <span>Total del Pedido:</span>
@@ -325,17 +366,17 @@ export function SellerActiveOrderCard({
                 onClick={() => handleStatusChange('preparando')}
                 className="px-3 py-1.5 bg-purple-100 hover:bg-purple-200 text-purple-950 font-black text-xs rounded-xl border border-purple-300 transition-colors"
               >
-                Marcar: Preparando
+                {loading ? '...' : 'Pasar a Preparando'}
               </button>
             )}
-            {(currentStatus === 'confirmado' || currentStatus === 'preparando') && (
+            {currentStatus === 'preparando' && (
               <button
                 type="button"
                 disabled={loading}
                 onClick={() => handleStatusChange('listo_entrega')}
                 className="px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-950 font-black text-xs rounded-xl border border-blue-300 transition-colors"
               >
-                Marcar: Listo para entrega
+                {loading ? '...' : 'Listo para Entrega'}
               </button>
             )}
             {currentStatus === 'listo_entrega' && (
@@ -343,9 +384,9 @@ export function SellerActiveOrderCard({
                 type="button"
                 disabled={loading}
                 onClick={() => handleStatusChange('entregado')}
-                className="px-3 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white font-black text-xs rounded-xl shadow-sm transition-colors"
+                className="px-3 py-1.5 bg-stone-200 hover:bg-stone-300 text-stone-900 font-black text-xs rounded-xl border border-stone-400 transition-colors"
               >
-                Marcar: Entregado ✅
+                {loading ? '...' : 'Marcar como Entregado'}
               </button>
             )}
           </div>
@@ -353,67 +394,59 @@ export function SellerActiveOrderCard({
           <button
             type="button"
             onClick={() => setShowCancelModal(true)}
-            className="text-xs font-bold text-red-600 hover:text-red-800 hover:bg-red-50 p-2 rounded-xl border border-transparent hover:border-red-200 transition-colors flex items-center gap-1"
+            className="flex items-center gap-1 text-xs font-bold text-red-700 hover:text-red-900 hover:bg-red-50 px-2.5 py-1.5 rounded-lg border border-red-200 transition-colors ml-auto"
           >
             <Trash2 className="w-3.5 h-3.5" />
-            <span>Cancelar pedido</span>
+            <span>Cancelar Pedido</span>
           </button>
         </div>
       )}
 
-      {/* Valoración al comprador cuando está entregado */}
-      {currentStatus === 'entregado' && (
-        <div className="pt-2 border-t border-stone-100">
-          <ReviewForm
-            orderId={order.id}
-            targetId={order.buyer_id}
-          />
-        </div>
-      )}
-
-      {/* Modal de Cancelación de Pedido */}
+      {/* Modal de Cancelación con Motivo */}
       {showCancelModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full border-2 border-stone-200 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-black text-stone-900 text-base flex items-center gap-2">
-                <AlertCircle className="w-5 h-5 text-red-600" /> Cancelar Pedido
-              </h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border-2 border-red-200 space-y-4 animate-fadeIn">
+            <div className="flex items-center justify-between border-b border-stone-100 pb-3">
+              <div className="flex items-center gap-2 text-red-700 font-black text-sm">
+                <AlertCircle className="w-5 h-5" />
+                <span>Cancelar Pedido #{order.id.slice(0, 8)}</span>
+              </div>
               <button
                 type="button"
                 onClick={() => setShowCancelModal(false)}
-                className="text-stone-400 hover:text-stone-700 p-1"
+                className="text-stone-400 hover:text-stone-700"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <p className="text-xs font-semibold text-stone-600">
-              Indica el motivo de la cancelación. Se notificará al cliente y se restaurará el stock.
-            </p>
-
             <form onSubmit={handleConfirmCancel} className="space-y-4">
-              <textarea
-                required
-                rows={3}
-                value={cancelReason}
-                onChange={(e) => setCancelReason(e.target.value)}
-                placeholder="Ej. Incidencia con la cosecha, falta de stock puntual, acuerdo con el cliente..."
-                className="w-full px-3 py-2 border-2 border-stone-300 rounded-xl text-xs font-bold text-stone-900 bg-white focus:ring-2 focus:ring-red-600 focus:outline-none"
-              />
+              <div>
+                <label className="block text-xs font-black text-stone-800 mb-1">
+                  Motivo de cancelación para el comprador <span className="text-red-600">*</span>:
+                </label>
+                <textarea
+                  required
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="Ej: Falta de stock por inclemencias del tiempo, producto no disponible..."
+                  rows={3}
+                  className="w-full p-3 bg-stone-50 border-2 border-stone-300 rounded-xl text-xs font-bold text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-red-600 shadow-inner"
+                />
+              </div>
 
-              <div className="flex gap-2">
+              <div className="flex items-center justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowCancelModal(false)}
-                  className="flex-1 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-black rounded-xl transition-colors"
+                  className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold text-xs rounded-xl"
                 >
                   Volver
                 </button>
                 <button
                   type="submit"
-                  disabled={cancelling}
-                  className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-black rounded-xl transition-colors shadow-sm disabled:opacity-50"
+                  disabled={cancelling || !cancelReason.trim()}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5"
                 >
                   {cancelling ? 'Cancelando...' : 'Confirmar Cancelación'}
                 </button>
@@ -425,5 +458,3 @@ export function SellerActiveOrderCard({
     </div>
   );
 }
-
-export default SellerActiveOrderCard;
