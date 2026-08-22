@@ -10,6 +10,7 @@ interface OrderWithBuyerAndItems extends Order {
     id: string;
     full_name: string;
     town: string;
+    avatar_url?: string | null;
   } | null;
   delivery_points?: {
     name: string;
@@ -45,7 +46,7 @@ export default async function SellerCalendarPage() {
     .from('orders')
     .select(`
       *,
-      profiles!orders_buyer_id_fkey(id, full_name, town),
+      profiles!orders_buyer_id_fkey(id, full_name, town, avatar_url),
       delivery_points(name, address_details),
       order_items(*, products(name))
     `)
@@ -84,6 +85,7 @@ export default async function SellerCalendarPage() {
         status: ord.status,
         amount: Number(ord.total_amount),
         customerName: ord.profiles?.full_name,
+        customerAvatarUrl: ord.profiles?.avatar_url || null,
         deliveryType: ord.delivery_point_id ? 'sitio_fisico' : 'envio',
         deliveryLocation: ord.delivery_points
           ? `${ord.delivery_points.name} (${ord.delivery_points.address_details})`

@@ -73,20 +73,33 @@ export default async function AdminPage() {
                 className="bg-white border border-amber-200 rounded-xl p-5 shadow-sm space-y-4"
               >
                 <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-bold text-stone-900 text-base">
-                      {seller.full_name}
-                    </h3>
-                    <div className="flex items-center gap-1.5 text-xs text-stone-500 mt-1">
-                      <MapPin className="w-3.5 h-3.5" />
-                      <span>{seller.town}</span>
-                      {seller.phone && (
-                        <>
-                          <span className="text-stone-300">·</span>
-                          <Phone className="w-3.5 h-3.5" />
-                          <span>{seller.phone}</span>
-                        </>
-                      )}
+                  <div className="flex items-center gap-3">
+                    {seller.avatar_url ? (
+                      <img
+                        src={seller.avatar_url}
+                        alt={seller.full_name || 'Vendedor'}
+                        className="w-10 h-10 rounded-full object-cover border border-amber-300 shrink-0"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-900 font-bold text-xs flex items-center justify-center border border-amber-300 shrink-0">
+                        {seller.full_name?.charAt(0) || 'V'}
+                      </div>
+                    )}
+                    <div>
+                      <h3 className="font-bold text-stone-900 text-base">
+                        {seller.full_name}
+                      </h3>
+                      <div className="flex items-center gap-1.5 text-xs text-stone-500 mt-0.5">
+                        <MapPin className="w-3.5 h-3.5" />
+                        <span>{seller.town}</span>
+                        {seller.phone && (
+                          <>
+                            <span className="text-stone-300">·</span>
+                            <Phone className="w-3.5 h-3.5" />
+                            <span>{seller.phone}</span>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 px-2 py-1 rounded">
@@ -156,7 +169,20 @@ export default async function AdminPage() {
                 {approvedSellers?.map((seller: Profile) => (
                   <tr key={seller.id} className="hover:bg-stone-50/50">
                     <td className="px-5 py-3.5 font-medium text-stone-900">
-                      {seller.full_name}
+                      <div className="flex items-center gap-2.5">
+                        {seller.avatar_url ? (
+                          <img
+                            src={seller.avatar_url}
+                            alt={seller.full_name || 'Vendedor'}
+                            className="w-7 h-7 rounded-full object-cover border border-stone-200 shrink-0"
+                          />
+                        ) : (
+                          <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-900 font-bold text-[10px] flex items-center justify-center border border-emerald-300 shrink-0">
+                            {seller.full_name?.charAt(0) || 'V'}
+                          </div>
+                        )}
+                        <span>{seller.full_name}</span>
+                      </div>
                     </td>
                     <td className="px-5 py-3.5">{seller.town}</td>
                     <td className="px-5 py-3.5">{seller.phone || '—'}</td>

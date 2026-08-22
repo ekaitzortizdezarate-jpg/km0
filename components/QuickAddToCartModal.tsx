@@ -198,9 +198,22 @@ export function QuickAddToCartModal({
                   </div>
                 )}
                 <div>
-                  <span className="text-[10px] font-black uppercase text-emerald-800 tracking-wider">
-                    {item.sellerName} ({item.sellerTown})
-                  </span>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    {item.sellerAvatarUrl ? (
+                      <img
+                        src={item.sellerAvatarUrl}
+                        alt={item.sellerName}
+                        className="w-5 h-5 rounded-full object-cover border border-stone-200 shrink-0"
+                      />
+                    ) : (
+                      <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 font-black text-[9px] flex items-center justify-center border border-emerald-300 shrink-0">
+                        {item.sellerName?.charAt(0) || 'C'}
+                      </div>
+                    )}
+                    <span className="text-[10px] font-black uppercase text-emerald-800 tracking-wider truncate">
+                      {item.sellerName} ({item.sellerTown})
+                    </span>
+                  </div>
                   <h3 className="text-base font-black text-stone-900 leading-tight">
                     {item.name}
                   </h3>

@@ -21,7 +21,9 @@ export interface CalendarEvent {
   status?: string;
   amount?: number;
   customerName?: string;
+  customerAvatarUrl?: string | null;
   sellerName?: string;
+  sellerAvatarUrl?: string | null;
   deliveryType?: string;
   deliveryLocation?: string;
   items?: string;
@@ -267,15 +269,31 @@ export function CalendarView({ events, role }: CalendarViewProps) {
                   )}
 
                   {ev.customerName && (
-                    <div className="text-xs font-bold text-stone-800 flex items-center gap-1.5">
-                      <User className="w-3.5 h-3.5 text-stone-600" />
+                    <div className="text-xs font-bold text-stone-800 flex items-center gap-2">
+                      {ev.customerAvatarUrl ? (
+                        <img
+                          src={ev.customerAvatarUrl}
+                          alt={ev.customerName}
+                          className="w-5 h-5 rounded-full object-cover border border-stone-300 shrink-0"
+                        />
+                      ) : (
+                        <User className="w-3.5 h-3.5 text-stone-600 shrink-0" />
+                      )}
                       <span>Cliente: {ev.customerName}</span>
                     </div>
                   )}
 
                   {ev.sellerName && (
-                    <div className="text-xs font-bold text-stone-800 flex items-center gap-1.5">
-                      <Store className="w-3.5 h-3.5 text-stone-600" />
+                    <div className="text-xs font-bold text-stone-800 flex items-center gap-2">
+                      {ev.sellerAvatarUrl ? (
+                        <img
+                          src={ev.sellerAvatarUrl}
+                          alt={ev.sellerName}
+                          className="w-5 h-5 rounded-full object-cover border border-stone-300 shrink-0"
+                        />
+                      ) : (
+                        <Store className="w-3.5 h-3.5 text-stone-600 shrink-0" />
+                      )}
                       <span>Caserío: {ev.sellerName}</span>
                     </div>
                   )}

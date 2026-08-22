@@ -619,6 +619,7 @@ export function CatalogViewContainer({
                   sellerId: product.seller_id,
                   sellerName: product.profiles?.full_name || 'Caserío',
                   sellerTown: product.profiles?.town || 'Local',
+                  sellerAvatarUrl: product.profiles?.avatar_url || null,
                   name: product.name,
                   category: product.category,
                   format: product.format,

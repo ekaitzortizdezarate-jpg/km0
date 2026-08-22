@@ -8,6 +8,7 @@ export interface CartItem {
   sellerId: string;
   sellerName: string;
   sellerTown: string;
+  sellerAvatarUrl?: string | null;
   name: string;
   category: string;
   format: 'granel' | 'suelto' | 'pack';

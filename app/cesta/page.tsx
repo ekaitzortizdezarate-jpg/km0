@@ -110,6 +110,7 @@ export default function CartPage() {
         acc[item.sellerId] = {
           sellerName: item.sellerName,
           sellerTown: item.sellerTown,
+          sellerAvatarUrl: item.sellerAvatarUrl || null,
           items: [],
         };
       }
@@ -118,7 +119,7 @@ export default function CartPage() {
     },
     {} as Record<
       string,
-      { sellerName: string; sellerTown: string; items: CartItem[] }
+      { sellerName: string; sellerTown: string; sellerAvatarUrl?: string | null; items: CartItem[] }
     >
   );
 
@@ -394,10 +395,18 @@ export default function CartPage() {
               >
                 {/* Cabecera del Caserío */}
                 <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-stone-100">
-                  <div className="flex items-center gap-2">
-                    <div className="p-2 bg-emerald-50 text-emerald-800 rounded-xl">
-                      <Store className="w-5 h-5" />
-                    </div>
+                  <div className="flex items-center gap-3">
+                    {group.sellerAvatarUrl ? (
+                      <img
+                        src={group.sellerAvatarUrl}
+                        alt={group.sellerName}
+                        className="w-10 h-10 rounded-2xl object-cover border border-stone-200 shrink-0"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-800 flex items-center justify-center font-black text-sm border border-emerald-200 shrink-0">
+                        {group.sellerName?.charAt(0) || 'C'}
+                      </div>
+                    )}
                     <div>
                       <h2 className="text-base font-black text-stone-900">{group.sellerName}</h2>
                       <span className="text-[11px] font-bold text-emerald-800">

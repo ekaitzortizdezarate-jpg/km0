@@ -25,7 +25,7 @@ export default async function ChatDetailPage({
 
   const { data: recipient } = await supabase
     .from('profiles')
-    .select('full_name, town, role')
+    .select('full_name, town, role, avatar_url')
     .eq('id', receiverId)
     .single();
 
@@ -44,9 +44,22 @@ export default async function ChatDetailPage({
         <Link href="/chat" className="text-stone-500 hover:text-stone-900" title="Volver a todos los chats">
           <ArrowLeft className="w-5 h-5" />
         </Link>
-        <div>
-          <h2 className="font-bold text-stone-900 text-sm">{recipient?.full_name || 'Usuario'}</h2>
-          <p className="text-[10px] text-stone-500 capitalize">{recipient?.role} · {recipient?.town}</p>
+        <div className="flex items-center gap-2.5">
+          {recipient?.avatar_url ? (
+            <img
+              src={recipient.avatar_url}
+              alt={recipient.full_name || 'Usuario'}
+              className="w-9 h-9 rounded-full object-cover border border-stone-200 shrink-0"
+            />
+          ) : (
+            <div className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-800 font-black text-xs flex items-center justify-center border border-emerald-300 shrink-0">
+              {recipient?.full_name?.charAt(0) || 'U'}
+            </div>
+          )}
+          <div>
+            <h2 className="font-bold text-stone-900 text-sm">{recipient?.full_name || 'Usuario'}</h2>
+            <p className="text-[10px] text-stone-500 capitalize">{recipient?.role} · {recipient?.town}</p>
+          </div>
         </div>
       </div>
 
