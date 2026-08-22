@@ -27,8 +27,8 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-stone-50 px-4 py-12">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-sm border border-stone-200 p-8">
+    <div className="flex items-start justify-center px-4 pt-2 sm:pt-4 pb-12">
+      <div className="max-w-md w-full bg-white rounded-3xl shadow-sm border-2 border-stone-200 p-6 sm:p-8">
         <div className="text-center mb-6">
           <h1 className="text-2xl font-bold text-stone-900">Crear cuenta en km0</h1>
           <p className="text-sm text-stone-600 mt-1">

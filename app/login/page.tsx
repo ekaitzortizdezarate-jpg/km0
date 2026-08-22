@@ -24,8 +24,8 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-stone-50 px-4 py-12">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-sm border border-stone-200 p-8">
+    <div className="flex items-start justify-center px-4 pt-2 sm:pt-4 pb-12">
+      <div className="max-w-md w-full bg-white rounded-3xl shadow-sm border-2 border-stone-200 p-6 sm:p-8">
         <div className="text-center mb-8">
           <span className="inline-block px-3 py-1 text-xs font-semibold uppercase tracking-wider text-emerald-800 bg-emerald-100 rounded-full mb-2">
             km0 caserío

@@ -621,7 +621,7 @@ export default function CartPage() {
 
   if (!authLoading && !currentUser) {
     return (
-      <div className="max-w-md mx-auto py-12 px-4 text-center space-y-6">
+      <div className="max-w-md mx-auto pt-2 sm:pt-4 pb-12 px-4 text-center space-y-6">
         <div className="w-16 h-16 bg-emerald-100 text-emerald-800 rounded-3xl flex items-center justify-center mx-auto shadow-inner">
           <ShoppingBasket className="w-8 h-8" />
         </div>
