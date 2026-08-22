@@ -3,6 +3,7 @@ import { signout } from '@/app/actions/auth';
 import { LogOut } from 'lucide-react';
 import type { Profile } from '@/types/database';
 import { NavbarNavLinks } from '@/components/NavbarNavLinks';
+import { getOrCreateUserProfile } from '@/lib/profile-utils';
 
 export default async function Navbar() {
   const supabase = await createClient();
@@ -16,12 +17,7 @@ export default async function Navbar() {
   let unreadMessagesCount = 0;
 
   if (user) {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
-    profile = data;
+    profile = await getOrCreateUserProfile(supabase, user);
 
     // Contar mensajes no leídos
     const { count: unreadCount } = await supabase
@@ -51,7 +47,7 @@ export default async function Navbar() {
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b-2 border-stone-200 shadow-sm">
       <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-1 sm:gap-2">
-        {/* Enlaces y Navegación Unificada con km0 Catálogo */}
+        {/* Enlaces y Navegación Unificada con km0 Mercado */}
         <NavbarNavLinks
           user={user}
           profile={profile}

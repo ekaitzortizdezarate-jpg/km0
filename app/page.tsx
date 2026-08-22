@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { ProductCategory, ProductWithSeller, Profile } from '@/types/database';
 import { CatalogViewContainer } from '@/components/CatalogViewContainer';
+import { getOrCreateUserProfile } from '@/lib/profile-utils';
 
 interface SearchParams {
   category?: ProductCategory;
@@ -15,20 +16,12 @@ export default async function HomePage({
   const params = await searchParams;
   const supabase = await createClient();
 
-  // Usuario autenticado y perfil
+  // Usuario autenticado y perfil sincronizado
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  let userProfile: Profile | null = null;
-  if (user) {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
-    userProfile = data;
-  }
+  const userProfile = user ? await getOrCreateUserProfile(supabase, user) : null;
 
   // 1. Obtener todos los productos activos con sus perfiles de vendedor
   const { data: productsData } = await supabase

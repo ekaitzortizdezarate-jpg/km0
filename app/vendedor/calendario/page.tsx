@@ -24,6 +24,8 @@ interface OrderWithBuyerAndItems extends Order {
   }[];
 }
 
+import { getOrCreateUserProfile } from '@/lib/profile-utils';
+
 export default async function SellerCalendarPage() {
   const supabase = await createClient();
   const {
@@ -32,11 +34,7 @@ export default async function SellerCalendarPage() {
 
   if (!user) redirect('/login');
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single();
+  const profile = await getOrCreateUserProfile(supabase, user);
 
   if (profile?.role !== 'vendedor') {
     redirect('/');
